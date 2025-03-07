@@ -18,18 +18,17 @@
 
 //local headers
 #include "scancry.h"
-#include "map_mngr.hh"
+#include "scan_set.hh"
 #include "opt.hh"
 #include "error.hh"
-#include "debug.hh"
 
 
 
 /*
- *  --- [INTERNAL]
+ *  --- [INTERNAL] ---
  */
 
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 bool is_blacklisted(const char * pathname) {
 
     //for every blacklisted pathname
@@ -49,7 +48,7 @@ bool is_blacklisted(const char * pathname) {
  * segments (or their equivalents) in mmap'ed executables. Typically
  * for such objects, their pathname begins with a '/' and the object
  * contains multiple areas (r--, rw-, r-x, etc.). */
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 bool is_static(const cm_lst_node * const obj_node) {
 
     //fetch object from node
@@ -63,7 +62,7 @@ bool is_static(const cm_lst_node * const obj_node) {
 }
 
 
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 bool is_included(cm_lst_node * node,
                  const std::vector<cm_lst_node *> & node_set) {
 
@@ -76,7 +75,7 @@ bool is_included(cm_lst_node * node,
 }
 
 
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 
     cm_byte area_access_bit, access_bitfield_bit, bitmask;
@@ -106,7 +105,7 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 }
 
 
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 bool in_addr_range(const mc_vm_area * area,
                    const std::pair<uintptr_t, uintptr_t> addr_range) {
 
@@ -118,7 +117,7 @@ bool in_addr_range(const mc_vm_area * area,
 }
 
 
-DBG_STATIC DBG_INLINE
+_SC_DBG_STATIC _SC_DBG_INLINE
 cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
     cm_lst_node * area_node_ptr;
@@ -141,7 +140,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept
  * any permissions. */
-std::optional<int> map_mngr::update_scan_areas(const cm_byte access_bitfield,
+std::optional<int> scan_set::update_scan_areas(const cm_byte access_bitfield,
                                                const options & opt) {
 
     cm_lst_node * area_node;
@@ -156,7 +155,7 @@ std::optional<int> map_mngr::update_scan_areas(const cm_byte access_bitfield,
 
 
     //empty previous scan set
-    this->scan_areas.clear();
+    this->area_nodes.clear();
 
 
     //fetch scan constraints
@@ -258,7 +257,7 @@ std::optional<int> map_mngr::update_scan_areas(const cm_byte access_bitfield,
 
 
         //checks passed, add this area to the scan set
-        this->scan_areas.insert(area_node);
+        this->area_nodes.insert(area_node);
         
 
         //advance iteration
@@ -269,7 +268,7 @@ std::optional<int> map_mngr::update_scan_areas(const cm_byte access_bitfield,
         
     } //end iterate through every area
 
-    if (this->scan_areas.empty() == true) {
+    if (this->area_nodes.empty() == true) {
 
         return std::nullopt;
     }

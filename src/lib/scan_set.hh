@@ -26,24 +26,3 @@ namespace map_meta {
         //TODO find others
     };
 }
-
-
-/* Abstraction above mc_vm_map; uses constraints from the options
- * class to arrive at a final set of areas to scan. */
-class scan_set {
-
-    private:
-        //[attributes]
-        std::unordered_set<cm_lst_node *> area_nodes;
-
-    public:
-        //[methods]
-        std::optional<int> update_scan_areas(const cm_byte access_mask,
-                                             const options & opt);
-
-        //getters & setters
-        const std::unordered_set<cm_lst_node *> &
-                                get_area_nodes() const {
-            return area_nodes;
-        }
-};

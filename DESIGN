@@ -1,3 +1,0 @@
-This library is designed to permit only a single instance of ptrscan to
-exist at a time. As far as I am aware, this is desirable because pointer
-scanning is CPU bound rather than input bound.

@@ -49,6 +49,14 @@ void ps_perror(const char * prefix) {
             fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOSESSION_MSG);
             break;
 
+        case SC_ERR_SCAN_EMPTY:
+            fprintf(stderr, "%s: %s", prefix, SC_ERR_SCAN_EMPTY_MSG);
+            break;
+
+        case SC_ERR_OPT_EMPTY:
+            fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_EMPTY_MSG);
+            break;
+
         // 2XX - internal errors
         case SC_ERR_CMORE:
             fprintf(stderr, "%s: %s", prefix, SC_ERR_CMORE_MSG);
@@ -89,6 +97,12 @@ const char * ps_strerror(const int ps_errnum) {
         
         case SC_ERR_OPT_NOSESSION:
             return SC_ERR_OPT_NOSESSION_MSG;
+
+        case SC_ERR_SCAN_EMPTY:
+            return SC_ERR_SCAN_EMPTY_MSG;
+
+        case SC_ERR_OPT_EMPTY:
+            return SC_ERR_OPT_EMPTY_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:

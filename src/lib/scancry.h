@@ -1,6 +1,7 @@
 #ifndef SCANCRY_H
 #define SCANCRY_H
 
+#include <cstddef>
 #ifdef __cplusplus
 //standard template library
 #include <optional>
@@ -55,11 +56,20 @@ class opt {
     _SC_DBG_PRIVATE:
         //[attributes]
         //save & load file paths
-        std::string file_path_out;
-        std::string file_path_in;
+        std::optional<std::string> file_path_out;
+        std::optional<std::string> file_path_in;
 
-        //MemCry session for memory operations
-        mc_session const * session;
+        /*
+         *  The number of threads used during scans is determined 
+         *  by the number of sessions. Each thread requires its
+         *  own session (because each thread needs its own seek
+         *  position).
+         */
+        
+        //MemCry sessions
+        std::vector<mc_session const *> sessions;
+
+        //MemCry memory map of target
         mc_vm_map const * map;
 
         //scan core settings
@@ -88,46 +98,46 @@ class opt {
         //[methods]
         //ctor
         opt(unsigned int _arch_byte_width)
-        : arch_byte_width(_arch_byte_width), session(nullptr) {}
+        : arch_byte_width(_arch_byte_width), map(nullptr) {}
 
 
         //getters & setters
-        void set_file_path_out(std::string _file_path_out);
-        std::string get_file_path_out() const;
+        void set_file_path_out(std::string file_path_out);
+        const std::optional<std::string> & get_file_path_out() const;
 
-        void set_file_path_in(std::string _file_path_in);
-        std::string get_file_path_in() const;
+        void set_file_path_in(std::string file_path_in);
+        const std::optional<std::string> & get_file_path_in() const;
 
-        void set_session(mc_session * _session);
-        mc_session const * get_session() const;
+        void set_sessions(std::vector<mc_session const *> sessions);
+        const std::vector<mc_session const *> & get_sessions() const;
 
-        void set_map(mc_vm_map * _map);
+        void set_map(mc_vm_map * map);
         mc_vm_map const * get_map() const;
 
-        void set_alignment(int _alignment);
+        void set_alignment(int alignment);
         std::optional<unsigned int> get_alignment() const;
 
-        std::optional<unsigned int> get_arch_byte_width() const;
+        unsigned int get_arch_byte_width() const;
         
-        void set_omit_areas(std::vector<cm_lst_node *> & _omit_areas);
+        void set_omit_areas(std::vector<cm_lst_node *> & omit_areas);
         const std::optional<std::vector<cm_lst_node *>> &
                                        get_omit_areas() const;
 
-        void set_omit_objs(std::vector<cm_lst_node *> & _omit_objs);
+        void set_omit_objs(std::vector<cm_lst_node *> & omit_objs);
         const std::optional<std::vector<cm_lst_node *>> &
                                        get_omit_objs() const;
 
         void set_exclusive_areas(std::vector<cm_lst_node *> &
-                                                 _exclusive_areas);
+                                                 exclusive_areas);
         const std::optional<std::vector<cm_lst_node *>> &
                                        get_exclusive_areas() const;
 
         void set_exclusive_objs(std::vector<cm_lst_node *> &
-                                                _exclusive_objs);
+                                                exclusive_objs);
         const std::optional<std::vector<cm_lst_node *>> &
                            get_exclusive_objs() const;
 
-        void set_addr_range(std::pair<uintptr_t, uintptr_t> _addr_range);
+        void set_addr_range(std::pair<uintptr_t, uintptr_t> addr_range);
         const std::optional<std::pair<uintptr_t, uintptr_t>>
                                      get_addr_range() const;
 };
@@ -195,61 +205,70 @@ typedef struct {
 // [opt]
 //return opaque handle to `opt` object, or NULL on error
 void * new_sc_opt(const int arch_byte_width);
-void del_sc_opt(sc_opt opts);
+//return 0 on success, -1 on error
+int del_sc_opt(sc_opt opts);
 
 //return 0 on success, -1 on error
-extern int sc_opt_file_path_out(sc_opt opts, const char * path);
+extern int sc_opt_set_file_path_out(sc_opt opts, const char * path);
 //return output file path string if set, NULL if not set
 extern const char * sc_opt_get_file_path_out(sc_opt opts);
 
 //return 0 on success, -1 on error
-extern int sc_opt_file_path_in(sc_opt opts, const char * path);
+extern int sc_opt_set_file_path_in(sc_opt opts, const char * path);
 //return input file path string if set, NULL if not set
 extern const char * sc_opt_get_file_path_in(sc_opt opts);
 
-//void return
-extern void sc_opt_session(sc_opt opts, mc_session * session);
-//return MemCry session const pointer if set, NULL if not set
-extern mc_session const * sc_opt_get_session(sc_opt opts);
+/*
+ * The following setter requires an initialised CMore vector (`cm_vct`)
+ * holding `mc_session *`. The getter requires an unitialised CMore
+ * vector which will be initialised and populated by the call. Must be
+ * manually destroyed later. 
+ */
+
+//all return 0 on success, -1 on error
+extern int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions);
+extern int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions);
 
 //void return
-extern void sc_opt_map(sc_opt opts, mc_vm_map * map);
+extern void sc_opt_set_map(sc_opt opts, mc_vm_map * map);
 //return MemCry map const pointer if set, NULL if not set
 extern mc_vm_map const * sc_opt_get_map(sc_opt opts);
 
 //void return
-extern void sc_opt_alignment(sc_opt opts, int alignment);
+extern int sc_opt_set_alignment(sc_opt opts, int alignment);
 //return alignment int if set, -1 if not set
 extern int sc_opt_get_alignment(sc_opt opts);
 
 //return arch width in bytes if set, -1 if not set
 extern int sc_opt_get_arch_byte_width(sc_opt opts);
 
-/* The following setters require an initialised CMore vector (`cm_vct`)
+/*
+ * The following setters require an initialised CMore vector (`cm_vct`)
  * holding `cm_lst_node *`. The getters require an unitialised CMore
  * vector which will be initialised and populated by the call. Must be
- * manually destroyed later. */
+ * manually destroyed later. 
+ */
+
 //all return 0 on success, -1 on error
-extern int sc_opt_omit_areas(sc_opt opts, cm_vct * omit_areas);
+extern int sc_opt_set_omit_areas(sc_opt opts, cm_vct * omit_areas);
 extern int sc_opt_get_omit_areas(sc_opt opts, cm_vct * omit_areas);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_omit_objs(sc_opt opts, cm_vct * omit_objs);
+extern int sc_opt_set_omit_objs(sc_opt opts, cm_vct * omit_objs);
 extern int sc_opt_get_omit_objs(sc_opt opts, cm_vct * omit_objs);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas);
+extern int sc_opt_set_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas);
 extern int sc_opt_get_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
+extern int sc_opt_set_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
 extern int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
 
 //void return
-extern void sc_opt_addr_range(sc_opt opts, sc_addr_range * range);
+extern int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range);
 //return sc_addr_range, both fields zero if unset
-extern sc_addr_range sc_opt_get_addr_range(sc_opt opts);
-
+extern int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range);
 
 
 #ifdef __cplusplus
@@ -263,8 +282,13 @@ extern sc_addr_range sc_opt_get_addr_range(sc_opt opts);
 extern "C" {
 extern void sc_perror(const char * prefix);
 extern const char * sc_strerror(const int sc_errnum);
-}
+} //extern "C"
 
+
+
+      /* ===================== * 
+ ===== *  UNIVERSAL INTERFACE  * =====
+       * ===================== */
 
 /*
  *  --- [ERROR HANDLING] ---
@@ -283,6 +307,7 @@ extern __thread int sc_errno;
 #define SC_ERR_OPT_NOMAP      3100
 #define SC_ERR_OPT_NOSESSION  3101
 #define SC_ERR_SCAN_EMPTY     3102
+#define SC_ERR_OPT_EMPTY      3103
 
 // 2XX - internal errors
 #define SC_ERR_CMORE          3200
@@ -303,6 +328,8 @@ extern __thread int sc_errno;
     "Provided opt did not contain a `mc_session`.\n"
 #define SC_ERR_SCAN_EMPTY_MSG \
     "Scan set is empty following an update.\n"
+#define SC_ERR_OPT_EMPTY_MSG \
+    "`sc_opt` does not contain a value for this entry.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \
@@ -319,4 +346,4 @@ extern __thread int sc_errno;
     "Failed to acquire the necessary memory.\n"
 
 
-#endif
+#endif //define SCANCRY_H

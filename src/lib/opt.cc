@@ -151,7 +151,7 @@ const std::optional<std::pair<uintptr_t, uintptr_t>>
  */
 
 //new class opt
-void * new_sc_opt(const int arch_byte_width) {
+sc_opt new_sc_opt(const int arch_byte_width) {
 
     try {
         return new sc::opt(arch_byte_width);    

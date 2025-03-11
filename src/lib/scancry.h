@@ -204,7 +204,7 @@ typedef struct {
 
 // [opt]
 //return opaque handle to `opt` object, or NULL on error
-void * new_sc_opt(const int arch_byte_width);
+sc_opt new_sc_opt(const int arch_byte_width);
 //return 0 on success, -1 on error
 int del_sc_opt(sc_opt opts);
 

@@ -12,7 +12,7 @@
 extern "C" {
 
 //external
-void * new_sc_opt(const int arch_byte_width);
+sc_opt new_sc_opt(const int arch_byte_width);
 int del_sc_opt(sc_opt opts);
 
 int sc_opt_set_file_path_out(sc_opt opts, const char * path);

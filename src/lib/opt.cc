@@ -151,7 +151,7 @@ const std::optional<std::pair<uintptr_t, uintptr_t>>
  */
 
 //new class opt
-sc_opt new_sc_opt(const int arch_byte_width) {
+sc_opt sc_new_opt(const int arch_byte_width) {
 
     try {
         return new sc::opt(arch_byte_width);    
@@ -164,7 +164,7 @@ sc_opt new_sc_opt(const int arch_byte_width) {
 
 
 //delete class opt
-int del_sc_opt(sc_opt opts) {
+int sc_del_opt(sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -181,7 +181,7 @@ int del_sc_opt(sc_opt opts) {
 
 
 //set class opt->file_path_out
-int sc_opt_file_path_out(sc_opt opts, const char * path) {
+int sc_opt_set_file_path_out(sc_opt opts, const char * path) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -221,7 +221,7 @@ const char * sc_opt_get_file_path_out(sc_opt opts) {
 }
 
 
-int sc_opt_file_path_in(sc_opt opts, const char * path) {
+int sc_opt_set_file_path_in(sc_opt opts, const char * path) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -261,7 +261,7 @@ const char * sc_opt_get_file_path_in(sc_opt opts) {
 }
 
 
-int sc_opt_session(sc_opt opts, cm_vct * sessions) {
+int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -284,7 +284,7 @@ int sc_opt_session(sc_opt opts, cm_vct * sessions) {
 }
 
 
-int sc_opt_get_session(sc_opt opts, cm_vct * sessions) {
+int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -323,7 +323,7 @@ int sc_opt_get_session(sc_opt opts, cm_vct * sessions) {
 }
 
 
-void sc_opt_map(sc_opt opts, mc_vm_map * map) {
+void sc_opt_set_map(sc_opt opts, mc_vm_map * map) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);

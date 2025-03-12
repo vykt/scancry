@@ -34,10 +34,10 @@ tests: tgt ${TESTS}
 > mv ${TESTS} ${BUILD_DIR}
 
 ${TESTS}: ${OBJECTS_TEST}
-> ${CC} ${CFLAGS} ${WARN_OPTS} -o $@ $^ ${LDFLAGS}
+> ${CXX} ${CFLAGS} ${WARN_OPTS} -o $@ $^ ${LDFLAGS}
 
 ${BUILD_DIR}/%.o: %.cc
-> ${CC} ${CFLAGS} ${WARN_OPTS} -c $< -o $@
+> ${CXX} ${CFLAGS} ${WARN_OPTS} -c $< -o $@
 
 tgt:
 > $(MAKE) -C ${TARGET_DIR} target CC='${CC}' BUILD_DIR='${BUILD_DIR}'

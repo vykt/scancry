@@ -11,7 +11,7 @@
 #include "error.hh"
 
 
-__thread int ps_errno;
+__thread int sc_errno;
 
 
 /*
@@ -37,9 +37,9 @@ void exception_sc_errno(const std::exception &excp) {
  *  --- [EXTERNAL] ---
  */
 
-void ps_perror(const char * prefix) {
+void sc_perror(const char * prefix) {
 
-    switch(ps_errno) {
+    switch(sc_errno) {
         // 1XX - user errors
         case SC_ERR_OPT_NOMAP:
             fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOMAP_MSG);
@@ -88,9 +88,9 @@ void ps_perror(const char * prefix) {
 }
 
 
-const char * ps_strerror(const int ps_errnum) {
+const char * sc_strerror(const int sc_errnum) {
 
-    switch (ps_errnum) {
+    switch (sc_errnum) {
         // 1XX - user errors
         case SC_ERR_OPT_NOMAP:
             return SC_ERR_OPT_NOMAP_MSG;

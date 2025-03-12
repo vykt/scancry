@@ -201,9 +201,9 @@ typedef struct {
 
 // [opt]
 //return opaque handle to `opt` object, or NULL on error
-sc_opt new_sc_opt(const int arch_byte_width);
+extern sc_opt sc_new_opt(const int arch_byte_width);
 //return 0 on success, -1 on error
-int del_sc_opt(sc_opt opts);
+extern int sc_del_opt(sc_opt opts);
 
 //return 0 on success, -1 on error
 extern int sc_opt_set_file_path_out(sc_opt opts, const char * path);
@@ -274,6 +274,11 @@ extern int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range);
 
 
 
+      /* ===================== * 
+ ===== *  UNIVERSAL INTERFACE  * =====
+       * ===================== */
+
+
 // --- [error handling]
 //void return
 extern "C" {
@@ -282,14 +287,6 @@ extern const char * sc_strerror(const int sc_errnum);
 } //extern "C"
 
 
-
-      /* ===================== * 
- ===== *  UNIVERSAL INTERFACE  * =====
-       * ===================== */
-
-/*
- *  --- [ERROR HANDLING] ---
- */
 
 /*
  *  Both the C++ and C interfaces will set sc_errno on error.

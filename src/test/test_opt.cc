@@ -101,11 +101,11 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
         o.set_sessions(s);
         ret = o.get_sessions();
-        CHECK_EQ(ret, o);
+        CHECK_EQ(ret, s);
         
     } //end test
 
-    
+
     //test 4: set & get `map`
     SUBCASE(test_cc_opt_subtests[4]) {
 
@@ -116,7 +116,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
         o.set_map((mc_vm_map *) 0x1337);
         ret = o.get_map();
-        CHECK_EQ(ret, 0x1337);
+        CHECK_EQ(ret, (mc_vm_map const *) 0x1337);
         
     } //end test
 
@@ -146,7 +146,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     
     } //end test
 
-    
+
     //test 7: set & get `omit_areas`
     SUBCASE(test_cc_opt_subtests[7]) {
 
@@ -162,7 +162,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
                         
     } //end test
 
-    
+
     //test 8: set & get `omit_objs`
     SUBCASE(test_cc_opt_subtests[8]) {
 
@@ -227,7 +227,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
     return;
-    
+
 } //end TEST_CASE 
 
 
@@ -291,7 +291,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     sc_opt o;
 
     //test 0: create a sc_opt
-    o = new_sc_opt(test_arch_byte_width);
+    o = sc_new_opt(test_arch_byte_width);
     REQUIRE_NE(o, nullptr);
     
 
@@ -329,7 +329,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 3: set & get `file_sessions`
+    //test 3: set & get `sessions`
     SUBCASE(test_c_opt_subtests[3]) {
 
         cm_lst_node * a[3] = {
@@ -374,7 +374,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 4: set & get
+    //test 4: set & get `map`
     SUBCASE(test_c_opt_subtests[4]) {
 
         mc_vm_map const * ret;
@@ -384,7 +384,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
         sc_opt_set_map(o, (mc_vm_map *) 0x10203040);
         ret = sc_opt_get_map(o);
-        CHECK_EQ(ret, 0x10203040);
+        CHECK_EQ(ret, (mc_vm_map const *) 0x10203040);
         
     } //end test
 
@@ -498,13 +498,15 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
         ret = sc_opt_get_addr_range(o, &rett);
         CHECK_EQ(ret, 0);
-        CHECK_EQ(rett, ar);       
+        CHECK_EQ(rett.min, ar.min);
+        CHECK_EQ(rett.max, ar.max);       
 
     } //end test
 
 
     //test 0 (cont.): destroy a sc_opt
-    int _ret = del_sc_opt(o);
+    int _ret = sc_del_opt(o);
     CHECK_EQ(_ret, 0);
 
 } //end TEST_CASE
+

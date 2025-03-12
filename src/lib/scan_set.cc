@@ -86,8 +86,8 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
     do {
 
         //get relevant bits for this iteration
-        area_access_bit &= bitmask;
-        access_bitfield_bit &= bitmask;
+        area_access_bit = area_access & bitmask;
+        access_bitfield_bit = access_bitfield & bitmask;
 
         //if this access bit is not required
         if (area_access_bit == 0) goto is_access_continue;
@@ -140,8 +140,8 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept
  * any permissions. */
-std::optional<int> scan_set::update_scan_areas(const cm_byte access_bitfield,
-                                               const options & opt) {
+std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield,
+                                                   const sc::opt & opts) {
 
     cm_lst_node * area_node;
     mc_vm_area * area;
@@ -160,19 +160,19 @@ std::optional<int> scan_set::update_scan_areas(const cm_byte access_bitfield,
 
     //fetch scan constraints
     const std::optional<std::vector<cm_lst_node *>> & omit_areas_set
-        = opt.get_omit_areas_set();
+        = opts.get_omit_areas();
     const std::optional<std::vector<cm_lst_node *>> & omit_objs_set
-        = opt.get_omit_objs_set(); 
+        = opts.get_omit_objs(); 
     const std::optional<std::vector<cm_lst_node *>> & exclusive_areas_set
-        = opt.get_exclusive_areas_set();
+        = opts.get_exclusive_areas();
     const std::optional<std::vector<cm_lst_node *>> & exclusive_objs_set
-        = opt.get_exclusive_objs_set();
+        = opts.get_exclusive_objs();
     const std::optional<std::pair<uintptr_t, uintptr_t>> addr_range
-        = opt.get_addr_range();
+        = opts.get_addr_range();
 
 
     //fetch MemCry map
-    mc_vm_map const * map = opt.get_map();
+    mc_vm_map const * map = opts.get_map();
     if (map == nullptr) {
         sc_errno = SC_ERR_OPT_NOMAP;
         return std::nullopt;
@@ -192,6 +192,9 @@ std::optional<int> scan_set::update_scan_areas(const cm_byte access_bitfield,
         //perform object related checks if an object is present
         obj_node = area->obj_node_p;
         if (obj_node != nullptr) {
+
+            //fetch object from node
+            obj = MC_GET_NODE_OBJ(obj_node);
 
             //if an exclusive object set is used, object must be in it
             if (exclusive_objs_set.has_value()) {

@@ -66,10 +66,10 @@ CXXWARN_OPTS  += $(WARN_OPTS)
 
 test: shared
 > $(MAKE) -C ${TEST_DIR} tests CC='${CC}' CXX='${CXX}' \
-                               _CFLAGS='${CFLAGS_TEST}'
-							   _CXXFLAGS='${CXXFLAGS_TEST}' \
-		                       _CWARN_OPTS='${CWARN_OPTS}' \
-							   _CXXWARN_OPTS='${CXXWARN_OPTS}' \
+                               _CFLAGS='${CFLAGS_TEST}' \
+                               _CXXFLAGS='${CXXFLAGS_TEST}' \
+                               _CWARN_OPTS='${CWARN_OPTS}' \
+                               _CXXWARN_OPTS='${CXXWARN_OPTS}' \
                                BUILD_DIR='${BUILD_DIR}/test' \
                                LIB_BIN_DIR='${BUILD_DIR}/lib'
 
@@ -78,7 +78,7 @@ all: shared static
 shared:
 > $(MAKE) -C ${LIB_DIR} shared CXX='${CXX}' _CXXFLAGS='${CXXFLAGS} -fPIC' \
 	                           _CXXWARN_OPTS='${CXXWARN_OPTS}' \
-							   _LDFLAGS='${LDFLAGS}' \
+	                           _LDFLAGS='${LDFLAGS}' \
 	                           BUILD_DIR='${BUILD_DIR}/lib'
 
 static:

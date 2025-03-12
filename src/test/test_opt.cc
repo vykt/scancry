@@ -21,9 +21,10 @@
  */
 
 //test constraints
-void constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
-                     void (sc::opt::*set)(std::vector<cm_lst_node *> &),
-                     const std::optional<std::vector<cm_lst_node *>> & (sc::opt::*get)() const) {
+static void _cc_constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
+                                void (sc::opt::*set)(std::vector<cm_lst_node *> &),
+                                const std::optional<std::vector<cm_lst_node *>>
+                                & (sc::opt::*get)() const) {
 
     //check constraint starts out empty
     const std::optional<std::vector<cm_lst_node *>> ret_1 = (o.*get)();
@@ -156,8 +157,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         };
 
         //call constraint test helper        
-        constraint_test(o, s, &sc::opt::set_omit_areas,
-                        &sc::opt::get_omit_areas);
+        _cc_constraint_test(o, s, &sc::opt::set_omit_areas,
+                            &sc::opt::get_omit_areas);
                         
     } //end test
 
@@ -172,8 +173,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         };
 
         //call constraint test helper        
-        constraint_test(o, s, &sc::opt::set_omit_objs,
-                        &sc::opt::get_omit_objs);
+        _cc_constraint_test(o, s, &sc::opt::set_omit_objs,
+                            &sc::opt::get_omit_objs);
 
     } //end test
 
@@ -188,8 +189,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         };
 
         //call constraint test helper        
-        constraint_test(o, s, &sc::opt::set_exclusive_areas,
-                        &sc::opt::get_exclusive_areas);
+        _cc_constraint_test(o, s, &sc::opt::set_exclusive_areas,
+                            &sc::opt::get_exclusive_areas);
         
     } //end test
 
@@ -204,8 +205,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         };
 
         //call constraint test helper        
-        constraint_test(o, s, &sc::opt::set_omit_objs,
-                        &sc::opt::get_omit_objs);
+        _cc_constraint_test(o, s, &sc::opt::set_omit_objs,
+                            &sc::opt::get_omit_objs);
     } //end test
 
 
@@ -239,6 +240,46 @@ TEST_CASE(test_cc_opt_subtests[0]) {
  *  --- [HELPERS] ---
  */
 
+//test constraints
+static void _c_constraint_test(sc_opt o, cm_lst_node * a[3],
+                               int (* set)(sc_opt o, cm_vct * v),
+                               int (* get)(sc_opt o, cm_vct * v)) {
+
+        int ret;
+        cm_lst_node * s;
+        cm_vct v, w;
+
+
+        //setup vector
+        ret = cm_new_vct(&v, sizeof(cm_lst_node *));
+        CHECK_EQ(ret, 0);
+
+        for (int i = 0; i < 3; ++i) {
+            ret = cm_vct_apd(&v, &a[i]);
+            CHECK_EQ(ret, 0);
+        }
+
+        //run setters & getters
+        ret = get(o, &w);
+        CHECK_EQ(ret, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        ret = set(o, &v);
+        CHECK_EQ(ret, 0);
+
+        ret = get(o, &w);
+        for (int i = 0; i < 3; ++i) {
+        
+            ret = cm_vct_get(&v, i, &s);
+            CHECK_EQ(ret, 0);
+            CHECK_EQ(s, a[i]);
+        }
+
+        cm_del_vct(&v);
+        cm_del_vct(&w);
+ 
+    return;
+}
 
 
 /*
@@ -255,7 +296,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     
 
     //test 1: set & get `file_path_out`
-    SUBCASE(test_c_opt_subtests[1]){
+    SUBCASE(test_c_opt_subtests[1]) {
 
         int ret;
         const char * p = "/foo/bar";
@@ -272,7 +313,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
 
     //test 2: set & get `file_path_in`
-    SUBCASE(test_c_opt_subtests[2]){
+    SUBCASE(test_c_opt_subtests[2]) {
 
         int ret;
         const char * p = "/foo/bar";
@@ -289,7 +330,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
 
     //test 3: set & get `file_sessions`
-    SUBCASE(test_c_opt_subtests[3]){
+    SUBCASE(test_c_opt_subtests[3]) {
 
         cm_lst_node * a[3] = {
             (cm_lst_node *) 0x10101010,
@@ -333,77 +374,133 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 4: set & get
+    SUBCASE(test_c_opt_subtests[4]) {
 
+        mc_vm_map const * ret;
 
+        ret = sc_opt_get_map(o);
+        CHECK_EQ(ret, nullptr);
+
+        sc_opt_set_map(o, (mc_vm_map *) 0x10203040);
+        ret = sc_opt_get_map(o);
+        CHECK_EQ(ret, 0x10203040);
         
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 5: set & get alignment
+    SUBCASE(test_c_opt_subtests[5]) {
 
+        int ret;
+        unsigned int a;
 
+        a = sc_opt_get_alignment(o);
+        CHECK_EQ(a, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        ret = sc_opt_set_alignment(o, 4);
+        CHECK_EQ(ret, 0);
+        a = sc_opt_get_alignment(o);
+        CHECK_EQ(a, 4);
         
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 6: get arch_byte_width
+    SUBCASE(test_c_opt_subtests[6]) {
 
+        unsigned int ret;
 
+        ret =sc_opt_get_arch_byte_width(o);
+        CHECK_EQ(ret, test_arch_byte_width);
         
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 7: set & get omit_areas
+    SUBCASE(test_c_opt_subtests[7]) {
 
+        cm_lst_node * a[3] = {
+            (cm_lst_node *) 0x40404040,
+            (cm_lst_node *) 0x50505050,
+            (cm_lst_node *) 0x60606060
+        };
 
-        
+        //call constraint test helper
+        _c_constraint_test(o, a, sc_opt_set_omit_areas,
+                           sc_opt_get_omit_areas);
+
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 8: set & get omit_objs
+    SUBCASE(test_c_opt_subtests[8]) {
 
+        cm_lst_node * a[3] = {
+            (cm_lst_node *) 0x04040404,
+            (cm_lst_node *) 0x05050505,
+            (cm_lst_node *) 0x06060606
+        };
 
-        
+        //call constraint test helper
+        _c_constraint_test(o, a, sc_opt_set_omit_objs,
+                           sc_opt_get_omit_objs);
+
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 9: set & get exclusive_areas
+    SUBCASE(test_c_opt_subtests[9]) {
 
+        cm_lst_node * a[3] = {
+            (cm_lst_node *) 0x70707070,
+            (cm_lst_node *) 0x80808080,
+            (cm_lst_node *) 0x90909090
+        };
 
-        
+        //call constraint test helper
+        _c_constraint_test(o, a, sc_opt_set_exclusive_areas,
+                           sc_opt_get_exclusive_areas);
+
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 10: set & get exclusive_objs
+    SUBCASE(test_c_opt_subtests[10]) {
 
+        cm_lst_node * a[3] = {
+            (cm_lst_node *) 0x07070707,
+            (cm_lst_node *) 0x08080808,
+            (cm_lst_node *) 0x09090909
+        };
 
-        
+        //call constraint test helper
+        _c_constraint_test(o, a, sc_opt_set_exclusive_objs,
+                           sc_opt_get_exclusive_objs);
+
     } //end test
 
 
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
+    //test 11: set & get
+    SUBCASE(test_c_opt_subtests[11]) {
 
+        int ret;
+        sc_addr_range rett = {0, 0};
+        sc_addr_range ar = {0x1000, 0x2000};
 
-        
+        ret = sc_opt_get_addr_range(o, &rett);
+        CHECK_EQ(ret, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        ret = sc_opt_set_addr_range(o, &ar);
+        CHECK_EQ(ret, 0);
+
+        ret = sc_opt_get_addr_range(o, &rett);
+        CHECK_EQ(ret, 0);
+        CHECK_EQ(rett, ar);       
+
     } //end test
-
-
-    //test : set & get
-    SUBCASE(test_c_opt_subtests[]){
-
-
-        
-    } //end test
-
 
 
     //test 0 (cont.): destroy a sc_opt

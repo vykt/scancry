@@ -358,7 +358,7 @@ int sc_opt_set_alignment(sc_opt opts, int alignment) {
 }
 
     
-int sc_opt_get_alignment(sc_opt opts) {
+unsigned int sc_opt_get_alignment(sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -381,7 +381,7 @@ int sc_opt_get_alignment(sc_opt opts) {
 }
 
 
-int sc_opt_get_arch_byte_width(sc_opt opts) {
+unsigned int sc_opt_get_arch_byte_width(sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);

@@ -39,7 +39,7 @@ ${SHARED}: ${OBJECTS_LIB}
 ${STATIC}: ${OBJECTS_LIB}
 > ar rcs $@ $^
 
-${BUILD_DIR}/%.o: %.c
+${BUILD_DIR}/%.o: %.cc
 > ${CXX} ${CXXFLAGS} ${CXXWARN_OPTS} -c $< -o $@
 
 clean:

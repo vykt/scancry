@@ -21,10 +21,8 @@ LDFLAGS=-L${LIB_BIN_DIR} \
 
 
 #[build constants]
-SOURCES_TEST=check_map.c check_procfs_iface.c check_krncry_iface.c \
-             check_map_util.c check_util.c iface_helper.c info.c \
-			 map_helper.c suites.c target_helper.c main.c
-OBJECTS_TEST=${SOURCES_TEST:%.c=${BUILD_DIR}/%.o}
+SOURCES_TEST=main.cc filters.cc test_opt.cc
+OBJECTS_TEST=${SOURCES_TEST:%.cc=${BUILD_DIR}/%.o}
 TARGET_DIR=${shell pwd}/target
 
 
@@ -38,7 +36,7 @@ tests: tgt ${TESTS}
 ${TESTS}: ${OBJECTS_TEST}
 > ${CC} ${CFLAGS} ${WARN_OPTS} -o $@ $^ ${LDFLAGS}
 
-${BUILD_DIR}/%.o: %.c
+${BUILD_DIR}/%.o: %.cc
 > ${CC} ${CFLAGS} ${WARN_OPTS} -c $< -o $@
 
 tgt:

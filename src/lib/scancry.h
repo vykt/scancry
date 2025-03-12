@@ -27,7 +27,7 @@
 #ifdef DEBUG 
 #define _SC_DBG_STATIC
 #define _SC_DBG_INLINE
-#define _SC_DBG_PRIVATE
+#define _SC_DBG_PRIVATE public
 #else
 #define _SC_DBG_STATIC static
 #define _SC_DBG_INLINE inline
@@ -93,12 +93,11 @@ class opt {
         std::optional<std::vector<cm_lst_node *>> exclusive_objs;
         std::optional<std::pair<uintptr_t, uintptr_t>> addr_range;
 
-
     public:
         //[methods]
         //ctor
         opt(unsigned int _arch_byte_width)
-        : arch_byte_width(_arch_byte_width), map(nullptr) {}
+        : map(nullptr), arch_byte_width(_arch_byte_width) {}
 
 
         //getters & setters
@@ -127,13 +126,11 @@ class opt {
         const std::optional<std::vector<cm_lst_node *>> &
                                        get_omit_objs() const;
 
-        void set_exclusive_areas(std::vector<cm_lst_node *> &
-                                                 exclusive_areas);
+        void set_exclusive_areas(std::vector<cm_lst_node *> & exclusive_areas);
         const std::optional<std::vector<cm_lst_node *>> &
                                        get_exclusive_areas() const;
 
-        void set_exclusive_objs(std::vector<cm_lst_node *> &
-                                                exclusive_objs);
+        void set_exclusive_objs(std::vector<cm_lst_node *> & exclusive_objs);
         const std::optional<std::vector<cm_lst_node *>> &
                            get_exclusive_objs() const;
 
@@ -159,11 +156,11 @@ class scan_set {
                                              const opt & opt);
 
         //getters & setters
-        const std::unordered_set<cm_lst_node *> &
-                                get_area_nodes() const {
+        const std::unordered_set<cm_lst_node *> & get_area_nodes() const {
             return area_nodes;
         }
 };
+
 
 }; //namespace sc
 #endif //#ifdef __cplusplus
@@ -237,10 +234,10 @@ extern mc_vm_map const * sc_opt_get_map(sc_opt opts);
 //void return
 extern int sc_opt_set_alignment(sc_opt opts, int alignment);
 //return alignment int if set, -1 if not set
-extern int sc_opt_get_alignment(sc_opt opts);
+extern unsigned int sc_opt_get_alignment(sc_opt opts);
 
 //return arch width in bytes if set, -1 if not set
-extern int sc_opt_get_arch_byte_width(sc_opt opts);
+extern unsigned int sc_opt_get_arch_byte_width(sc_opt opts);
 
 /*
  * The following setters require an initialised CMore vector (`cm_vct`)

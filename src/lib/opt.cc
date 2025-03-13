@@ -102,7 +102,7 @@ void sc::opt::set_omit_objs(std::vector<cm_lst_node *> & omit_objs) {
 
 const std::optional<std::vector<cm_lst_node *>> &
                    sc::opt::get_omit_objs() const {
-    return this->omit_areas;
+    return this->omit_objs;
 }
 
 
@@ -144,6 +144,77 @@ const std::optional<std::pair<uintptr_t, uintptr_t>>
       /* ============= * 
  ===== *  C INTERFACE  * =====
        * ============= */
+
+/*
+ *  --- [INTERNAL] ---
+ */
+
+//generic setter of constraints
+_SC_DBG_STATIC
+int _opt_c_constraint_setter(sc_opt opts, cm_vct * v,
+                             void (sc::opt::*set)(std::vector<cm_lst_node *> &)) {
+    
+    //cast opaque handle into class
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    //create a STL vector
+    std::vector<cm_lst_node *> rett;
+    rett.resize(v->len);
+    std::memcpy(rett.data(), v->data, v->data_sz * v->len);
+
+    //call the setter with the STL vector
+    try {
+        (o->*set)(rett);
+        return 0;
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+//generic getter of constraints
+_SC_DBG_STATIC
+int _opt_c_constraint_getter(sc_opt opts, cm_vct * v,
+                             const std::optional<std::vector<cm_lst_node *>> &
+                             (sc::opt::*get)() const) {
+    
+    //cast opaque handle into class
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    //initialise the CMore vector
+    int ret = cm_new_vct(v, sizeof(cm_lst_node *));
+    if (ret == -1) {
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+
+    //copy contents of the STL vector into the CMore vector.
+    try {
+        //get the STL vector
+        const std::optional<std::vector<cm_lst_node *>> & rett = (o->*get)();
+
+        //if a STL vector is present, do the copy
+        if (rett.has_value() && !rett.value().empty()) {
+            ret = cm_vct_rsz(v, rett.value().size());
+            std::memcpy(v->data, rett.value().data(),
+                        rett.value().size() * sizeof(cm_lst_node *));
+            return 0;
+
+        } else {
+            cm_del_vct(v);
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
+        
+    } catch (const std::exception & excp) {
+        cm_del_vct(v);
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
 
 
 /*
@@ -267,14 +338,14 @@ int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions) {
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     //create a STL vector
-    std::vector<cm_lst_node *> v;
+    std::vector<const mc_session *> v;
     v.resize(sessions->len);
     std::memcpy(v.data(), sessions->data,
                 sessions->data_sz * sessions->len);
 
     //call the setter with the STL vector
     try {
-        o->set_omit_areas(v);
+        o->set_sessions(v);
         return 0;
 
     } catch (const std::exception & excp) {
@@ -291,7 +362,7 @@ int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions) {
 
     //initialise the CMore vector
     int ret = cm_new_vct(sessions, sizeof(cm_lst_node *));
-    if (ret == 0) {
+    if (ret == -1) {
         sc_errno = SC_ERR_CMORE;
         return -1;
     }
@@ -299,8 +370,8 @@ int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions) {
     //copy contents of the STL vector into the CMore vector.
     try {
         //get the STL vector
-        const std::optional<std::vector<cm_lst_node *>> & v
-            = o->get_omit_areas();
+        const std::optional<std::vector<const mc_session *>> & v
+            = o->get_sessions();
 
         //if a STL vector is present, do the copy
         if (v.has_value() && !v.value().empty()) {
@@ -397,249 +468,65 @@ unsigned int sc_opt_get_arch_byte_width(sc_opt opts) {
 
 int sc_opt_set_omit_areas(sc_opt opts, cm_vct * omit_areas) {
 
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //create a STL vector
-    std::vector<cm_lst_node *> v;
-    v.resize(omit_areas->len);
-    std::memcpy(v.data(), omit_areas->data,
-                omit_areas->data_sz * omit_areas->len);
-
-    //call the setter with the STL vector
-    try {
-        o->set_omit_areas(v);
-        return 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic setter
+    return _opt_c_constraint_setter(opts, omit_areas,
+                                    &sc::opt::set_omit_areas);
 }
 
 
 int sc_opt_get_omit_areas(sc_opt opts, cm_vct * omit_areas) {
 
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //initialise the CMore vector
-    int ret = cm_new_vct(omit_areas, sizeof(cm_lst_node *));
-    if (ret == 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy contents of the STL vector into the CMore vector.
-    try {
-        //get the STL vector
-        const std::optional<std::vector<cm_lst_node *>> & v
-            = o->get_omit_areas();
-
-        //if a STL vector is present, do the copy
-        if (v.has_value() && !v.value().empty()) {
-            ret = cm_vct_rsz(omit_areas, v.value().size());
-            std::memcpy(omit_areas->data, v.value().data(),
-                        v.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(omit_areas);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        cm_del_vct(omit_areas);
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic getter
+    return _opt_c_constraint_getter(opts, omit_areas,
+                                    &sc::opt::get_omit_areas);
 }
 
 
 int sc_opt_set_omit_objs(sc_opt opts, cm_vct * omit_objs) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //create a STL vector
-    std::vector<cm_lst_node *> v;
-    v.resize(omit_objs->len);
-    std::memcpy(v.data(), omit_objs->data,
-                omit_objs->data_sz * omit_objs->len);
-
-    //call the setter with the STL vector
-    try {
-        o->set_omit_areas(v);
-        return 0;
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic setter
+    return _opt_c_constraint_setter(opts, omit_objs,
+                                    &sc::opt::set_omit_objs);
 }
 
 
 int sc_opt_get_omit_objs(sc_opt opts, cm_vct * omit_objs) {
 
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //initialise the CMore vector
-    int ret = cm_new_vct(omit_objs, sizeof(cm_lst_node *));
-    if (ret == 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy contents of the STL vector into the CMore vector.
-    try {
-        //get the STL vector
-        const std::optional<std::vector<cm_lst_node *>> & v
-            = o->get_omit_areas();
-
-        //if a STL vector is present, do the copy
-        if (v.has_value() && !v.value().empty()) {
-            ret = cm_vct_rsz(omit_objs, v.value().size());
-            std::memcpy(omit_objs->data, v.value().data(),
-                        v.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(omit_objs);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        cm_del_vct(omit_objs);
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic getter
+    return _opt_c_constraint_getter(opts, omit_objs,
+                                    &sc::opt::get_omit_objs);
 }
 
 
 int sc_opt_set_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //create a STL vector
-    std::vector<cm_lst_node *> v;
-    v.resize(exclusive_areas->len);
-    std::memcpy(v.data(), exclusive_areas->data,
-                exclusive_areas->data_sz * exclusive_areas->len);
-
-    //call the setter with the STL vector
-    try {
-        o->set_omit_areas(v);
-        return 0;
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic setter
+    return _opt_c_constraint_setter(opts, exclusive_areas,
+                                    &sc::opt::set_exclusive_areas);
 }
 
 
 int sc_opt_get_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
     
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //initialise the CMore vector
-    int ret = cm_new_vct(exclusive_areas, sizeof(cm_lst_node *));
-    if (ret == 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy contents of the STL vector into the CMore vector.
-    try {
-        //get the STL vector
-        const std::optional<std::vector<cm_lst_node *>> & v
-            = o->get_omit_areas();
-
-        //if a STL vector is present, do the copy
-        if (v.has_value() && !v.value().empty()) {
-            ret = cm_vct_rsz(exclusive_areas, v.value().size());
-            std::memcpy(exclusive_areas->data, v.value().data(),
-                        v.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(exclusive_areas);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        cm_del_vct(exclusive_areas);
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic getter
+    return _opt_c_constraint_getter(opts, exclusive_areas,
+                                    &sc::opt::get_exclusive_areas);
 }
 
 
 int sc_opt_set_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //create a STL vector
-    std::vector<cm_lst_node *> v;
-    v.resize(exclusive_objs->len);
-    std::memcpy(v.data(), exclusive_objs->data,
-                exclusive_objs->data_sz * exclusive_objs->len);
-
-    //call the setter with the STL vector
-    try {
-        o->set_omit_areas(v);
-        return 0;
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic setter
+    return _opt_c_constraint_setter(opts, exclusive_objs,
+                                    &sc::opt::set_exclusive_objs);
 }
 
 
 int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //initialise the CMore vector
-    int ret = cm_new_vct(exclusive_objs, sizeof(cm_lst_node *));
-    if (ret == 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy contents of the STL vector into the CMore vector.
-    try {
-        //get the STL vector
-        const std::optional<std::vector<cm_lst_node *>> & v
-            = o->get_omit_areas();
-
-        //if a STL vector is present, do the copy
-        if (v.has_value() && !v.value().empty()) {
-            ret = cm_vct_rsz(exclusive_objs, v.value().size());
-            std::memcpy(exclusive_objs->data, v.value().data(),
-                        v.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(exclusive_objs);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        cm_del_vct(exclusive_objs);
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //call generic getter
+    return _opt_c_constraint_getter(opts, exclusive_objs,
+                                    &sc::opt::get_exclusive_objs);
 }
 
 

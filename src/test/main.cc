@@ -46,7 +46,7 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
     uint16_t test_mask = 0;
 
     
-    while((opt = getopt_long(argc, argv, "aos", long_opts, NULL)) != -1 
+    while((opt = getopt_long(argc, argv, "aoOsS", long_opts, NULL)) != -1 
           && opt != 0) {
 
         //determine parsed argument

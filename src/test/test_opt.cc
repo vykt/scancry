@@ -307,7 +307,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         ret = sc_opt_set_file_path_out(o, p);
         CHECK_EQ(ret, 0);
         const char * ret_2 = sc_opt_get_file_path_out(o);
-        CHECK_EQ(ret_2, p);
+        CHECK(std::string(ret_2) == p);
 
     } //end test
 
@@ -324,7 +324,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         ret = sc_opt_set_file_path_in(o, p);
         CHECK_EQ(ret, 0);
         const char * ret_2 = sc_opt_get_file_path_in(o);
-        CHECK_EQ(ret_2, p);
+        CHECK(std::string(ret_2) == p);
         
     } //end test
 
@@ -412,7 +412,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
         unsigned int ret;
 
-        ret =sc_opt_get_arch_byte_width(o);
+        ret = sc_opt_get_arch_byte_width(o);
         CHECK_EQ(ret, test_arch_byte_width);
         
     } //end test

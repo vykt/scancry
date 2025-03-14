@@ -47,7 +47,7 @@ int clean_targets() {
 
     //build the kill command    
     std::stringstream command_ss;
-    command_ss << "kill $(pidof " << target_helper::name
+    command_ss << "kill $(pidof " << target_name
                << ") > /dev/null 2> /dev/null";
 
     //use system() to kill all existing targets
@@ -66,7 +66,7 @@ pid_t start_target() {
     pid_t target_pid, parent_pid;
     char pid_buf[8];
     
-    char * argv[3] = {(char *) target_helper::name, 0, 0};
+    char * argv[3] = {(char *) target_name, 0, 0};
     enum target_map_state old_state;
 
 
@@ -88,7 +88,7 @@ pid_t start_target() {
 
     //change image to target in child
     if (target_pid == 0) {
-        ret = execve(target_helper::name, argv, NULL);
+        ret = execve(target_name, argv, NULL);
         CHECK_NE(ret, -1);
 
     //parent waits for child to complete initialisation

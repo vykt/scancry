@@ -146,7 +146,7 @@ class opt {
  */
 class scan_set {
 
-    private:
+    _SC_DBG_PRIVATE:
         //[attributes]
         std::unordered_set<cm_lst_node *> area_nodes;
 

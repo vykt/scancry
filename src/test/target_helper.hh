@@ -21,11 +21,8 @@ enum target_map_state {
     INIT,   //child initialisation complete
 };
 
-
 //target metadata
-namespace target_helper {
-    const constexpr char * name = "unit_target";
-}
+const constexpr char * target_name = "unit_target";
 
 
 //target helpers

@@ -6,7 +6,7 @@
 
 
 
-//
+//generic doctest filter applier
 void _add_filters(const char * const filters[],
                   int len, doctest::Context & context) {
 
@@ -38,7 +38,8 @@ void add_c_opt(doctest::Context & context) {
 //add C++ interface scan_set tests
 void add_cc_scan_set(doctest::Context & context) {
 
-    //TODO
+    _add_filters(test_cc_scan_set_subtests,
+                 test_cc_scan_set_subtests_num, context);
     return;
 }
 
@@ -46,6 +47,7 @@ void add_cc_scan_set(doctest::Context & context) {
 //add C interface scan_set tests
 void add_c_scan_set(doctest::Context & context) {
 
-    //TODO
+    _add_filters(test_c_scan_set_subtests,
+                 test_c_scan_set_subtests_num, context);
     return;
 }

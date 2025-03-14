@@ -24,6 +24,10 @@
 
 
 
+      /* =============== * 
+ ===== *  C++ INTERFACE  * =====
+       * =============== */
+
 /*
  *  --- [INTERNAL] ---
  */
@@ -277,4 +281,142 @@ std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield
     }
 
     return 0;
+}
+
+
+
+      /* ============= * 
+ ===== *  C INTERFACE  * =====
+       * ============= */
+
+/*
+ *  --- [EXTERNAL] ---
+ */
+
+sc_scan_set sc_new_scan_set() {
+
+    try {
+        return new sc::scan_set();    
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
+
+
+int sc_del_scan_set(sc_scan_set s_set) {
+    
+    //cast opaque handle into class
+    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+
+    try {
+        delete s;
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+
+int sc_update_scan_areas(sc_scan_set s_set,
+                         const sc_opt opts, const cm_byte access_bitfield) {
+
+    //cast opaque handles into classes
+    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    try {
+
+        //update the scan set
+        std::optional<int> ret = s->update_scan_areas(access_bitfield, *o);
+        if (ret.has_value() == false) return -1;
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes) {
+
+    cm_lst_node * min_area_node, * now_area_node;
+    mc_vm_area * min_area, * now_area;
+    std::unordered_set<cm_lst_node *>::iterator min;
+
+
+    //cast opaque handle into class
+    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+
+    //initialise the CMore vector
+    int ret = cm_new_vct(area_nodes, sizeof(cm_lst_node *));
+    if (ret == -1) {
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+
+    //sort & copy contents of the STL hashmap into the CMore vector.
+    try {
+
+        //fetch area nodes
+        const std::unordered_set<cm_lst_node *> & area_nodes_set
+            = s->get_area_nodes();
+
+        /*
+         *  As it stands, CMore does not provide a hashmap implementation.
+         *  Instead, this getter will return a vector. This doesn't have
+         *  any implications on ScanCry as all users of `area_nodes` take
+         *  an opaque handle on `scan_set` when the C interface is used.
+         *  This getter has a C interface equivalent mostly because UI
+         *  implementations may want to use constraints to sort MemCry maps.
+         */
+
+        //get a copy of the unordered set for selection sort
+        std::unordered_set<cm_lst_node *> temp_set = area_nodes_set;
+
+        //continue selection sort until temp_set is empty
+        while (temp_set.size() != 0) {
+
+            //treat first node as minimum to start
+            min = temp_set.begin();
+            min_area_node = *min;
+            min_area = MC_GET_NODE_AREA(min_area_node);
+        
+            //single iteration of selection sort
+            for (auto iter = ++temp_set.begin();
+                 iter != temp_set.end(); ++iter) {
+
+                //get area of current iteration
+                now_area_node = *iter;
+                now_area = MC_GET_NODE_AREA(now_area_node);
+
+                /* area addresses can't overlap */
+                if (now_area->start_addr < min_area->start_addr) {
+                    min = iter;
+                }
+            }
+
+            //append the minimum element to the CMore vector
+            ret = cm_vct_apd(area_nodes, &(*min));
+            if (ret == -1) {
+                sc_errno = SC_ERR_CMORE;
+                return -1;
+            }
+
+            //remove the minimum element from the temporary set
+            temp_set.erase(min);
+        }
+
+        return 0;
+
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
 }

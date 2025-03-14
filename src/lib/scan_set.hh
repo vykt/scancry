@@ -26,3 +26,22 @@ namespace map_meta {
         //TODO find others
     };
 }
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//external
+sc_scan_set sc_new_scan_set();
+int sc_del_scan_set(sc_scan_set s_set);
+
+int sc_update_scan_areas(sc_scan_set s_set,
+                         const sc_opt opts, const cm_byte access_mask);
+int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes);
+
+
+#ifdef __cplusplus
+} //extern "C"
+#endif

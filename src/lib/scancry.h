@@ -184,8 +184,9 @@ extern "C" {
  *  --- [DATA TYPES] ---
  */
 
-//opaque opt type
+//opaque types
 typedef void * sc_opt;
+typedef void * sc_scan_set;
 
 //address range for sc_opt
 typedef struct {
@@ -266,6 +267,32 @@ extern int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
 extern int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range);
 //return sc_addr_range, both fields zero if unset
 extern int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range);
+
+
+
+/*
+ *  --- [SCAN_SET] ---
+ */
+
+//return opaque handle to `scan_set` object, or NULL on error
+extern sc_scan_set sc_new_scan_set();
+//return 0 on success, -1 on error
+extern int sc_del_scan_set(sc_scan_set s_set);
+
+//return 0 on success, -1 on failure
+extern int sc_update_scan_areas(sc_scan_set s_set,
+                                const sc_opt opts, const cm_byte access_mask);
+
+/*
+ * The following getter requires an unitialised CMore vector which
+ * will be initialised and populated by the call. Must be manually
+ * destroyed later. NOTE: Unlike the C++ interface which returns a
+ * hashmap, the C interface returns a sorted vector.
+ */
+
+//return 0 on success, -1 on failure
+extern int sc_scan_set_get_area_nodes(const sc_scan_set s_set,
+                                      cm_vct * area_nodes);
 
 
 #ifdef __cplusplus

@@ -49,7 +49,6 @@ int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
 int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range);
 int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range);
 
-
 #ifdef __cplusplus
 } //extern "C"
 #endif

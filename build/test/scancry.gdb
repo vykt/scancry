@@ -1,3 +1,7 @@
+# source memcry functions
+source memcry.gdb
+
+
 # print sc_opt
 define popt
 	if $argc != 1

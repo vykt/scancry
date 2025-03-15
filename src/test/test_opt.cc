@@ -5,6 +5,7 @@
 
 //local headers
 #include "filters.hh"
+#include "common.hh"
 
 //test target headers
 #include "../lib/scancry.h"
@@ -22,7 +23,7 @@
 
 //test constraints
 static void _cc_constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
-                                void (sc::opt::*set)(std::vector<cm_lst_node *> &),
+                                void (sc::opt::*set)(const std::vector<cm_lst_node *> &),
                                 const std::optional<std::vector<cm_lst_node *>>
                                 & (sc::opt::*get)() const) {
 
@@ -45,9 +46,6 @@ static void _cc_constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
 /*
  *  --- [TESTS] ---
  */
-
-const constexpr unsigned int test_arch_byte_width = 4;
-
 
 TEST_CASE(test_cc_opt_subtests[0]) {
 
@@ -226,6 +224,22 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     } //end test
 
+
+    //test 12: set & get `access`
+    SUBCASE(test_cc_opt_subtests[12]) {
+
+        std::optional<cm_byte> ret;
+
+        ret = o.get_access();
+        CHECK_EQ(ret.has_value(), false);
+
+        o.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
+        ret = o.get_alignment();
+        CHECK_EQ(ret.value(), MC_ACCESS_READ | MC_ACCESS_WRITE);
+        
+    } //end test
+
+
     return;
 
 } //end TEST_CASE 
@@ -242,8 +256,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
 //test constraints
 static void _c_constraint_test(sc_opt o, cm_lst_node * a[3],
-                               int (* set)(sc_opt o, cm_vct * v),
-                               int (* get)(sc_opt o, cm_vct * v)) {
+                               int (* set)(sc_opt o, const cm_vct * v),
+                               int (* get)(const sc_opt o, cm_vct * v)) {
 
         int ret;
         cm_lst_node * s;
@@ -502,6 +516,25 @@ TEST_CASE(test_c_opt_subtests[0]) {
         CHECK_EQ(rett.max, ar.max);       
 
     } //end test
+
+
+    //test 12: set & get alignment
+    SUBCASE(test_c_opt_subtests[12]) {
+
+        int ret;
+        cm_byte a;
+
+        a = sc_opt_get_access(o);
+        CHECK_EQ(a, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        ret = sc_opt_set_alignment(o, MC_ACCESS_READ | MC_ACCESS_WRITE);
+        CHECK_EQ(ret, 0);
+        a = sc_opt_get_alignment(o);
+        CHECK_EQ(a, MC_ACCESS_READ | MC_ACCESS_WRITE);
+        
+    } //end test
+
 
 
     //test 0 (cont.): destroy a sc_opt

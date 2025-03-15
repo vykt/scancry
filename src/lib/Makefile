@@ -18,7 +18,7 @@ CXXFLAGS=${_CXXFLAGS}
 CXXWARN_OPTS=${_CXXWARN_OPTS} -Wno-unused-parameter
 LDFLAGS=${_LDFLAGS}
 
-SOURCES_LIB=error.cc opt.cc scan_set.cc
+SOURCES_LIB=error.cc opt.cc map_area_set.cc
 OBJECTS_LIB=${SOURCES_LIB:%.cc=${BUILD_DIR}/%.o}
 
 SHARED=libscry.so

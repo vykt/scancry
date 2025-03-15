@@ -1,4 +1,5 @@
 //standard template library
+#include <optional>
 #include <string>
 #include <sstream>
 
@@ -41,7 +42,7 @@ static void _sigusr1_handler(int signal) {
 
 
 //helpers
-int clean_targets() {
+std::optional<int> clean_targets() {
 
     int ret;
 
@@ -52,7 +53,7 @@ int clean_targets() {
 
     //use system() to kill all existing targets
     ret = system(command_ss.str().c_str());
-    if (ret == -1) return -1;
+    if (ret == -1) return std::nullopt;
 
     return 0;
 }

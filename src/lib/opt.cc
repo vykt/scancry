@@ -30,7 +30,7 @@
  */
 
 //getters & setters
-void sc::opt::set_file_path_out(std::string file_path_out) {
+void sc::opt::set_file_path_out(const std::optional<std::string> & file_path_out) {
     this->file_path_out = file_path_out;
 }
 
@@ -40,7 +40,7 @@ const std::optional<std::string> & sc::opt::get_file_path_out() const {
 }
 
 
-void sc::opt::set_file_path_in(std::string file_path_in) {
+void sc::opt::set_file_path_in(const std::optional<std::string> & file_path_in) {
     this->file_path_in = file_path_in;
 }
 
@@ -50,7 +50,7 @@ const std::optional<std::string> & sc::opt::get_file_path_in() const {
 }
 
 
-void sc::opt::set_sessions(std::vector<mc_session const *> sessions) {
+void sc::opt::set_sessions(const std::vector<mc_session const *> & sessions) {
     this->sessions = sessions;
 }
 
@@ -60,7 +60,7 @@ const std::vector<mc_session const *> & sc::opt::get_sessions() const {
 }
 
 
-void sc::opt::set_map(mc_vm_map * map) {
+void sc::opt::set_map(const mc_vm_map * map) {
     this->map = map;
 }
 
@@ -70,7 +70,7 @@ mc_vm_map const * sc::opt::get_map() const {
 }
 
 
-void sc::opt::set_alignment(int alignment) {
+void sc::opt::set_alignment(const std::optional<int> & alignment) {
     this->alignment = alignment;
 }
 
@@ -84,59 +84,64 @@ unsigned int sc::opt::get_arch_byte_width() const {
     return this->arch_byte_width;
 }
 
-void sc::opt::set_omit_areas(std::vector<cm_lst_node *> & omit_areas) {
+
+void sc::opt::set_omit_areas(const std::optional<std::vector<cm_lst_node *>> & omit_areas) {
     this->omit_areas = omit_areas;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> &
-                               sc::opt::get_omit_areas() const {
+const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_omit_areas() const {
     return this->omit_areas;
 }
 
 
-void sc::opt::set_omit_objs(std::vector<cm_lst_node *> & omit_objs) {
+void sc::opt::set_omit_objs(const std::optional<std::vector<cm_lst_node *>> & omit_objs) {
     this->omit_objs = omit_objs;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> &
-                   sc::opt::get_omit_objs() const {
+const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_omit_objs() const {
     return this->omit_objs;
 }
 
 
-void sc::opt::set_exclusive_areas(std::vector<cm_lst_node *> &
-                                                  exclusive_areas) {
+void sc::opt::set_exclusive_areas(const std::optional<std::vector<cm_lst_node *>> & exclusive_areas) {
     this->exclusive_areas = exclusive_areas;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> &
-                    sc::opt::get_exclusive_areas() const {
+const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_exclusive_areas() const {
     return this->exclusive_areas;
 }
 
 
-void sc::opt::set_exclusive_objs(std::vector<cm_lst_node *> & exclusive_objs) {
+void sc::opt::set_exclusive_objs(const std::optional<std::vector<cm_lst_node *>> & exclusive_objs) {
     sc::opt::exclusive_objs = exclusive_objs;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> &
-                   sc::opt::get_exclusive_objs() const {
+const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_exclusive_objs() const {
     return this->exclusive_objs;
 }
 
 
-void sc::opt::set_addr_range(std::pair<uintptr_t, uintptr_t> addr_range) {
+void sc::opt::set_addr_range(const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range) {
     this->addr_range = addr_range;
 }
 
 
-const std::optional<std::pair<uintptr_t, uintptr_t>>
-                             sc::opt::get_addr_range() const {
+const std::optional<std::pair<uintptr_t, uintptr_t>> sc::opt::get_addr_range() const {
     return this->addr_range;
+}
+
+
+void sc::opt::set_access(const std::optional<cm_byte> & access) {
+    this->access = access;
+}
+
+
+std::optional<cm_byte> sc::opt::get_access() const {
+    return this->access;
 }
 
 
@@ -151,20 +156,26 @@ const std::optional<std::pair<uintptr_t, uintptr_t>>
 
 //generic setter of constraints
 _SC_DBG_STATIC
-int _opt_c_constraint_setter(sc_opt opts, cm_vct * v,
-                             void (sc::opt::*set)(std::vector<cm_lst_node *> &)) {
+int _opt_c_constraint_setter(sc_opt opts, const cm_vct * v,
+                             void (sc::opt::*set)(const std::optional<std::vector<cm_lst_node *>> &)) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //create a STL vector
-    std::vector<cm_lst_node *> rett;
-    rett.resize(v->len);
-    std::memcpy(rett.data(), v->data, v->data_sz * v->len);
-
     //call the setter with the STL vector
     try {
-        (o->*set)(rett);
+        if (v == nullptr) {
+            (o->*set)(std::nullopt);
+            
+        } else {
+            //create a STL vector
+            std::vector<cm_lst_node *> rett;
+            rett.resize(v->len);
+            std::memcpy(rett.data(), v->data, v->data_sz * v->len);
+
+            //perform the set
+            (o->*set)(rett);
+        }
         return 0;
 
     } catch (const std::exception & excp) {
@@ -176,9 +187,8 @@ int _opt_c_constraint_setter(sc_opt opts, cm_vct * v,
 
 //generic getter of constraints
 _SC_DBG_STATIC
-int _opt_c_constraint_getter(sc_opt opts, cm_vct * v,
-                             const std::optional<std::vector<cm_lst_node *>> &
-                             (sc::opt::*get)() const) {
+int _opt_c_constraint_getter(const sc_opt opts, cm_vct * v,
+                             const std::optional<std::vector<cm_lst_node *>> & (sc::opt::*get)() const) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -258,7 +268,8 @@ int sc_opt_set_file_path_out(sc_opt opts, const char * path) {
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
-        o->set_file_path_out(path);
+        if (path == nullptr) o->set_file_path_out(std::nullopt);
+        else o->set_file_path_out(path);
         return 0;
         
     } catch (const std::exception & excp) {
@@ -268,7 +279,7 @@ int sc_opt_set_file_path_out(sc_opt opts, const char * path) {
 }
 
 
-const char * sc_opt_get_file_path_out(sc_opt opts) {
+const char * sc_opt_get_file_path_out(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -298,7 +309,8 @@ int sc_opt_set_file_path_in(sc_opt opts, const char * path) {
     sc::opt * o = static_cast<sc::opt *>(opts);
     
     try {
-        o->set_file_path_in(path);
+        if (path == nullptr) o->set_file_path_in(std::nullopt);
+        else o->set_file_path_in(path);
         return 0;
         
     } catch (const std::exception & excp) {
@@ -308,7 +320,7 @@ int sc_opt_set_file_path_in(sc_opt opts, const char * path) {
 }
 
 
-const char * sc_opt_get_file_path_in(sc_opt opts) {
+const char * sc_opt_get_file_path_in(const sc_opt opts) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -332,7 +344,7 @@ const char * sc_opt_get_file_path_in(sc_opt opts) {
 }
 
 
-int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions) {
+int sc_opt_set_sessions(sc_opt opts, const cm_vct * sessions) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -355,7 +367,7 @@ int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions) {
 }
 
 
-int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions) {
+int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -394,7 +406,7 @@ int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions) {
 }
 
 
-void sc_opt_set_map(sc_opt opts, mc_vm_map * map) {
+void sc_opt_set_map(sc_opt opts, const mc_vm_map * map) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -404,7 +416,7 @@ void sc_opt_set_map(sc_opt opts, mc_vm_map * map) {
 }
 
 
-mc_vm_map const * sc_opt_get_map(sc_opt opts) {
+mc_vm_map const * sc_opt_get_map(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -413,13 +425,14 @@ mc_vm_map const * sc_opt_get_map(sc_opt opts) {
 }
 
 
-int sc_opt_set_alignment(sc_opt opts, int alignment) {
+int sc_opt_set_alignment(sc_opt opts, const int alignment) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
-        o->set_alignment(alignment);
+        if (alignment == -1) o->set_alignment(std::nullopt);
+        else o->set_alignment(alignment);
         return 0;
         
     } catch (const std::exception & excp) {
@@ -429,7 +442,7 @@ int sc_opt_set_alignment(sc_opt opts, int alignment) {
 }
 
     
-unsigned int sc_opt_get_alignment(sc_opt opts) {
+unsigned int sc_opt_get_alignment(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -452,7 +465,7 @@ unsigned int sc_opt_get_alignment(sc_opt opts) {
 }
 
 
-unsigned int sc_opt_get_arch_byte_width(sc_opt opts) {
+unsigned int sc_opt_get_arch_byte_width(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -466,7 +479,7 @@ unsigned int sc_opt_get_arch_byte_width(sc_opt opts) {
  * constructed from a CMore vector
  */
 
-int sc_opt_set_omit_areas(sc_opt opts, cm_vct * omit_areas) {
+int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas) {
 
     //call generic setter
     return _opt_c_constraint_setter(opts, omit_areas,
@@ -474,7 +487,7 @@ int sc_opt_set_omit_areas(sc_opt opts, cm_vct * omit_areas) {
 }
 
 
-int sc_opt_get_omit_areas(sc_opt opts, cm_vct * omit_areas) {
+int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas) {
 
     //call generic getter
     return _opt_c_constraint_getter(opts, omit_areas,
@@ -482,7 +495,7 @@ int sc_opt_get_omit_areas(sc_opt opts, cm_vct * omit_areas) {
 }
 
 
-int sc_opt_set_omit_objs(sc_opt opts, cm_vct * omit_objs) {
+int sc_opt_set_omit_objs(sc_opt opts, const cm_vct * omit_objs) {
 
     //call generic setter
     return _opt_c_constraint_setter(opts, omit_objs,
@@ -490,7 +503,7 @@ int sc_opt_set_omit_objs(sc_opt opts, cm_vct * omit_objs) {
 }
 
 
-int sc_opt_get_omit_objs(sc_opt opts, cm_vct * omit_objs) {
+int sc_opt_get_omit_objs(const sc_opt opts, cm_vct * omit_objs) {
 
     //call generic getter
     return _opt_c_constraint_getter(opts, omit_objs,
@@ -498,7 +511,7 @@ int sc_opt_get_omit_objs(sc_opt opts, cm_vct * omit_objs) {
 }
 
 
-int sc_opt_set_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
+int sc_opt_set_exclusive_areas(sc_opt opts, const cm_vct * exclusive_areas) {
 
     //call generic setter
     return _opt_c_constraint_setter(opts, exclusive_areas,
@@ -506,7 +519,7 @@ int sc_opt_set_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
 }
 
 
-int sc_opt_get_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
+int sc_opt_get_exclusive_areas(const sc_opt opts, cm_vct * exclusive_areas) {
     
     //call generic getter
     return _opt_c_constraint_getter(opts, exclusive_areas,
@@ -514,7 +527,7 @@ int sc_opt_get_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas) {
 }
 
 
-int sc_opt_set_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
+int sc_opt_set_exclusive_objs(sc_opt opts, const cm_vct * exclusive_objs) {
 
     //call generic setter
     return _opt_c_constraint_setter(opts, exclusive_objs,
@@ -522,7 +535,7 @@ int sc_opt_set_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
 }
 
 
-int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
+int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs) {
 
     //call generic getter
     return _opt_c_constraint_getter(opts, exclusive_objs,
@@ -530,13 +543,14 @@ int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs) {
 }
 
 
-int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range) {
+int sc_opt_set_addr_range(sc_opt opts, const sc_addr_range * range) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
-        o->set_addr_range(std::pair(range->min, range->max));
+        if (range == nullptr) o->set_addr_range(std::nullopt);
+        else o->set_addr_range(std::pair(range->min, range->max));
         return 0;
         
     } catch (const std::exception & excp) {
@@ -546,7 +560,7 @@ int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range) {
 }
 
 
-int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range) {
+int sc_opt_get_addr_range(const sc_opt opts, sc_addr_range * range) {
 
     
     //cast opaque handle into class
@@ -568,6 +582,46 @@ int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range) {
             return -1;
         }
 
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_opt_set_access(sc_opt opts, const cm_byte access) {
+    
+    //cast opaque handle into class
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    try {
+        if (access == (cm_byte) -1) o->set_access(std::nullopt);
+        else o->set_access(access);
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+    
+cm_byte sc_opt_get_access(const sc_opt opts) {
+
+    //cast opaque handle into class
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    //return NULL if optional is not set or there is an error
+    try {
+        std::optional<cm_byte> access = o->get_access();
+    
+        if (access.has_value()) {
+            return access.value();
+        } else {
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
+        
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
         return -1;

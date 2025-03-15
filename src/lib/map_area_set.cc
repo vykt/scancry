@@ -1,8 +1,8 @@
 //standard template library
-#include <iterator>
 #include <optional>
 #include <unordered_set>
 #include <string>
+#include <iterator>
 #include <algorithm>
 
 //C standard library
@@ -18,7 +18,7 @@
 
 //local headers
 #include "scancry.h"
-#include "scan_set.hh"
+#include "map_area_set.hh"
 #include "opt.hh"
 #include "error.hh"
 
@@ -144,8 +144,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept
  * any permissions. */
-std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield,
-                                                   const sc::opt & opts) {
+std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
 
     cm_lst_node * area_node;
     mc_vm_area * area;
@@ -173,7 +172,7 @@ std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield
         = opts.get_exclusive_objs();
     const std::optional<std::pair<uintptr_t, uintptr_t>> addr_range
         = opts.get_addr_range();
-
+    const std::optional<cm_byte> access = opts.get_access();
 
     //fetch MemCry map
     mc_vm_map const * map = opts.get_map();
@@ -251,8 +250,8 @@ std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield
         }
 
         //if access constraints are used, area must satisfy them 
-        if (access_bitfield != 0) {
-            if (!is_access(area->access, access_bitfield))
+        if (access.has_value() && access.value() != 0) {
+            if (!is_access(area->access, access.value()))
                 goto update_scan_areas_continue;
         }
 
@@ -293,10 +292,10 @@ std::optional<int> sc::scan_set::update_scan_areas(const cm_byte access_bitfield
  *  --- [EXTERNAL] ---
  */
 
-sc_scan_set sc_new_scan_set() {
+sc_map_area_set sc_new_map_area_set() {
 
     try {
-        return new sc::scan_set();    
+        return new sc::map_area_set();    
 
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
@@ -305,10 +304,10 @@ sc_scan_set sc_new_scan_set() {
 }
 
 
-int sc_del_scan_set(sc_scan_set s_set) {
+int sc_del_map_area_set(sc_map_area_set s_set) {
     
     //cast opaque handle into class
-    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
 
     try {
         delete s;
@@ -322,17 +321,16 @@ int sc_del_scan_set(sc_scan_set s_set) {
 
 
 
-int sc_update_scan_areas(sc_scan_set s_set,
-                         const sc_opt opts, const cm_byte access_bitfield) {
+int sc_update_set(sc_map_area_set s_set, const sc_opt opts) {
 
     //cast opaque handles into classes
-    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
 
         //update the scan set
-        std::optional<int> ret = s->update_scan_areas(access_bitfield, *o);
+        std::optional<int> ret = s->update_set(*o);
         if (ret.has_value() == false) return -1;
         return 0;
         
@@ -343,7 +341,8 @@ int sc_update_scan_areas(sc_scan_set s_set,
 }
 
 
-int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes) {
+int sc_map_area_set_get_area_nodes(const sc_map_area_set s_set,
+                                   cm_vct * area_nodes) {
 
     cm_lst_node * min_area_node, * now_area_node;
     mc_vm_area * min_area, * now_area;
@@ -351,7 +350,7 @@ int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes) {
 
 
     //cast opaque handle into class
-    sc::scan_set * s = static_cast<sc::scan_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
 
     //initialise the CMore vector
     int ret = cm_new_vct(area_nodes, sizeof(cm_lst_node *));
@@ -371,7 +370,7 @@ int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes) {
          *  As it stands, CMore does not provide a hashmap implementation.
          *  Instead, this getter will return a vector. This doesn't have
          *  any implications on ScanCry as all users of `area_nodes` take
-         *  an opaque handle on `scan_set` when the C interface is used.
+         *  an opaque handle on `map_area_set` when the C interface is used.
          *  This getter has a C interface equivalent mostly because UI
          *  implementations may want to use constraints to sort MemCry maps.
          */
@@ -410,7 +409,8 @@ int sc_scan_set_get_area_nodes(const sc_scan_set s_set, cm_vct * area_nodes) {
 
             //remove the minimum element from the temporary set
             temp_set.erase(min);
-        }
+
+        } //end while
 
         return 0;
 

@@ -35,19 +35,19 @@ void add_c_opt(doctest::Context & context) {
 }
 
 
-//add C++ interface scan_set tests
-void add_cc_scan_set(doctest::Context & context) {
+//add C++ interface map_area_set tests
+void add_cc_map_area_set(doctest::Context & context) {
 
-    _add_filters(test_cc_scan_set_subtests,
-                 test_cc_scan_set_subtests_num, context);
+    _add_filters(test_cc_map_area_set_subtests,
+                 test_cc_map_area_set_subtests_num, context);
     return;
 }
 
 
-//add C interface scan_set tests
-void add_c_scan_set(doctest::Context & context) {
+//add C interface map_area_set tests
+void add_c_map_area_set(doctest::Context & context) {
 
-    _add_filters(test_c_scan_set_subtests,
-                 test_c_scan_set_subtests_num, context);
+    _add_filters(test_c_map_area_set_subtests,
+                 test_c_map_area_set_subtests_num, context);
     return;
 }

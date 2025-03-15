@@ -92,6 +92,7 @@ class opt {
         std::optional<std::vector<cm_lst_node *>> exclusive_areas;
         std::optional<std::vector<cm_lst_node *>> exclusive_objs;
         std::optional<std::pair<uintptr_t, uintptr_t>> addr_range;
+        std::optional<cm_byte> access;
 
     public:
         //[methods]
@@ -101,42 +102,40 @@ class opt {
 
 
         //getters & setters
-        void set_file_path_out(std::string file_path_out);
+        void set_file_path_out(const std::optional<std::string> & file_path_out);
         const std::optional<std::string> & get_file_path_out() const;
 
-        void set_file_path_in(std::string file_path_in);
+        void set_file_path_in(const std::optional<std::string> & file_path_in);
         const std::optional<std::string> & get_file_path_in() const;
 
-        void set_sessions(std::vector<mc_session const *> sessions);
+        void set_sessions(const std::vector<mc_session const *> & sessions);
         const std::vector<mc_session const *> & get_sessions() const;
 
-        void set_map(mc_vm_map * map);
+        void set_map(const mc_vm_map * map);
         mc_vm_map const * get_map() const;
 
-        void set_alignment(int alignment);
+        void set_alignment(const std::optional<int> & alignment);
         std::optional<unsigned int> get_alignment() const;
 
         unsigned int get_arch_byte_width() const;
         
-        void set_omit_areas(std::vector<cm_lst_node *> & omit_areas);
-        const std::optional<std::vector<cm_lst_node *>> &
-                                       get_omit_areas() const;
+        void set_omit_areas(const std::optional<std::vector<cm_lst_node *>> & omit_areas);
+        const std::optional<std::vector<cm_lst_node *>> & get_omit_areas() const;
 
-        void set_omit_objs(std::vector<cm_lst_node *> & omit_objs);
-        const std::optional<std::vector<cm_lst_node *>> &
-                                       get_omit_objs() const;
+        void set_omit_objs(const std::optional<std::vector<cm_lst_node *>> & omit_objs);
+        const std::optional<std::vector<cm_lst_node *>> & get_omit_objs() const;
 
-        void set_exclusive_areas(std::vector<cm_lst_node *> & exclusive_areas);
-        const std::optional<std::vector<cm_lst_node *>> &
-                                       get_exclusive_areas() const;
+        void set_exclusive_areas(const std::optional<std::vector<cm_lst_node *>> & exclusive_areas);
+        const std::optional<std::vector<cm_lst_node *>> & get_exclusive_areas() const;
 
-        void set_exclusive_objs(std::vector<cm_lst_node *> & exclusive_objs);
-        const std::optional<std::vector<cm_lst_node *>> &
-                           get_exclusive_objs() const;
+        void set_exclusive_objs(const std::optional<std::vector<cm_lst_node *>> & exclusive_objs);
+        const std::optional<std::vector<cm_lst_node *>> & get_exclusive_objs() const;
 
-        void set_addr_range(std::pair<uintptr_t, uintptr_t> addr_range);
-        const std::optional<std::pair<uintptr_t, uintptr_t>>
-                                     get_addr_range() const;
+        void set_addr_range(const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range);
+        const std::optional<std::pair<uintptr_t, uintptr_t>> get_addr_range() const;
+
+        void set_access(const std::optional<cm_byte> & access);
+        std::optional<cm_byte> get_access() const;
 };
 
 
@@ -144,7 +143,7 @@ class opt {
  *  Abstraction above mc_vm_map; uses constraints from the opt class
  *  to arrive at a final set of areas to scan.
  */
-class scan_set {
+class map_area_set {
 
     _SC_DBG_PRIVATE:
         //[attributes]
@@ -152,8 +151,7 @@ class scan_set {
 
     public:
         //[methods]
-        std::optional<int> update_scan_areas(const cm_byte access_mask,
-                                             const opt & opt);
+        std::optional<int> update_set(const opt & opts);
 
         //getters & setters
         const std::unordered_set<cm_lst_node *> & get_area_nodes() const {
@@ -186,7 +184,8 @@ extern "C" {
 
 //opaque types
 typedef void * sc_opt;
-typedef void * sc_scan_set;
+typedef void * sc_map_area_set;
+
 
 //address range for sc_opt
 typedef struct {
@@ -200,7 +199,11 @@ typedef struct {
  *  --- [OPT] ---
  */
 
-// [opt]
+/*
+ *  To request to unset an option, pass `nullptr` for pointers
+ *  or `-1` for numerical values.
+ */
+
 //return opaque handle to `opt` object, or NULL on error
 extern sc_opt sc_new_opt(const int arch_byte_width);
 //return 0 on success, -1 on error
@@ -209,12 +212,12 @@ extern int sc_del_opt(sc_opt opts);
 //return 0 on success, -1 on error
 extern int sc_opt_set_file_path_out(sc_opt opts, const char * path);
 //return output file path string if set, NULL if not set
-extern const char * sc_opt_get_file_path_out(sc_opt opts);
+extern const char * sc_opt_get_file_path_out(const sc_opt opts);
 
 //return 0 on success, -1 on error
 extern int sc_opt_set_file_path_in(sc_opt opts, const char * path);
 //return input file path string if set, NULL if not set
-extern const char * sc_opt_get_file_path_in(sc_opt opts);
+extern const char * sc_opt_get_file_path_in(const sc_opt opts);
 
 /*
  * The following setter requires an initialised CMore vector (`cm_vct`)
@@ -224,21 +227,21 @@ extern const char * sc_opt_get_file_path_in(sc_opt opts);
  */
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_sessions(sc_opt opts, cm_vct * sessions);
-extern int sc_opt_get_sessions(sc_opt opts, cm_vct * sessions);
+extern int sc_opt_set_sessions(sc_opt opts, const cm_vct * sessions);
+extern int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 
 //void return
-extern void sc_opt_set_map(sc_opt opts, mc_vm_map * map);
+extern void sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 //return MemCry map const pointer if set, NULL if not set
-extern mc_vm_map const * sc_opt_get_map(sc_opt opts);
+extern mc_vm_map const * sc_opt_get_map(const sc_opt opts);
 
 //void return
-extern int sc_opt_set_alignment(sc_opt opts, int alignment);
+extern int sc_opt_set_alignment(sc_opt opts, const int alignment);
 //return alignment int if set, -1 if not set
-extern unsigned int sc_opt_get_alignment(sc_opt opts);
+extern unsigned int sc_opt_get_alignment(const sc_opt opts);
 
 //return arch width in bytes if set, -1 if not set
-extern unsigned int sc_opt_get_arch_byte_width(sc_opt opts);
+extern unsigned int sc_opt_get_arch_byte_width(const sc_opt opts);
 
 /*
  * The following setters require an initialised CMore vector (`cm_vct`)
@@ -248,40 +251,43 @@ extern unsigned int sc_opt_get_arch_byte_width(sc_opt opts);
  */
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_omit_areas(sc_opt opts, cm_vct * omit_areas);
-extern int sc_opt_get_omit_areas(sc_opt opts, cm_vct * omit_areas);
+extern int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas);
+extern int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_omit_objs(sc_opt opts, cm_vct * omit_objs);
-extern int sc_opt_get_omit_objs(sc_opt opts, cm_vct * omit_objs);
+extern int sc_opt_set_omit_objs(sc_opt opts, const cm_vct * omit_objs);
+extern int sc_opt_get_omit_objs(const sc_opt opts, cm_vct * omit_objs);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas);
-extern int sc_opt_get_exclusive_areas(sc_opt opts, cm_vct * exclusive_areas);
+extern int sc_opt_set_exclusive_areas(sc_opt opts, const cm_vct * exclusive_areas);
+extern int sc_opt_get_exclusive_areas(const sc_opt opts, cm_vct * exclusive_areas);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
-extern int sc_opt_get_exclusive_objs(sc_opt opts, cm_vct * exclusive_objs);
+extern int sc_opt_set_exclusive_objs(sc_opt opts, const cm_vct * exclusive_objs);
+extern int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs);
 
-//void return
-extern int sc_opt_set_addr_range(sc_opt opts, sc_addr_range * range);
+//all return 0 on success, -1 on error
+extern int sc_opt_set_addr_range(sc_opt opts, const sc_addr_range * range);
 //return sc_addr_range, both fields zero if unset
-extern int sc_opt_get_addr_range(sc_opt opts, sc_addr_range * range);
+extern int sc_opt_get_addr_range(const sc_opt opts, sc_addr_range * range);
 
+//return 0 on success, -1 on error
+extern int sc_opt_set_access(sc_opt opts, const cm_byte access);
+//return access mask on success, -1 if not set
+extern cm_byte sc_opt_get_access(const sc_opt opts);
 
 
 /*
  *  --- [SCAN_SET] ---
  */
 
-//return opaque handle to `scan_set` object, or NULL on error
-extern sc_scan_set sc_new_scan_set();
+//return opaque handle to `map_area_set` object, or NULL on error
+extern sc_map_area_set sc_new_map_area_set();
 //return 0 on success, -1 on error
-extern int sc_del_scan_set(sc_scan_set s_set);
+extern int sc_del_map_area_set(sc_map_area_set s_set);
 
 //return 0 on success, -1 on failure
-extern int sc_update_scan_areas(sc_scan_set s_set,
-                                const sc_opt opts, const cm_byte access_mask);
+extern int sc_update_scan_areas(sc_map_area_set s_set, const sc_opt opts);
 
 /*
  * The following getter requires an unitialised CMore vector which
@@ -291,8 +297,8 @@ extern int sc_update_scan_areas(sc_scan_set s_set,
  */
 
 //return 0 on success, -1 on failure
-extern int sc_scan_set_get_area_nodes(const sc_scan_set s_set,
-                                      cm_vct * area_nodes);
+extern int sc_map_area_set_get_area_nodes(const sc_map_area_set s_set,
+                                          cm_vct * area_nodes);
 
 
 #ifdef __cplusplus

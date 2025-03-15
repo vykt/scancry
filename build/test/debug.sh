@@ -1,2 +1,2 @@
 #!/bin/sh
-gdb -x init.gdb --args ./test -O "$@"
+gdb -x scancry.gdb --args ./test -O "$@"

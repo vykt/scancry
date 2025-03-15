@@ -25,8 +25,8 @@
 //tests bitmask
 const constexpr uint16_t cc_opt_test      = 0x1;
 const constexpr uint16_t c_opt_test       = 0x2;
-const constexpr uint16_t cc_scan_set_test = 0x4;
-const constexpr uint16_t c_scan_set_test  = 0x8;
+const constexpr uint16_t cc_map_area_set_test = 0x4;
+const constexpr uint16_t c_map_area_set_test  = 0x8;
 
 
 
@@ -37,8 +37,8 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
         {"all", no_argument, NULL, 'a'},
         {"cc-opt", no_argument, NULL, 'o'},
         {"c-opt", no_argument, NULL, 'O'},
-        {"cc-scan_set", no_argument, NULL, 's'},
-        {"c-scan_set", no_argument, NULL, 'S'},
+        {"cc-map_area_set", no_argument, NULL, 's'},
+        {"c-map_area_set", no_argument, NULL, 'S'},
         {0,0,0,0}
     };
 
@@ -65,11 +65,11 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
                 break;
 
             case 's':
-                test_mask |= cc_scan_set_test;
+                test_mask |= cc_map_area_set_test;
                 break;
                 
             case 'S':
-                test_mask |= c_scan_set_test;
+                test_mask |= c_map_area_set_test;
                 break;
         }
     }
@@ -88,8 +88,8 @@ static void _run_unit_tests(cm_byte test_mask) {
     //add selected filters
     if (test_mask & cc_opt_test)      add_cc_opt(context); 
     if (test_mask & c_opt_test)       add_c_opt(context); 
-    if (test_mask & cc_scan_set_test) add_cc_scan_set(context); 
-    if (test_mask & c_scan_set_test)  add_c_scan_set(context); 
+    if (test_mask & cc_map_area_set_test) add_cc_map_area_set(context); 
+    if (test_mask & c_map_area_set_test)  add_c_map_area_set(context); 
 
     //run selected tests
     ret = context.run();

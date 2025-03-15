@@ -23,7 +23,7 @@
 
 //test constraints
 static void _cc_constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
-                                void (sc::opt::*set)(const std::vector<cm_lst_node *> &),
+                                void (sc::opt::*set)(const std::optional<std::vector<cm_lst_node *>> &),
                                 const std::optional<std::vector<cm_lst_node *>>
                                 & (sc::opt::*get)() const) {
 
@@ -289,8 +289,17 @@ static void _c_constraint_test(sc_opt o, cm_lst_node * a[3],
             CHECK_EQ(s, a[i]);
         }
 
-        cm_del_vct(&v);
         cm_del_vct(&w);
+
+        sc_errno = 0;
+
+        ret = set(o, nullptr);
+        CHECK_EQ(ret, 0);
+        ret = get(o, &w);
+        CHECK_EQ(ret, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        cm_del_vct(&v);
  
     return;
 }
@@ -323,6 +332,14 @@ TEST_CASE(test_c_opt_subtests[0]) {
         const char * ret_2 = sc_opt_get_file_path_out(o);
         CHECK(std::string(ret_2) == p);
 
+        sc_errno = 0;
+
+        ret = sc_opt_set_file_path_out(o, nullptr);
+        CHECK_EQ(ret, 0);
+        const char * ret_3 = sc_opt_get_file_path_out(o);
+        CHECK_EQ(ret_3, nullptr);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
     } //end test
 
 
@@ -339,6 +356,14 @@ TEST_CASE(test_c_opt_subtests[0]) {
         CHECK_EQ(ret, 0);
         const char * ret_2 = sc_opt_get_file_path_in(o);
         CHECK(std::string(ret_2) == p);
+
+        sc_errno = 0;
+
+        ret = sc_opt_set_file_path_in(o, nullptr);
+        CHECK_EQ(ret, 0);
+        const char * ret_3 = sc_opt_get_file_path_in(o);
+        CHECK_EQ(ret_3, nullptr);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
         
     } //end test
 
@@ -382,8 +407,17 @@ TEST_CASE(test_c_opt_subtests[0]) {
             CHECK_EQ(s, a[i]);
         }
 
-        cm_del_vct(&v);
         cm_del_vct(&w);
+
+        sc_errno = 0;
+
+        ret = sc_opt_set_sessions(o, nullptr);
+        CHECK_EQ(ret, 0);
+        ret = sc_opt_get_sessions(o, &w);
+        CHECK_EQ(ret, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+        cm_del_vct(&v);
         
     } //end test
 
@@ -417,6 +451,14 @@ TEST_CASE(test_c_opt_subtests[0]) {
         CHECK_EQ(ret, 0);
         a = sc_opt_get_alignment(o);
         CHECK_EQ(a, 4);
+
+        sc_errno = 0;
+
+        ret = sc_opt_set_alignment(o, -1);
+        CHECK_EQ(ret, 0);
+        a = sc_opt_get_alignment(o);
+        CHECK_EQ(a, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
         
     } //end test
 
@@ -496,7 +538,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: set & get
+    //test 11: set & get an address range
     SUBCASE(test_c_opt_subtests[11]) {
 
         int ret;
@@ -515,6 +557,14 @@ TEST_CASE(test_c_opt_subtests[0]) {
         CHECK_EQ(rett.min, ar.min);
         CHECK_EQ(rett.max, ar.max);       
 
+        sc_errno = 0;
+
+        ret = sc_opt_set_addr_range(o, nullptr);
+        CHECK_EQ(ret, 0);
+        ret = sc_opt_get_alignment(o);
+        CHECK_EQ(ret, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
     } //end test
 
 
@@ -532,6 +582,14 @@ TEST_CASE(test_c_opt_subtests[0]) {
         CHECK_EQ(ret, 0);
         a = sc_opt_get_alignment(o);
         CHECK_EQ(a, MC_ACCESS_READ | MC_ACCESS_WRITE);
+
+        sc_errno = 0;
+
+        ret = sc_opt_set_alignment(o, -1);
+        CHECK_EQ(ret, 0);
+        a = sc_opt_get_alignment(o);
+        CHECK_EQ(a, -1);
+        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
         
     } //end test
 

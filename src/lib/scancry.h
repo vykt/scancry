@@ -236,7 +236,7 @@ extern void sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 extern mc_vm_map const * sc_opt_get_map(const sc_opt opts);
 
 //void return
-extern int sc_opt_set_alignment(sc_opt opts, const int alignment);
+extern int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
 //return alignment int if set, -1 if not set
 extern unsigned int sc_opt_get_alignment(const sc_opt opts);
 

@@ -425,7 +425,7 @@ mc_vm_map const * sc_opt_get_map(const sc_opt opts) {
 }
 
 
-int sc_opt_set_alignment(sc_opt opts, const int alignment) {
+int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);

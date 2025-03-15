@@ -29,7 +29,7 @@ int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 void sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 mc_vm_map const * sc_opt_get_map(const sc_opt opts);
 
-int sc_opt_set_alignment(sc_opt opts, const int alignment);
+int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
 unsigned int sc_opt_get_alignment(const sc_opt opts);
 
 unsigned int sc_opt_get_arch_byte_width(const sc_opt opts);

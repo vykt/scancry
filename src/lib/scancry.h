@@ -287,7 +287,7 @@ extern sc_map_area_set sc_new_map_area_set();
 extern int sc_del_map_area_set(sc_map_area_set s_set);
 
 //return 0 on success, -1 on failure
-extern int sc_update_scan_areas(sc_map_area_set s_set, const sc_opt opts);
+extern int sc_update_set(sc_map_area_set s_set, const sc_opt opts);
 
 /*
  * The following getter requires an unitialised CMore vector which
@@ -297,8 +297,7 @@ extern int sc_update_scan_areas(sc_map_area_set s_set, const sc_opt opts);
  */
 
 //return 0 on success, -1 on failure
-extern int sc_map_area_set_get_area_nodes(const sc_map_area_set s_set,
-                                          cm_vct * area_nodes);
+extern int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes);
 
 
 #ifdef __cplusplus

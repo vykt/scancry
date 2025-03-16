@@ -58,13 +58,10 @@ inline const constexpr char * test_cc_map_area_set_subtests[] = {
 
 
 //C interface opt class tests
-inline const constexpr int test_c_map_area_set_subtests_num = 5;
+inline const constexpr int test_c_map_area_set_subtests_num = 2;
 inline const constexpr char * test_c_map_area_set_subtests[] = {
     "test_c_sc_map_area_set",
-    "test_c_sc_map_area_set_simple",
-    "test_c_sc_map_area_set_access",
-    "test_c_sc_map_area_set_addr_range",
-    "test_c_sc_map_area_set_constraints"
+    "test_c_sc_map_area_set_wrapper"
 };
 
 

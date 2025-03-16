@@ -341,8 +341,7 @@ int sc_update_set(sc_map_area_set s_set, const sc_opt opts) {
 }
 
 
-int sc_map_area_set_get_area_nodes(const sc_map_area_set s_set,
-                                   cm_vct * area_nodes) {
+int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes) {
 
     cm_lst_node * min_area_node, * now_area_node;
     mc_vm_area * min_area, * now_area;

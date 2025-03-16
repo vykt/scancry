@@ -38,7 +38,7 @@ sc_map_area_set sc_new_map_area_set();
 int sc_del_map_area_set(sc_map_area_set s_set);
 
 int sc_update_set(sc_map_area_set s_set, const sc_opt opts);
-int sc_map_area_set_get_area_nodes(const sc_map_area_set s_set, cm_vct * area_nodes);
+int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes);
 
 
 #ifdef __cplusplus

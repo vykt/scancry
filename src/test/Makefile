@@ -21,7 +21,8 @@ LDFLAGS=-L${LIB_BIN_DIR} \
 
 
 #[build constants]
-SOURCES_TEST=main.cc filters.cc test_opt.cc
+SOURCES_TEST=main.cc filters.cc target_helper.cc test_map_area_set.cc \
+             test_opt.cc
 OBJECTS_TEST=${SOURCES_TEST:%.cc=${BUILD_DIR}/%.o}
 TARGET_DIR=${shell pwd}/target
 

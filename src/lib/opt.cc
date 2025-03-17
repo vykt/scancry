@@ -382,21 +382,13 @@ int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions) {
     //copy contents of the STL vector into the CMore vector.
     try {
         //get the STL vector
-        const std::optional<std::vector<const mc_session *>> & v
-            = o->get_sessions();
+        const std::vector<const mc_session *> & v = o->get_sessions();
 
-        //if a STL vector is present, do the copy
-        if (v.has_value() && !v.value().empty()) {
-            ret = cm_vct_rsz(sessions, v.value().size());
-            std::memcpy(sessions->data, v.value().data(),
-                        v.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(sessions);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
+        //copy the STL vector into the CMore vector
+        ret = cm_vct_rsz(sessions, v.size());
+        std::memcpy(sessions->data, v.data(),
+                    v.size() * sizeof(cm_lst_node *));
+        return 0;
         
     } catch (const std::exception & excp) {
         cm_del_vct(sessions);

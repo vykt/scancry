@@ -81,7 +81,7 @@ pid_t start_target() {
 
     //register signal handler
     ret_s = signal(SIGUSR1, _sigusr1_handler);
-    CHECK_NE(ret_s, SIG_ERR);
+    CHECK_NE((void *) ret_s, (void *) SIG_ERR);
 
     //fork a new process
     target_pid = fork();

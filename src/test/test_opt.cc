@@ -234,7 +234,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         CHECK_EQ(ret.has_value(), false);
 
         o.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
-        ret = o.get_alignment();
+        ret = o.get_access();
         CHECK_EQ(ret.value(), MC_ACCESS_READ | MC_ACCESS_WRITE);
         
     } //end test
@@ -259,48 +259,65 @@ static void _c_constraint_test(sc_opt o, cm_lst_node * a[3],
                                int (* set)(sc_opt o, const cm_vct * v),
                                int (* get)(const sc_opt o, cm_vct * v)) {
 
-        int ret;
-        cm_lst_node * s;
-        cm_vct v, w;
+    int ret;
+    cm_lst_node * s;
+    cm_vct v, w;
 
 
-        //setup vector
-        ret = cm_new_vct(&v, sizeof(cm_lst_node *));
+    //construct a CMore vector to pass to the C interface call
+    ret = cm_new_vct(&v, sizeof(cm_lst_node *));
+    CHECK_EQ(ret, 0);
+
+    //populate the newly created CMore vector
+    for (int i = 0; i < 3; ++i) {
+        ret = cm_vct_apd(&v, &a[i]);
         CHECK_EQ(ret, 0);
+    }
 
-        for (int i = 0; i < 3; ++i) {
-            ret = cm_vct_apd(&v, &a[i]);
-            CHECK_EQ(ret, 0);
-        }
 
-        //run setters & getters
-        ret = get(o, &w);
-        CHECK_EQ(ret, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+    /* first test: typical use-case */
 
-        ret = set(o, &v);
+    //try to get the unset optional
+    ret = get(o, &w);
+    CHECK_EQ(ret, -1);
+    CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+    //fill the optional with the previously constructed CMore vector
+    ret = set(o, &v);
+    CHECK_EQ(ret, 0);
+
+    //call the getter again
+    ret = get(o, &w);
+    CHECK_EQ(ret, 0);
+    CHECK_EQ(w.len, 3);
+
+    //check each element from the returned CMore vector is correct
+    for (int i = 0; i < 3; ++i) {
+    
+        ret = cm_vct_get(&w, i, &s);
         CHECK_EQ(ret, 0);
+        CHECK_EQ(s, a[i]);
+    }
 
-        ret = get(o, &w);
-        for (int i = 0; i < 3; ++i) {
-        
-            ret = cm_vct_get(&v, i, &s);
-            CHECK_EQ(ret, 0);
-            CHECK_EQ(s, a[i]);
-        }
+    //cleanup before next test
+    cm_del_vct(&w);
+    sc_errno = 0;
 
-        cm_del_vct(&w);
 
-        sc_errno = 0;
+    /* second test: reset optional back to nullopt */
 
-        ret = set(o, nullptr);
-        CHECK_EQ(ret, 0);
-        ret = get(o, &w);
-        CHECK_EQ(ret, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+    //call setter with this attribute's nullopt C equivalent
+    ret = set(o, nullptr);
+    CHECK_EQ(ret, 0);
 
-        cm_del_vct(&v);
- 
+    //try to get the attribute to check it's been set to nullopt correctly
+    ret = get(o, &w);
+    CHECK_EQ(ret, -1);
+    CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
+
+    //cleanup
+    cm_del_vct(&v);
+
     return;
 }
 
@@ -324,18 +341,32 @@ TEST_CASE(test_c_opt_subtests[0]) {
         int ret;
         const char * p = "/foo/bar";
 
+
+        /* first test: typical use-case */
+
+        //call getter before attribute is set
         const char * ret_1 = sc_opt_get_file_path_out(o);
         CHECK_EQ(ret_1, nullptr);
 
+        //call setter
         ret = sc_opt_set_file_path_out(o, p);
         CHECK_EQ(ret, 0);
+
+        //call getter again to assert the attribute was set
         const char * ret_2 = sc_opt_get_file_path_out(o);
         CHECK(std::string(ret_2) == p);
 
+        //cleanup before next test
         sc_errno = 0;
 
+
+        /* second test: reset optional back to nullopt */
+
+        //call setter with this attribute's nullopt C equivalent
         ret = sc_opt_set_file_path_out(o, nullptr);
         CHECK_EQ(ret, 0);
+
+        //try to get the attribute to check it's been set to nullopt correctly
         const char * ret_3 = sc_opt_get_file_path_out(o);
         CHECK_EQ(ret_3, nullptr);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
@@ -349,18 +380,32 @@ TEST_CASE(test_c_opt_subtests[0]) {
         int ret;
         const char * p = "/foo/bar";
 
+
+        /* first test: typical use-case */
+
+        //call getter before attribute is set
         const char * ret_1 = sc_opt_get_file_path_in(o);
         CHECK_EQ(ret_1, nullptr);
 
+        //call setter
         ret = sc_opt_set_file_path_in(o, p);
         CHECK_EQ(ret, 0);
+
+        //call getter again to assert the attribute was set
         const char * ret_2 = sc_opt_get_file_path_in(o);
         CHECK(std::string(ret_2) == p);
 
+        //cleanup before next test
         sc_errno = 0;
 
+
+        /* second test: reset optional back to nullopt */
+
+        //call setter with this attribute's nullopt C equivalent
         ret = sc_opt_set_file_path_in(o, nullptr);
         CHECK_EQ(ret, 0);
+
+        //try to get the attribute to check it's been set to nullopt correctly
         const char * ret_3 = sc_opt_get_file_path_in(o);
         CHECK_EQ(ret_3, nullptr);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
@@ -382,42 +427,64 @@ TEST_CASE(test_c_opt_subtests[0]) {
         cm_vct v, w;
 
 
-        //setup vector
+        //construct a CMore vector to pass to the C interface call
         ret = cm_new_vct(&v, sizeof(cm_lst_node *));
         CHECK_EQ(ret, 0);
 
+        //populate the newly created CMore vector
         for (int i = 0; i < 3; ++i) {
             ret = cm_vct_apd(&v, &a[i]);
             CHECK_EQ(ret, 0);
         }
 
-        //run setters & getters
-        ret = sc_opt_get_sessions(o, &w);
-        CHECK_EQ(ret, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
+        /* first test: typical use-case */
+
+        //try to get sessions before they are set
+        ret = sc_opt_get_sessions(o, &w);
+        CHECK_EQ(ret, 0);
+        cm_del_vct(&w);
+
+        //fill sessions with the previously constructed CMore optional
         ret = sc_opt_set_sessions(o, &v);
         CHECK_EQ(ret, 0);
 
+        //call the getter again & assert
         ret = sc_opt_get_sessions(o, &w);
+        CHECK_EQ(ret, 0);
+        CHECK_EQ(w.len, 3);
+    
+        //check each element from the returned CMore vector is correct
         for (int i = 0; i < 3; ++i) {
         
-            ret = cm_vct_get(&v, i, &s);
+            ret = cm_vct_get(&w, i, &s);
             CHECK_EQ(ret, 0);
             CHECK_EQ(s, a[i]);
         }
 
+        //cleanup before next test
+        cm_del_vct(&v);
         cm_del_vct(&w);
-
         sc_errno = 0;
 
-        ret = sc_opt_set_sessions(o, nullptr);
-        CHECK_EQ(ret, 0);
-        ret = sc_opt_get_sessions(o, &w);
-        CHECK_EQ(ret, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
+        /* second test: replace sessions with an empty vector */
+
+        //create an empty CMore vector
+        cm_new_vct(&v, sizeof(cm_lst_node *));
+
+        //call the setter, passing it the empty CMore vector
+        ret = sc_opt_set_sessions(o, &v);
+        CHECK_EQ(ret, 0);
+
+        //try to get the sessions, checking the length is now 0
+        ret = sc_opt_get_sessions(o, &w);
+        CHECK_EQ(ret, 0);
+        CHECK_EQ(w.len, 0);
+
+        //cleanup
         cm_del_vct(&v);
+        cm_del_vct(&w);
         
     } //end test
 
@@ -443,19 +510,33 @@ TEST_CASE(test_c_opt_subtests[0]) {
         int ret;
         unsigned int a;
 
+    
+        /* first test: typical use-case */
+
+        //call getter before attribute is set
         a = sc_opt_get_alignment(o);
         CHECK_EQ(a, -1);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
+        //call setter
         ret = sc_opt_set_alignment(o, 4);
         CHECK_EQ(ret, 0);
+        
+        //call getter again to assert the attribute was set
         a = sc_opt_get_alignment(o);
         CHECK_EQ(a, 4);
 
+        //cleanup before next test
         sc_errno = 0;
 
+
+        /* second test: reset optional back to nullopt */
+
+        //call setter with this attribute's nullopt C equivalent
         ret = sc_opt_set_alignment(o, -1);
         CHECK_EQ(ret, 0);
+
+        //try to get the attribute to check it's been set to nullopt correctly
         a = sc_opt_get_alignment(o);
         CHECK_EQ(a, -1);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
@@ -468,6 +549,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
         unsigned int ret;
 
+        //call the getter for this const attribute
         ret = sc_opt_get_arch_byte_width(o);
         CHECK_EQ(ret, test_arch_byte_width);
         
@@ -545,22 +627,35 @@ TEST_CASE(test_c_opt_subtests[0]) {
         sc_addr_range rett = {0, 0};
         sc_addr_range ar = {0x1000, 0x2000};
 
+
+        /* first test: typical use-case */
+
+        //call getter before attribute is set
         ret = sc_opt_get_addr_range(o, &rett);
         CHECK_EQ(ret, -1);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
+        //call setter
         ret = sc_opt_set_addr_range(o, &ar);
         CHECK_EQ(ret, 0);
 
+        //call getter again to assert the attribute was set
         ret = sc_opt_get_addr_range(o, &rett);
         CHECK_EQ(ret, 0);
         CHECK_EQ(rett.min, ar.min);
         CHECK_EQ(rett.max, ar.max);       
 
+        //cleanup before next test
         sc_errno = 0;
 
+
+        /* second test: reset optional back to nullopt */
+
+        //call setter with this attribute's nullopt C equivalent
         ret = sc_opt_set_addr_range(o, nullptr);
         CHECK_EQ(ret, 0);
+
+        //try to get the attribute to check it's been set to nullopt correctly
         ret = sc_opt_get_alignment(o);
         CHECK_EQ(ret, -1);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
@@ -568,34 +663,47 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 12: set & get alignment
+    //test 12: set & get access
     SUBCASE(test_c_opt_subtests[12]) {
 
         int ret;
         cm_byte a;
 
+
+        /* first test: typical use-case */
+
+        //call getter before attribute is set
         a = sc_opt_get_access(o);
-        CHECK_EQ(a, -1);
+        CHECK_EQ(a, CM_BYTE_MAX);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
-        ret = sc_opt_set_alignment(o, MC_ACCESS_READ | MC_ACCESS_WRITE);
+        //call setter
+        ret = sc_opt_set_access(o, MC_ACCESS_READ | MC_ACCESS_WRITE);
         CHECK_EQ(ret, 0);
-        a = sc_opt_get_alignment(o);
+
+        //call getter again to assert the attribute was set
+        a = sc_opt_get_access(o);
         CHECK_EQ(a, MC_ACCESS_READ | MC_ACCESS_WRITE);
 
+        //cleanup before next test
         sc_errno = 0;
 
-        ret = sc_opt_set_alignment(o, -1);
+
+        /* second test: reset optional back to nullopt */
+
+        //call setter with this attribute's nullopt C equivalent
+        ret = sc_opt_set_access(o, -1);
         CHECK_EQ(ret, 0);
-        a = sc_opt_get_alignment(o);
-        CHECK_EQ(a, -1);
+
+        //try to get the attribute to check it's been set to nullopt correctly
+        a = sc_opt_get_access(o);
+        CHECK_EQ(a, CM_BYTE_MAX);
         CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
         
     } //end test
 
 
-
-    //test 0 (cont.): destroy a sc_opt
+    //test 0 (cont.): destroy the options object
     int _ret = sc_del_opt(o);
     CHECK_EQ(_ret, 0);
 

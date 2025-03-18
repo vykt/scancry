@@ -349,7 +349,7 @@ extern __thread int sc_errno;
 
 // 1XX - user errors
 #define SC_ERR_OPT_NOMAP_MSG \
-    "Provided opt did not contain a `mc_vm_map`.\n"
+    "Provided opt did not contain a `mc_vm_map`, or the map is empty.\n"
 #define SC_ERR_OPT_NOSESSION_MSG \
     "Provided opt did not contain a `mc_session`.\n"
 #define SC_ERR_SCAN_EMPTY_MSG \

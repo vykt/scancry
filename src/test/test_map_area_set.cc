@@ -2,6 +2,9 @@
 #include <optional>
 #include <vector>
 #include <unordered_set>
+#include <iostream> //TODO DEBUG, remove
+#include <ios>
+#include <cstdio>
 
 //external libraries
 #include <cmore.h>
@@ -61,6 +64,8 @@ static std::vector<cm_lst_node *> _hashmap_to_sorted_vector(
             /* area addresses can't overlap */
             if (now_area->start_addr < min_area->start_addr) {
                 min = iter;
+                min_area_node = *min;
+                min_area = MC_GET_NODE_AREA(min_area_node);
             }
         }
 
@@ -98,7 +103,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     mc_vm_map map;
 
     std::vector<cm_lst_node *> sorted_area_nodes;
-    
+
 
     /*
      *  Fixture: spawn a target process & open a MemCry session & map on it.
@@ -113,7 +118,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     //setup a MemCry session & map for the target.
     ret = mc_open(&session, PROCFS, pid);
     REQUIRE_EQ(ret, 0);
-    
+
     mc_new_vm_map(&map);
     ret = mc_update_map(&session, &map);
     REQUIRE_EQ(ret, 0);
@@ -178,7 +183,8 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         opts.set_access(MC_ACCESS_SHARED);
 
         rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        CHECK_EQ(rett.has_value(), false);
+        CHECK_EQ(sc_errno, SC_ERR_SCAN_EMPTY);
 
         auto area_nodes_3 = ma_set.get_area_nodes();
         CHECK_EQ(area_nodes_3.size(), 0);
@@ -220,19 +226,20 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         sc::map_area_set ma_set;
         mc_vm_obj * obj;
         mc_vm_area * area;
-        
+
 
         //first test: omit objs & omit areas
         /* Omitting unit_target, ldlinux.so, & vm_area after [heap] */
         opts.set_omit_objs(std::vector({map.vm_objs.head->next,
-                                        map.vm_objs.head->next->next->next}));
+                                        map.vm_objs.head->next->next->next->next/*->next->next*/}));
         opts.set_omit_areas(std::vector({map.vm_areas.head
-                                         ->next->next->next->next->next}));
+                                         ->next->next->next->next->next->next}));
 
         rett = ma_set.update_set(opts);
         CHECK_EQ(rett.has_value(), true);
 
         auto area_nodes_1 = ma_set.get_area_nodes();
+        std::cout << "area_nodes_1.size(): " << area_nodes_1.size() << std::endl;
         CHECK_EQ(area_nodes_1.size(), 11);
         
         //a debugger will appreciate seeing a sorted area set
@@ -245,14 +252,15 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         //second test: exclusive objs & exclusive areas
         /* Exlusively unit_target, ldlinux.so, & vm_area after [heap] */
         opts.set_exclusive_objs(std::vector({map.vm_objs.head->next,
-                                             map.vm_objs.head->next->next->next}));
+                                             map.vm_objs.head->next->next->next->next/*->next->next*/}));
         opts.set_exclusive_areas(std::vector({map.vm_areas.head
-                                              ->next->next->next->next->next}));
+                                              ->next->next->next->next->next->next}));
 
         rett = ma_set.update_set(opts);
         CHECK_EQ(rett.has_value(), true);
 
         auto area_nodes_2 = ma_set.get_area_nodes();
+        std::cout << "area_nodes_2.size(): " << area_nodes_2.size() << std::endl;
         CHECK_EQ(area_nodes_2.size(), 11);
 
         //a debugger will appreciate seeing a sorted area set
@@ -264,8 +272,8 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
         //third test: everything
         /* Exlusively unit_target */
-        opts.set_omit_objs(std::vector({map.vm_objs.head->next}));
-        /* Exclude the first vm_area of unit_target */
+        opts.set_exclusive_objs(std::vector({map.vm_objs.head->next}));
+        /* Omit the first vm_area of unit_target */
         opts.set_omit_areas(std::vector({map.vm_areas.head}));
         /* Only target `rw-` areas */
         opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
@@ -278,6 +286,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         CHECK_EQ(rett.has_value(), true);
 
         auto area_nodes_3 = ma_set.get_area_nodes();
+        std::cout << "area_nodes_3.size(): " << area_nodes_3.size() << std::endl;
         CHECK_EQ(area_nodes_3.size(), 1);
         
         //a debugger will appreciate seeing a sorted area set
@@ -333,6 +342,9 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
     //setup a MemCry session & map for the target.
     ret = mc_open(&session, PROCFS, pid);
     REQUIRE_EQ(ret, 0);
+
+    mc_new_vm_map(&map);
+    
     ret = mc_update_map(&session, &map);
     REQUIRE_EQ(ret, 0);
 
@@ -368,13 +380,16 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
 
         //update the map area set that fufills constraints
         ret = sc_update_set(ma_set, opts);
-        CHECK_EQ(rett.has_value(), true);
+        CHECK_EQ(ret, 0);
 
         //get the updated set
         ret = sc_get_set(ma_set, &v);
         CHECK_EQ(v.len, 5);
 
+
         //cleanup
+        cm_del_vct(&v);
+
         ret = sc_del_map_area_set(ma_set);
         CHECK_EQ(ret, 0);
         
@@ -383,6 +398,9 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
 
 
     //cleanup    
+    ret = sc_del_opt(opts);
+    CHECK_EQ(ret, 0);
+
     ret = mc_del_vm_map(&map);
     CHECK_EQ(ret, 0);
 

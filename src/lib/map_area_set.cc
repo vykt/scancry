@@ -94,7 +94,7 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
         access_bitfield_bit = access_bitfield & bitmask;
 
         //if this access bit is not required
-        if (area_access_bit == 0) goto is_access_continue;
+        if (access_bitfield_bit == 0) goto is_access_continue;
 
         //if this area lacks this required access bit
         if ((area_access_bit & access_bitfield_bit) == 0) return false;        
@@ -115,7 +115,7 @@ bool in_addr_range(const mc_vm_area * area,
 
     //if area falls outside the address range
     if (area->start_addr < addr_range.first
-        || area->end_addr >= addr_range.second) return false;
+        || area->end_addr > addr_range.second) return false;
 
     return true;
 }
@@ -139,7 +139,6 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 /*
  *  --- [PUBLIC]
  */
-
 /* This method will build the selected set of areas for a scan. In
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept
@@ -155,6 +154,7 @@ std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
     /* If an area is included inside an exclusive objects set, do not check
      * if it is included in the exclusive areas set. */
     bool exclusive_included;
+    bool first_iter;
 
 
     //empty previous scan set
@@ -176,7 +176,7 @@ std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
 
     //fetch MemCry map
     mc_vm_map const * map = opts.get_map();
-    if (map == nullptr) {
+    if (map == nullptr || map->vm_areas.len == 0) {
         sc_errno = SC_ERR_OPT_NOMAP;
         return std::nullopt;
     }
@@ -184,11 +184,17 @@ std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
 
     //setup iteration over objects
     area_node = map->vm_areas.head;
-    area = MC_GET_NODE_AREA(area_node);
     exclusive_included = false;
+    first_iter = true;
 
     //iterate through every area
-    while (area_node->next != map->vm_areas.head && area_node->next != NULL) {
+    while ((first_iter == true)
+           || ((area_node != map->vm_areas.head) && (area_node != NULL))) {
+
+        //prepare this iteration
+        first_iter = false;
+        area = MC_GET_NODE_AREA(area_node);
+
 
         // [object related checks]
 
@@ -269,13 +275,12 @@ std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
         //advance iteration
         update_scan_areas_continue:
         area_node = area_node->next;
-        area = MC_GET_NODE_AREA(area_node);
         exclusive_included = false;
         
     } //end iterate through every area
 
     if (this->area_nodes.empty() == true) {
-
+        sc_errno = SC_ERR_SCAN_EMPTY;
         return std::nullopt;
     }
 

@@ -59,6 +59,8 @@ std::optional<int> clean_targets() {
 }
 
 
+//TODO DEBUG FIXME REMOVE
+#include <iostream>
 pid_t start_target() {
 
     int ret;
@@ -94,6 +96,7 @@ pid_t start_target() {
 
     //parent waits for child to complete initialisation
     } else {
+        std::cout << "Waiting for target...\n";
         while (target_state == old_state) {}
     }
     

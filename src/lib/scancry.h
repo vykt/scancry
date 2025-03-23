@@ -5,7 +5,9 @@
 #ifdef __cplusplus
 //standard template library
 #include <optional>
+#include <memory>
 #include <vector>
+#include <list>
 #include <unordered_set>
 #include <string>
 #endif
@@ -13,12 +15,14 @@
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
+#include <pthread.h>
 
 
 /*
  *  NOTE: ScanCry should be accessible through the C ABI for cross
- *  language compatibility. While the internals make use of C++, this
- *  interface either restricts itself to C, or provides C wrappers to C++.
+ *        language compatibility. While the internals make use of C++,
+ *        this interface either restricts itself to C, or provides C
+ *        wrappers to C++.
  */
 
 
@@ -157,6 +161,81 @@ class map_area_set {
         const std::unordered_set<cm_lst_node *> & get_area_nodes() const {
             return area_nodes;
         }
+};
+
+
+/*
+ *  Internal parent scanner class, used for dependency injection.
+ */
+class _scan {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+
+    public:
+        //[methods]
+        //dependency injection function
+        virtual void process_addr(void * addr) = 0;
+};
+
+
+/*
+ *  Pointer scanner. 
+ */
+class _ptrscan_tree_node;
+class _ptrscan_tree;
+
+class ptrscan : public _scan {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        //options
+        std::optional<uintptr_t> target_addr;
+        std::optional<off_t> alignment;
+        std::optional<int> max_depth;
+
+        //structures
+        std::unique_ptr<_ptrscan_tree> tree_p;
+        std::unordered_set<cm_lst_node *> static_areas;
+
+        //[methods]
+        std::optional<int> add_node();
+
+    public:
+        //[methods]
+        //ctor & dtor
+        ptrscan();
+        ~ptrscan();
+
+        //dependency injection function
+        void process_addr(void const * addr);
+
+        //getters & setters
+        void set_target_addr(const uintptr_t target_addr);
+        std::optional<uintptr_t> get_target_addr() const;
+};
+
+
+/*
+ *  Manager of worker threads, responsible for spawning, dispatching,
+ *  synchronising, and cleaning up threads. The parameters for the
+ *  scan are determined by an instance of `opt` class. Dependency
+ *  injection is used to determine the type of scan performed.
+ */
+class worker_mngr {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        std::vector<pthread_t> workers;
+
+    public:
+        //[methods]
+        worker_mngr();
+        ~worker_mngr();
+
+        std::optional<int> update(const opt & opts);
+        std::optional<int> do_scan();
+        std::optional<int> cancel();
 };
 
 

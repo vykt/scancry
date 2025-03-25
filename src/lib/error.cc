@@ -66,6 +66,10 @@ void sc_perror(const char * prefix) {
             fprintf(stderr, "%s: %s", prefix, SC_ERR_MEMCRY_MSG);
             break;
 
+        case SC_ERR_PTHREAD:
+            fprintf(stderr, "%s: %s", prefix, SC_ERR_PTHREAD_MSG);
+            break;
+
         case SC_ERR_EXCP:
             fprintf(stderr, "%s: %s", prefix, SC_ERR_EXCP_MSG);
             break;
@@ -110,6 +114,9 @@ const char * sc_strerror(const int sc_errnum) {
         
         case SC_ERR_MEMCRY:
             return SC_ERR_MEMCRY_MSG;
+
+        case SC_ERR_PTHREAD:
+            return SC_ERR_PTHREAD_MSG;
 
         case SC_ERR_EXCP:
             return SC_ERR_EXCP_MSG;

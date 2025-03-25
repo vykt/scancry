@@ -2,7 +2,7 @@
 #include <optional>
 #include <vector>
 #include <unordered_set>
-#include <iostream> //TODO DEBUG, remove
+#include <iostream>
 #include <ios>
 #include <cstdio>
 
@@ -124,7 +124,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     REQUIRE_EQ(ret, 0);
 
     //create a option class
-    sc::opt opts = sc::opt(test_arch_byte_width);
+    sc::opt opts = sc::opt(test_cc_addr_width);
     opts.set_map(&map);
 
 
@@ -349,7 +349,7 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
     REQUIRE_EQ(ret, 0);
 
     //create a option class
-    sc_opt opts = sc_new_opt(test_arch_byte_width);
+    sc_opt opts = sc_new_opt(test_c_addr_width);
     sc_opt_set_map(opts, &map);
 
 

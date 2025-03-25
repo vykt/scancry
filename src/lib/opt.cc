@@ -60,28 +60,13 @@ const std::vector<mc_session const *> & sc::opt::get_sessions() const {
 }
 
 
-void sc::opt::set_map(const mc_vm_map * map) {
+void sc::opt::set_map(const mc_vm_map * map) noexcept {
     this->map = map;
 }
 
 
-mc_vm_map const * sc::opt::get_map() const {
+mc_vm_map const * sc::opt::get_map() const noexcept {
     return this->map;
-}
-
-
-void sc::opt::set_alignment(const std::optional<int> & alignment) {
-    this->alignment = alignment;
-}
-
-
-std::optional<unsigned int> sc::opt::get_alignment() const {
-    return this->alignment;
-}
-
-
-unsigned int sc::opt::get_arch_byte_width() const {
-    return this->arch_byte_width;
 }
 
 
@@ -135,12 +120,12 @@ const std::optional<std::pair<uintptr_t, uintptr_t>> sc::opt::get_addr_range() c
 }
 
 
-void sc::opt::set_access(const std::optional<cm_byte> & access) {
+void sc::opt::set_access(const std::optional<cm_byte> & access) noexcept {
     this->access = access;
 }
 
 
-std::optional<cm_byte> sc::opt::get_access() const {
+std::optional<cm_byte> sc::opt::get_access() const noexcept {
     return this->access;
 }
 
@@ -232,10 +217,13 @@ int _opt_c_constraint_getter(const sc_opt opts, cm_vct * v,
  */
 
 //new class opt
-sc_opt sc_new_opt(const int arch_byte_width) {
+sc_opt sc_new_opt(const enum sc_addr_width addr_width) {
+
+    //convert C enum to C++
+    enum sc::addr_width width = (addr_width == AW64) ? sc::AW64 : sc::AW32;
 
     try {
-        return new sc::opt(arch_byte_width);    
+        return new sc::opt(width);
 
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
@@ -417,52 +405,13 @@ mc_vm_map const * sc_opt_get_map(const sc_opt opts) {
 }
 
 
-int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    try {
-        if (alignment == -1) o->set_alignment(std::nullopt);
-        else o->set_alignment(alignment);
-        return 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-    
-unsigned int sc_opt_get_alignment(const sc_opt opts) {
+enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
-    //return NULL if optional is not set or there is an error
-    try {
-        std::optional<int> alignment = o->get_alignment();
-    
-        if (alignment.has_value()) {
-            return alignment.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
-unsigned int sc_opt_get_arch_byte_width(const sc_opt opts) {
-
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    return o->get_arch_byte_width();
+    //convert C++ enum to C
+    return (o->addr_width == sc::AW64) ? AW64 : AW32;
 }
 
 
@@ -619,3 +568,28 @@ cm_byte sc_opt_get_access(const sc_opt opts) {
         return -1;
     }
 }
+
+
+
+// TODO: Use the following for setting static areas:
+    /*
+     *  NOTE: Provided static areas that are not included in the map_area_set
+     *        are ignored.
+     */
+
+    //fetch areas selected for scanning
+    const std::unordered_set<cm_lst_node *> & scan_area_set = ma_set.get_area_nodes();
+    std::unordered_set<cm_lst_node *> ret_static_set;
+
+
+    //for every proposed static area
+    for (auto iter = static_areas.begin(); iter != static_areas.end(); ++iter) {
+
+        //if static area not included in current scan area set, ignore it
+        if (scan_area_set.find(*iter) == scan_area_set.end()) continue;
+
+        //add static area to the static areas set
+        ret_static_set.insert(*iter);
+    }
+
+    return ret_static_set;

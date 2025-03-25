@@ -10,12 +10,17 @@
 #include <list>
 #include <unordered_set>
 #include <string>
+#include <type_traits>
 #endif
 
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
 #include <pthread.h>
+
+//local includes
+#include "scancry_impl.h"
+
 
 
 /*
@@ -24,21 +29,6 @@
  *        this interface either restricts itself to C, or provides C
  *        wrappers to C++.
  */
-
-
-
-// [internal unit testing support]
-#ifdef DEBUG 
-#define _SC_DBG_STATIC
-#define _SC_DBG_INLINE
-#define _SC_DBG_PRIVATE public
-#else
-#define _SC_DBG_STATIC static
-#define _SC_DBG_INLINE inline
-#define _SC_DBG_PRIVATE private
-#endif
-
-
 
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
@@ -55,6 +45,14 @@ namespace sc {
 /*
  *  Configuration options for scans.
  */
+
+//architecture address width enum
+enum addr_width {
+    AW32 = 4,
+    AW64 = 8
+};
+
+
 class opt {
 
     _SC_DBG_PRIVATE:
@@ -76,10 +74,6 @@ class opt {
         //MemCry memory map of target
         mc_vm_map const * map;
 
-        //scan core settings
-        std::optional<unsigned int> alignment;
-        const unsigned int arch_byte_width;
-
         /*
          *  The following attributes define constraints to apply
          *  to mc_vm_map. For example, `omit_objs` will not include
@@ -99,10 +93,13 @@ class opt {
         std::optional<cm_byte> access;
 
     public:
+        //[attributes]
+        const enum addr_width addr_width;
+    
         //[methods]
         //ctor
-        opt(unsigned int _arch_byte_width)
-        : map(nullptr), arch_byte_width(_arch_byte_width) {}
+        opt(enum addr_width _addr_width)
+        : map(nullptr), addr_width(_addr_width) {}
 
 
         //getters & setters
@@ -115,13 +112,8 @@ class opt {
         void set_sessions(const std::vector<mc_session const *> & sessions);
         const std::vector<mc_session const *> & get_sessions() const;
 
-        void set_map(const mc_vm_map * map);
-        mc_vm_map const * get_map() const;
-
-        void set_alignment(const std::optional<int> & alignment);
-        std::optional<unsigned int> get_alignment() const;
-
-        unsigned int get_arch_byte_width() const;
+        void set_map(const mc_vm_map * map) noexcept;
+        mc_vm_map const * get_map() const noexcept;
         
         void set_omit_areas(const std::optional<std::vector<cm_lst_node *>> & omit_areas);
         const std::optional<std::vector<cm_lst_node *>> & get_omit_areas() const;
@@ -138,8 +130,69 @@ class opt {
         void set_addr_range(const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range);
         const std::optional<std::pair<uintptr_t, uintptr_t>> get_addr_range() const;
 
-        void set_access(const std::optional<cm_byte> & access);
-        std::optional<cm_byte> get_access() const;
+        void set_access(const std::optional<cm_byte> & access) noexcept;
+        std::optional<cm_byte> get_access() const noexcept;
+};
+
+
+
+/*
+ *  Configuration options only applicable to pointer scans
+ */
+
+class opt_ptrscan {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        /* The following 4 optionals are _not_ optional, they must be set. */
+        std::optional<uintptr_t> target_addr;
+        std::optional<off_t> alignment;
+        std::optional<off_t> max_obj_sz;
+        std::optional<int> max_depth;
+
+        std::optional<std::unordered_set<cm_lst_node *>> static_areas;
+        std::optional<std::vector<off_t>> preset_offsets;
+
+        /*
+         *  NOTE: With `smart_scan` on, every potential pointer will be 
+         *        treated as pointing only to one parent node to which it's
+         *        offset is smallest.
+         *
+         *        For example: imagine 4 objects of size 0x40 each allocated
+         *        inside an array. With `max_obj_sz` of 0x100, a potential
+         *        pointer to the start of the array will technically point to
+         *        each object in the array. With `smart_scan` set to true, it
+         *        will only point to the first object.
+         */
+        
+        bool smart_scan;
+
+    public:
+        //ctor
+        opt_ptrscan()
+        : smart_scan(false) {}
+
+        //getters & setters
+        void set_target_addr(const std::optional<uintptr_t> & target_addr);
+        std::optional<uintptr_t> get_target_addr() const noexcept;
+        
+        void set_alignment(const std::optional<off_t> & alignment);
+        std::optional<off_t> get_alignment() const noexcept;
+        
+        void set_max_obj_sz(const std::optional<off_t> & max_obj_sz);
+        std::optional<off_t> get_max_obj_sz() const noexcept;
+        
+        void set_max_depth(const std::optional<int> & max_depth);
+        std::optional<int> get_max_depth() const noexcept;
+        
+        void set_static_areas(const std::optional<std::vector<cm_lst_node *>> & static_areas);
+        std::optional<std::unordered_set<cm_lst_node *>> get_static_areas() const;
+        
+        void set_preset_offsets(const std::optional<std::vector<off_t>> & preset_offsets);
+        std::optional<std::vector<off_t>> get_preset_offsets() const;
+        
+        void set_smart_scan(bool do_smart_scan);
+        bool get_smart_scan() const noexcept;    
 };
 
 
@@ -158,24 +211,9 @@ class map_area_set {
         std::optional<int> update_set(const opt & opts);
 
         //getters & setters
-        const std::unordered_set<cm_lst_node *> & get_area_nodes() const {
+        const std::unordered_set<cm_lst_node *> & get_area_nodes() const noexcept {
             return area_nodes;
         }
-};
-
-
-/*
- *  Internal parent scanner class, used for dependency injection.
- */
-class _scan {
-
-    _SC_DBG_PRIVATE:
-        //[attributes]
-
-    public:
-        //[methods]
-        //dependency injection function
-        virtual void process_addr(void * addr) = 0;
 };
 
 
@@ -189,30 +227,17 @@ class ptrscan : public _scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        //options
-        std::optional<uintptr_t> target_addr;
-        std::optional<off_t> alignment;
-        std::optional<int> max_depth;
-
-        //structures
         std::unique_ptr<_ptrscan_tree> tree_p;
-        std::unordered_set<cm_lst_node *> static_areas;
 
         //[methods]
-        std::optional<int> add_node();
+        void _add_node(std::shared_ptr<_ptrscan_tree_node> parent_node,
+                       const cm_lst_node * area_node, const uintptr_t own_addr, const uintptr_t ptr_addr);
 
     public:
         //[methods]
-        //ctor & dtor
-        ptrscan();
-        ~ptrscan();
-
-        //dependency injection function
-        void process_addr(void const * addr);
-
-        //getters & setters
-        void set_target_addr(const uintptr_t target_addr);
-        std::optional<uintptr_t> get_target_addr() const;
+        //scanner dependency injection function
+        void process_addr(_scan_arg arg, const void * const arg_custom,
+                          const opt & opts, const void * const opts_custom);
 };
 
 
@@ -222,6 +247,7 @@ class ptrscan : public _scan {
  *  scan are determined by an instance of `opt` class. Dependency
  *  injection is used to determine the type of scan performed.
  */
+
 class worker_mngr {
 
     _SC_DBG_PRIVATE:
@@ -273,6 +299,13 @@ typedef struct {
 } sc_addr_range;
 
 
+//architecture address width enum
+enum sc_addr_width {
+    AW32 = 4,
+    AW64 = 8
+};
+
+
 
 /*
  *  --- [OPT] ---
@@ -284,7 +317,7 @@ typedef struct {
  */
 
 //return opaque handle to `opt` object, or NULL on error
-extern sc_opt sc_new_opt(const int arch_byte_width);
+extern sc_opt sc_new_opt(const enum sc_addr_width addr_width);
 //return 0 on success, -1 on error
 extern int sc_del_opt(sc_opt opts);
 
@@ -320,7 +353,7 @@ extern int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
 extern unsigned int sc_opt_get_alignment(const sc_opt opts);
 
 //return arch width in bytes if set, -1 if not set
-extern unsigned int sc_opt_get_arch_byte_width(const sc_opt opts);
+extern enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts);
 
 /*
  * The following setters require an initialised CMore vector (`cm_vct`)
@@ -417,8 +450,9 @@ extern __thread int sc_errno;
 // 2XX - internal errors
 #define SC_ERR_CMORE          3200
 #define SC_ERR_MEMCRY         3201
-#define SC_ERR_EXCP           3202
-#define SC_ERR_RUN_EXCP       3203
+#define SC_ERR_PTHREAD        3202
+#define SC_ERR_EXCP           3203
+#define SC_ERR_RUN_EXCP       3204
 
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
@@ -441,10 +475,12 @@ extern __thread int sc_errno;
     "Internal: CMore error. See cm_perror().\n"
 #define SC_ERR_MEMCRY_MSG \
     "Internal: MemCry error. See mc_perror().\n"
+#define SC_ERR_PTHREAD_MSG \
+    "Internal: Pthread error.\n"
 #define SC_ERR_EXCP_MSG \
-    "Internal: An exception was thrown.\n"
+    "Internal: An unrecoverable exception was thrown.\n"
 #define SC_ERR_RUN_EXCP_MSG \
-    "Internal: A runtime exception was thrown.\n"
+    "Internal: An unrecoverable runtime exception was thrown.\n"
 
 // 3XX - environment errors
 #define SC_ERR_MEM_MSG \

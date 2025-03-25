@@ -25,7 +25,7 @@ class _ptrscan_tree_node {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        std::list<_ptrscan_tree_node> children;
+        std::list<std::shared_ptr<_ptrscan_tree_node>> children;
 
     public:
         //[attributes]
@@ -41,10 +41,14 @@ class _ptrscan_tree_node {
         //ctor
         _ptrscan_tree_node(const int id, const cm_lst_node * area_node,
                            const uintptr_t own_addr, const uintptr_t ptr_addr,
-                           const std::shared_ptr<_ptrscan_tree_node> parent);
+                           const std::shared_ptr<_ptrscan_tree_node> parent)
+         : id(id), area_node(area_node),
+           own_addr(own_addr), ptr_addr(ptr_addr), parent(parent) {}
+
+        void add_child(std::shared_ptr<_ptrscan_tree_node> child_node);
 
         //getters & setters
-        const std::list<_ptrscan_tree_node> & get_children() const;
+        const std::list<std::shared_ptr<_ptrscan_tree_node>> & get_children() const;
 };
 
 
@@ -53,20 +57,29 @@ class _ptrscan_tree {
     _SC_DBG_PRIVATE:
         //[attributes]
         int next_id;
+        int now_depth_level;
         pthread_mutex_t write_mutex;
 
-        std::vector<std::list<std::shared_ptr<_ptrscan_tree_node>>> depth_levels;
+        //2D vector is desirable here, we need fast iteration
+        std::vector<std::vector<std::shared_ptr<_ptrscan_tree_node>>> depth_levels;
         const std::shared_ptr<_ptrscan_tree_node> root_node;
 
     public:
         //[methods]
         //ctor
-        _ptrscan_tree() : next_id(0) {};
-        std::optional<int> add_node(_ptrscan_tree_node & node,
-                                    const int level, const cm_lst_node * area_node,
-                                    const uintptr_t own_addr, const uintptr_t ptr_addr);
+        _ptrscan_tree();
+        ~_ptrscan_tree();
+
+        //tree modifiers
+        void add_node(std::shared_ptr<_ptrscan_tree_node> node,
+                      const cm_lst_node * area_node,
+                      const uintptr_t own_addr, const uintptr_t ptr_addr);
+        void inc_depth();
+
         //getters & setters
-        std::vector<std::list<std::shared_ptr<_ptrscan_tree_node>>> & get_depth_levels() const;
+        int get_now_depth_level() const noexcept;
+        pthread_mutex_t & get_write_mutex() noexcept;
+        const std::vector<std::shared_ptr<_ptrscan_tree_node>> & get_depth_level_vct(int level) const noexcept;
         const std::shared_ptr<_ptrscan_tree_node> get_root_node() const;
 };
 

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 //external
-sc_opt new_sc_opt(const int arch_byte_width);
+sc_opt new_sc_opt(const enum sc::addr_width addr_width);
 int del_sc_opt(sc_opt opts);
 
 int sc_opt_set_file_path_out(sc_opt opts, const char * path);
@@ -32,7 +32,7 @@ mc_vm_map const * sc_opt_get_map(const sc_opt opts);
 int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
 unsigned int sc_opt_get_alignment(const sc_opt opts);
 
-unsigned int sc_opt_get_arch_byte_width(const sc_opt opts);
+enum sc::addr_width sc_opt_get_arch_byte_width(const sc_opt opts);
 
 int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas);
 int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas);

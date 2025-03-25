@@ -50,7 +50,7 @@ static void _cc_constraint_test(sc::opt & o, std::vector<cm_lst_node *> & v,
 TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 0: construct a opt class
-    sc::opt o(test_arch_byte_width);
+    sc::opt o(test_cc_addr_width);
 
 
     //test 1: set & get `file_path_out`
@@ -119,34 +119,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
     
-    //test 5: set & get `alignment`
+    //test 5: set & get `omit_areas`
     SUBCASE(test_cc_opt_subtests[5]) {
-
-        std::optional<unsigned int> ret;
-
-        ret = o.get_alignment();
-        CHECK_EQ(ret.has_value(), false);
-
-        o.set_alignment(4);
-        ret = o.get_alignment();
-        CHECK_EQ(ret.value(), 4);
-        
-    } //end test
-
-    
-    //test 6: get `arch_byte_width`
-    SUBCASE(test_cc_opt_subtests[6]) {
-
-        unsigned int ret;
-
-        ret = o.get_arch_byte_width();
-        CHECK_EQ(ret, test_arch_byte_width);
-    
-    } //end test
-
-
-    //test 7: set & get `omit_areas`
-    SUBCASE(test_cc_opt_subtests[7]) {
 
         std::vector<cm_lst_node *> s = {
             (cm_lst_node *) 0x40404040,
@@ -161,8 +135,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 8: set & get `omit_objs`
-    SUBCASE(test_cc_opt_subtests[8]) {
+    //test 6: set & get `omit_objs`
+    SUBCASE(test_cc_opt_subtests[6]) {
 
         std::vector<cm_lst_node *> s = {
             (cm_lst_node *) 0x04040404,
@@ -177,8 +151,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 9: set & get `exclusive_areas`
-    SUBCASE(test_cc_opt_subtests[9]) {
+    //test 7: set & get `exclusive_areas`
+    SUBCASE(test_cc_opt_subtests[7]) {
 
         std::vector<cm_lst_node *> s = {
             (cm_lst_node *) 0x70707070,
@@ -193,8 +167,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
     
-    //test 10: set & get `exclusive_objs`
-    SUBCASE(test_cc_opt_subtests[10]) {
+    //test 8: set & get `exclusive_objs`
+    SUBCASE(test_cc_opt_subtests[8]) {
         
         std::vector<cm_lst_node *> s = {
             (cm_lst_node *) 0x01010101,
@@ -208,8 +182,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: get & set `addr_range`
-    SUBCASE(test_cc_opt_subtests[11]) {
+    //test 9: get & set `addr_range`
+    SUBCASE(test_cc_opt_subtests[9]) {
 
         std::pair<uintptr_t, uintptr_t> p = {4, 2};
 
@@ -225,8 +199,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 12: set & get `access`
-    SUBCASE(test_cc_opt_subtests[12]) {
+    //test 10: set & get `access`
+    SUBCASE(test_cc_opt_subtests[10]) {
 
         std::optional<cm_byte> ret;
 
@@ -331,7 +305,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     sc_opt o;
 
     //test 0: create a sc_opt
-    o = sc_new_opt(test_arch_byte_width);
+    o = sc_new_opt(test_c_addr_width);
     REQUIRE_NE(o, nullptr);
     
 
@@ -504,60 +478,20 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 5: set & get alignment
+    //test 5: get addr_width
     SUBCASE(test_c_opt_subtests[5]) {
 
-        int ret;
-        unsigned int a;
-
-    
-        /* first test: typical use-case */
-
-        //call getter before attribute is set
-        a = sc_opt_get_alignment(o);
-        CHECK_EQ(a, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
-
-        //call setter
-        ret = sc_opt_set_alignment(o, 4);
-        CHECK_EQ(ret, 0);
-        
-        //call getter again to assert the attribute was set
-        a = sc_opt_get_alignment(o);
-        CHECK_EQ(a, 4);
-
-        //cleanup before next test
-        sc_errno = 0;
-
-
-        /* second test: reset optional back to nullopt */
-
-        //call setter with this attribute's nullopt C equivalent
-        ret = sc_opt_set_alignment(o, -1);
-        CHECK_EQ(ret, 0);
-
-        //try to get the attribute to check it's been set to nullopt correctly
-        a = sc_opt_get_alignment(o);
-        CHECK_EQ(a, -1);
-        CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
-        
-    } //end test
-
-
-    //test 6: get arch_byte_width
-    SUBCASE(test_c_opt_subtests[6]) {
-
-        unsigned int ret;
+        sc_addr_width ret;
 
         //call the getter for this const attribute
-        ret = sc_opt_get_arch_byte_width(o);
-        CHECK_EQ(ret, test_arch_byte_width);
+        ret = sc_opt_get_addr_width(o);
+        CHECK_EQ(ret, test_c_addr_width);
         
     } //end test
 
 
-    //test 7: set & get omit_areas
-    SUBCASE(test_c_opt_subtests[7]) {
+    //test 6: set & get omit_areas
+    SUBCASE(test_c_opt_subtests[6]) {
 
         cm_lst_node * a[3] = {
             (cm_lst_node *) 0x40404040,
@@ -572,8 +506,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 8: set & get omit_objs
-    SUBCASE(test_c_opt_subtests[8]) {
+    //test 7: set & get omit_objs
+    SUBCASE(test_c_opt_subtests[7]) {
 
         cm_lst_node * a[3] = {
             (cm_lst_node *) 0x04040404,
@@ -588,8 +522,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 9: set & get exclusive_areas
-    SUBCASE(test_c_opt_subtests[9]) {
+    //test 8: set & get exclusive_areas
+    SUBCASE(test_c_opt_subtests[8]) {
 
         cm_lst_node * a[3] = {
             (cm_lst_node *) 0x70707070,
@@ -604,8 +538,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 10: set & get exclusive_objs
-    SUBCASE(test_c_opt_subtests[10]) {
+    //test 9: set & get exclusive_objs
+    SUBCASE(test_c_opt_subtests[9]) {
 
         cm_lst_node * a[3] = {
             (cm_lst_node *) 0x07070707,
@@ -620,8 +554,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: set & get an address range
-    SUBCASE(test_c_opt_subtests[11]) {
+    //test 10: set & get an address range
+    SUBCASE(test_c_opt_subtests[10]) {
 
         int ret;
         sc_addr_range rett = {0, 0};
@@ -663,8 +597,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 12: set & get access
-    SUBCASE(test_c_opt_subtests[12]) {
+    //test 11: set & get access
+    SUBCASE(test_c_opt_subtests[11]) {
 
         int ret;
         cm_byte a;

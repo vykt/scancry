@@ -43,7 +43,7 @@ void sc::_ptrscan_tree_node::add_child(std::shared_ptr<_ptrscan_tree_node> child
  */
 
 //RAII for pthread_mutex_t
-sc::_ptrscan_tree::_ptrscan_tree() : next_id(0), now_depth_level(0) {
+sc::_ptrscan_tree::_ptrscan_tree() : next_id(0) {
 
     int ret;
 
@@ -68,7 +68,7 @@ sc::_ptrscan_tree::~_ptrscan_tree() {
 
 
 void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
-                                 const cm_lst_node * area_node,
+                                 const cm_lst_node * area_node, const int depth_level,
                                  const uintptr_t own_addr, const uintptr_t ptr_addr) {
 
     //create new node
@@ -80,14 +80,8 @@ void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
     node->add_child(new_node);
 
     //add new node to its depth level list
-    this->depth_levels[this->now_depth_level].push_back(new_node);
+    this->depth_levels[depth_level].push_back(new_node);
 
-    return;
-}
-
-
-void sc::_ptrscan_tree::inc_depth() {
-    ++this->now_depth_level;
     return;
 }
 
@@ -102,11 +96,6 @@ const std::shared_ptr<sc::_ptrscan_tree_node> sc::_ptrscan_tree::get_root_node()
 }
 
 
-int sc::_ptrscan_tree::get_now_depth_level() const noexcept {
-    return this->now_depth_level;
-}
-
-
 
 /*
  *  --- [POINTER SCANNER | PRIVATE] ---
@@ -115,7 +104,8 @@ void sc::ptrscan::_add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
                             const cm_lst_node * area_node, const uintptr_t own_addr, const uintptr_t ptr_addr) {
 
     //create node inside the ptrscan tree
-    this->tree_p->add_node(parent_node, area_node, own_addr, ptr_addr);
+    this->tree_p->add_node(
+        parent_node, area_node, this->cur_depth_level, own_addr, ptr_addr);
 
     return;
 }
@@ -145,7 +135,7 @@ struct _potential_node {
 
 
 //process a single address from a worker thread
-void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const arg_custom,
+void sc::ptrscan::process_addr(const struct _scan_arg arg,
                                const opt & opts, const void * const opts_custom) {
 
     /*
@@ -156,7 +146,6 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const ar
 
     //fetch ptrscan options (the C way <3)
     opt_ptrscan & opts_ptrscan = *((opt_ptrscan *) opts_custom);
-    struct _arg_ptrscan & arg_ptrscan = *((struct _arg_ptrscan *) arg_custom);
 
     //if not on an alignment boundary, return
     if ((arg.area_off % *opts_ptrscan.get_alignment()) != 0) return;
@@ -165,10 +154,16 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const ar
     off_t required_left = (opts.addr_width == sc::AW64) ? 8 : 4;
     if (arg.buf_left < required_left) return;
 
+    /*
+     *  const qualifier is discarded; no better way to do this the way
+     *  things are currently organised.
+     */
+
     //re-cache the depth level vector at the start of every area
     if (arg.area_off == 0)
-        arg_ptrscan.depth_level_vec
-            = this->tree_p->get_depth_level_vct(this->tree_p->get_now_depth_level());
+        this->cache_depth_level_vct =
+            (std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> *)
+            &this->tree_p->get_depth_level_vct(this->cur_depth_level);
 
     /*
      *  NOTE: `new_nodes` stores nodes that will be added by the end of
@@ -192,8 +187,8 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const ar
      */
 
     //for every ptrscan tree node at this depth
-    for (auto level_iter = arg_ptrscan.depth_level_vec.begin();
-         level_iter != arg_ptrscan.depth_level_vec.end(); ++level_iter) {
+    for (auto level_iter = this->cache_depth_level_vct->begin();
+         level_iter != this->cache_depth_level_vct->end(); ++level_iter) {
 
         //get the current node from the iterator
         const std::shared_ptr<sc::_ptrscan_tree_node> & now_node = *level_iter;
@@ -206,9 +201,10 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const ar
         //else this is a match
 
         //check the offset is correct, if one applies
-        if (arg_ptrscan.cur_offset.has_value())
-            if (potential_ptr != (now_node->own_addr - *arg_ptrscan.cur_offset)) continue;
-
+        auto presets = opts_ptrscan.get_preset_offsets();
+        if (presets.has_value() && presets->size() <= this->cur_depth_level)
+            if (potential_ptr != (now_node->own_addr - (*presets)[this->cur_depth_level])) continue;
+        
         //if this is a smart scan, manipulate the new node container
         if (opts_ptrscan.get_smart_scan() == true) {
 
@@ -244,7 +240,7 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg, const void * const ar
 
         //add the new node to the tree
         this->tree_p->add_node(new_iter->parent_tree_node, new_iter->area_node,
-                               new_iter->own_addr, new_iter->ptr_addr);
+                               this->cur_depth_level, new_iter->own_addr, new_iter->ptr_addr);
     }
 
     //release the mutex

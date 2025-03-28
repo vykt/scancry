@@ -57,7 +57,6 @@ class _ptrscan_tree {
     _SC_DBG_PRIVATE:
         //[attributes]
         int next_id;
-        int now_depth_level;
         pthread_mutex_t write_mutex;
 
         //2D vector is desirable here, we need fast iteration
@@ -72,12 +71,10 @@ class _ptrscan_tree {
 
         //tree modifiers
         void add_node(std::shared_ptr<_ptrscan_tree_node> node,
-                      const cm_lst_node * area_node,
+                      const cm_lst_node * area_node, int depth_level,
                       const uintptr_t own_addr, const uintptr_t ptr_addr);
-        void inc_depth();
 
         //getters & setters
-        int get_now_depth_level() const noexcept;
         pthread_mutex_t & get_write_mutex() noexcept;
         const std::vector<std::shared_ptr<_ptrscan_tree_node>> & get_depth_level_vct(int level) const noexcept;
         const std::shared_ptr<_ptrscan_tree_node> get_root_node() const;

@@ -18,7 +18,7 @@
 #include <memcry.h>
 #include <pthread.h>
 
-//local includes
+//local headers
 #include "scancry_impl.h"
 
 
@@ -58,8 +58,8 @@ class opt {
     _SC_DBG_PRIVATE:
         //[attributes]
         //save & load file paths
-        std::optional<std::string> file_path_out;
-        std::optional<std::string> file_path_in;
+        std::optional<const std::string> file_path_out;
+        std::optional<const std::string> file_path_in;
 
         /*
          *  The number of threads used during scans is determined 
@@ -69,7 +69,7 @@ class opt {
          */
         
         //MemCry sessions
-        std::vector<mc_session const *> sessions;
+        std::vector<const mc_session *> sessions;
 
         //MemCry memory map of target
         mc_vm_map const * map;
@@ -85,11 +85,11 @@ class opt {
          */
 
         //scan constraints
-        std::optional<std::vector<cm_lst_node *>> omit_areas;
-        std::optional<std::vector<cm_lst_node *>> omit_objs;
-        std::optional<std::vector<cm_lst_node *>> exclusive_areas;
-        std::optional<std::vector<cm_lst_node *>> exclusive_objs;
-        std::optional<std::pair<uintptr_t, uintptr_t>> addr_range;
+        std::optional<const std::vector<const cm_lst_node *>> omit_areas;
+        std::optional<const std::vector<const cm_lst_node *>> omit_objs;
+        std::optional<const std::vector<const cm_lst_node *>> exclusive_areas;
+        std::optional<const std::vector<const cm_lst_node *>> exclusive_objs;
+        std::optional<const std::pair<const uintptr_t, const uintptr_t>> addr_range;
         std::optional<cm_byte> access;
 
     public:
@@ -227,7 +227,12 @@ class ptrscan : public _scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
+        //pointer scan tree
         std::unique_ptr<_ptrscan_tree> tree_p;
+        int cur_depth_level;
+
+        //cache
+        std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> * cache_depth_level_vct;
 
         //[methods]
         void _add_node(std::shared_ptr<_ptrscan_tree_node> parent_node,
@@ -236,8 +241,7 @@ class ptrscan : public _scan {
     public:
         //[methods]
         //scanner dependency injection function
-        void process_addr(_scan_arg arg, const void * const arg_custom,
-                          const opt & opts, const void * const opts_custom);
+        void process_addr(_scan_arg arg, const opt & opts, const void * const opts_custom);
 };
 
 
@@ -248,19 +252,52 @@ class ptrscan : public _scan {
  *  injection is used to determine the type of scan performed.
  */
 
+const constexpr cm_byte WORKER_MNGR_KEEP_WORKERS  = 0x1;
+const constexpr cm_byte WORKER_MNGR_KEEP_SCAN_SET = 0x2;
+
 class worker_mngr {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        std::vector<pthread_t> workers;
+        //worker threads
+        std::vector<_worker> workers;
+        std::vector<pthread_t> worker_ids;
+
+        //memory areas each worker scans
+        std::vector<sc::_sa_sort_entry> sorted_entries;
+        std::vector<std::vector<const cm_lst_node *>> scan_area_sets;
+
+        //scan type
+        sc::_scan * scan;
+
+        //concurrency
+        struct _worker_concurrency concur;
+
+        //worker signalling
+        cm_byte flags;
+        bool in_use;
+
+        //[methods]
+        std::optional<int> spawn_workers(const opt & opts);
+        std::optional<int> kill_workers();
+        std::optional<int> sort_by_size(const map_area_set & ma_set);
+        std::optional<int> update_scan_area_set(const map_area_set & ma_set);
 
     public:
         //[methods]
-        worker_mngr();
+        //ctor & dtor
+        worker_mngr()
+         : flags(0), in_use(false) {}
         ~worker_mngr();
 
-        std::optional<int> update(const opt & opts);
-        std::optional<int> do_scan();
+        //control workers
+        std::optional<int> update_workers(const opt & opts,
+                                          const map_area_set & ma_set, const cm_byte flags);
+        std::optional<int> destroy_workers();
+
+        //control scan area
+
+        std::optional<int> do_scan(_scan * scan);
         std::optional<int> cancel();
 };
 
@@ -446,6 +483,7 @@ extern __thread int sc_errno;
 #define SC_ERR_OPT_NOSESSION  3101
 #define SC_ERR_SCAN_EMPTY     3102
 #define SC_ERR_OPT_EMPTY      3103
+#define SC_ERR_TIMESPEC       3104
 
 // 2XX - internal errors
 #define SC_ERR_CMORE          3200
@@ -469,6 +507,8 @@ extern __thread int sc_errno;
     "Scan set is empty following an update.\n"
 #define SC_ERR_OPT_EMPTY_MSG \
     "`sc_opt` does not contain a value for this entry.\n"
+#define SC_ERR_TIMESPEC_MSG \
+    "Failed to fetch the current monotonic time.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \

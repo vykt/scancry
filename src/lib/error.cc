@@ -57,6 +57,10 @@ void sc_perror(const char * prefix) {
             fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_EMPTY_MSG);
             break;
 
+        case SC_ERR_TIMESPEC:
+            fprintf(stderr, "%s: %s", prefix, SC_ERR_TIMESPEC_MSG);
+            break;
+
         // 2XX - internal errors
         case SC_ERR_CMORE:
             fprintf(stderr, "%s: %s", prefix, SC_ERR_CMORE_MSG);
@@ -107,6 +111,9 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_OPT_EMPTY:
             return SC_ERR_OPT_EMPTY_MSG;
+
+        case SC_ERR_TIMESPEC:
+            return SC_ERR_TIMESPEC_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:

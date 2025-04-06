@@ -20,13 +20,18 @@
 
 //local headers
 #include "scancry.h"
+#include "scancry_impl.h"
+#include "util.hh"
+#include "error.hh"
 
+
+#define RET_PTHREAD_ERR { sc_errno = SC_ERR_PTHREAD; return std::nullopt; }
 
 
 /*
- *  NOTE: `do...while()` is used for pthread calls in the rare case of
- *        EINTR. This rides on the assumption that other, unrecoverable
- *        errors do not occur. This should hold true.
+ *  NOTE: C-style `void *` were chosen to pass type ambiguous parameters
+ *        instead of using templates or RTTI-related methods.
+ *
  */
 
 
@@ -49,7 +54,8 @@ void * _bootstrap_worker(void * arg) {
  *  --- [WORKER | PRIVATE] ---
  */
 
-std::optional<int> inline sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
+_SC_DBG_INLINE std::optional<int>
+sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
     int ret;
 
@@ -104,15 +110,14 @@ std::optional<int> inline sc::_worker::read_buffer_smart(struct _scan_arg & arg)
 }
 
 
-void sc::_worker::release_wait() noexcept {
+std::optional<int> sc::_worker::release_wait() noexcept {
 
     int ret;
 
 
     //lock waiting count
-    do {
-        ret = pthread_mutex_lock(&this->concur.release_count_lock);
-    } while (ret != 0);
+    ret = pthread_mutex_lock(&this->concur.release_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
 
     //increment waiting count
     ++this->concur.release_count;
@@ -121,89 +126,71 @@ void sc::_worker::release_wait() noexcept {
     if (this->concur.release_count == this->concur.alive_count) {
 
         //lock flags
-        do {
-            ret = pthread_mutex_lock(&this->concur.flags_lock);
-        } while (ret != 0);
+        ret = pthread_mutex_lock(&this->concur.flags_lock);
+        if (ret != 0) RET_PTHREAD_ERR
 
         //set the workers ready flag
         this->concur.flags |= _worker_flag_release_ready;
 
         //unlock flags
-        do {
-            ret = pthread_mutex_unlock(&this->concur.flags_lock);
-        } while (ret != 0);
+        ret = pthread_mutex_unlock(&this->concur.flags_lock);
+        if (ret != 0) RET_PTHREAD_ERR
+    
     }
 
-    //listen on
-    pthread_cond_wait(&this->concur.release_count_cond,
-                      &this->concur.release_count_lock);
+    //wait for manager's signal
+    ret = pthread_cond_wait(&this->concur.release_count_cond,
+                            &this->concur.release_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
 
-    return;
+    return 0;
 }
 
 
-void sc::_worker::layer_wait() noexcept {
+std::optional<int> sc::_worker::exit() noexcept {
 
     int ret;
 
 
-    //lock waiting count
-    do {
-        ret = pthread_mutex_lock(&this->concur.layer_count_lock);
-    } while (ret != 0);
+    //lock the alive count    
+    ret = pthread_mutex_lock(&this->concur.alive_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
 
-    //increment waiting count
-    ++this->concur.layer_count;
-
-    //if all threads are now waiting
-    if (this->concur.layer_count == this->concur.alive_count) {
-
-        //lock flags
-        do {
-            ret = pthread_mutex_lock(&this->concur.flags_lock);
-        } while (ret != 0);
-
-        //set the workers ready flag
-        this->concur.flags |= _worker_flag_layer_ready;
-
-        //unlock flags
-        do {
-            ret = pthread_mutex_unlock(&this->concur.flags_lock);
-        } while (ret != 0);
-    }
-
-    //listen on
-    pthread_cond_wait(&this->concur.layer_count_cond,
-                      &this->concur.layer_count_lock);
-
-    return;
-}
-
-
-void sc::_worker::exit() noexcept {
-
-    int ret;
-
-
-    //lock alive count
-    do {
-        ret = pthread_mutex_lock(&this->concur.alive_count_lock);
-    } while (ret != 0);
+    //lock the waiting count
+    ret = pthread_mutex_lock(&this->concur.release_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
 
     //decrement alive count
     --this->concur.alive_count;
 
+    //set the workers ready flag if other threads are waiting
+    if (this->concur.alive_count == this->concur.release_count) {
+        
+        //lock flags
+        ret = pthread_mutex_lock(&this->concur.flags_lock);
+        if (ret != 0) RET_PTHREAD_ERR
+
+        //set the workers ready flag
+        this->concur.flags |= _worker_flag_release_ready;
+
+        //unlock flags
+        ret = pthread_mutex_unlock(&this->concur.flags_lock);
+        if (ret != 0) RET_PTHREAD_ERR
+    }
+
+    //unlock the waiting count
+    ret = pthread_mutex_unlock(&this->concur.release_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
+
     //send a signal to the manager if the live count is now zero
     if (this->concur.alive_count == 0) {
-        do {
-            ret = pthread_cond_broadcast(&this->concur.alive_count_cond);
-        } while (ret != 0);
+        ret = pthread_cond_broadcast(&this->concur.alive_count_cond);
+        if (ret != 0) RET_PTHREAD_ERR
     }
     
     //unlock alive count
-    do {
-        ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
-    } while (ret != 0);
+    ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
 
     pthread_exit(0);
 }
@@ -213,17 +200,20 @@ void sc::_worker::exit() noexcept {
  *  --- [WORKER | PUBLIC] ---
  */
 
-sc::_worker::_worker(const opt & opts,
-                     const std::vector<std::vector<const cm_lst_node *>> & scan_area_sets,
+sc::_worker::_worker(const opt ** opts,
+                     const _opt_scan ** opts_scan,
+                     _scan ** scan,
+                     const std::vector<std::vector<const cm_lst_node *>>
+                        & scan_area_sets,
                      const int scan_area_index,
                      const mc_session * session,
-                     _scan ** scan,
                      struct _worker_concurrency & concur)
  : opts(opts),
+   opts_scan(opts_scan),
+   scan(scan),
    scan_area_sets(scan_area_sets),
    scan_area_index(scan_area_index),
    session(session),
-   scan(scan),
    concur(concur) {
 
     //allocate the read buffer
@@ -250,18 +240,24 @@ void sc::_worker::main() {
         this->release_wait();
 
         //fetch own scan areas
-        const std::vector<const cm_lst_node *> & scan_set = this->scan_area_sets[this->scan_area_index];
+        const std::vector<const cm_lst_node *> & scan_set
+            = this->scan_area_sets[this->scan_area_index];
 
 
         //for every area in this worker's scan set
-        for (auto area_iter = this->scan_area_sets[this->scan_area_index].begin();
-             area_iter != this->scan_area_sets[this->scan_area_index].end(); ++area_iter) {
+        for (auto area_iter
+                = this->scan_area_sets[this->scan_area_index].begin();
+             area_iter
+                != this->scan_area_sets[this->scan_area_index].end();
+             ++area_iter) {
 
             //if the exit bit is set, kill this worker
-            if ((this->concur.flags | _worker_flag_exit) == true) this->exit();
+            if ((this->concur.flags | _worker_flag_exit) == true)
+                this->exit();
 
             //if the cancel bit is set, reset
-            if ((this->concur.flags | _worker_flag_cancel) == true) continue;
+            if ((this->concur.flags | _worker_flag_cancel) == true)
+                continue;
 
             //fetch this scan area
             mc_vm_area * area = MC_GET_NODE_AREA((*area_iter));
@@ -275,13 +271,13 @@ void sc::_worker::main() {
             while (scan_arg.addr < area->end_addr) {
 
                 //fetch next buffer if current buffer has run out
-                if (scan_arg.buf_left <= this->opts.addr_width) {
+                if (scan_arg.buf_left <= (*this->opts)->addr_width) {
                     ret = this->read_buffer_smart(scan_arg);
                     if (ret.has_value() == false) this->exit();
                 }
 
                 //send this address to the scanner
-                (*this->scan)->process_addr(scan_arg, this->opts, &this->opts);
+                (*this->scan)->_process_addr();
 
                 //increment `_scan_arg` state
                 ++scan_arg.addr;
@@ -301,7 +297,7 @@ void sc::_worker::main() {
  *  --- [WORKER MANAGER | PRIVATE] ---
  */
 
-std::optional<int> sc::worker_mngr::spawn_workers(const opt & opts) {
+std::optional<int> sc::worker_mngr::spawn_workers() {
 
     std::optional<int> ret;
 
@@ -318,6 +314,7 @@ std::optional<int> sc::worker_mngr::spawn_workers(const opt & opts) {
 
         //create a new worker
         this->workers.emplace_back(sc::_worker(opts,
+                                               opts_scan,
                                                this->scan_area_sets,
                                                i,
                                                sessions[i],
@@ -358,8 +355,8 @@ std::optional<int> sc::worker_mngr::kill_workers() {
         ret = pthread_mutex_lock(&this->concur.flags_lock);
     } while (ret != 0);
 
-    //set the workers ready flag
-    this->concur.flags |= _worker_flag_layer_ready;
+    //set the worker exit bit
+    this->concur.flags |= _worker_flag_exit;
 
     //unlock flags
     do {
@@ -390,7 +387,8 @@ std::optional<int> sc::worker_mngr::kill_workers() {
         //performe a timed wait
         do {
             ret = pthread_cond_timedwait(&this->concur.alive_count_cond,
-                                         &this->concur.alive_count_lock, &time);
+                                         &this->concur.alive_count_lock,
+                                         &time);
         } while (ret != 0);
 
     } //end while
@@ -433,7 +431,8 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
 
 
     //fetch the scan areas set
-    const std::unordered_set<cm_lst_node *> scan_area_nodes = ma_set.get_area_nodes();
+    const std::unordered_set<cm_lst_node *> scan_area_nodes
+        = ma_set.get_area_nodes();
 
     //if scan areas set is empty, return an error
     if (scan_area_nodes.empty() == true) {
@@ -444,7 +443,8 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
     //add first element to initialise iteration
     area = MC_GET_NODE_AREA((*(scan_area_nodes.begin())));
     area_size = area->end_addr - area->start_addr;
-    struct sc::_sa_sort_entry first_entry = sc::_sa_sort_entry(area_size, *scan_area_nodes.begin());
+    struct sc::_sa_sort_entry first_entry
+        = sc::_sa_sort_entry(area_size, *scan_area_nodes.begin());
     this->sorted_entries.push_back(first_entry);
 
     //for every area in the scan areas hashmap
@@ -456,7 +456,8 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
         //create a new sorted entry
         area = MC_GET_NODE_AREA((*sa_set_iter));
         area_size = area->end_addr - area->start_addr;
-        struct sc::_sa_sort_entry iter_entry = sc::_sa_sort_entry(area_size, *sa_set_iter);
+        struct sc::_sa_sort_entry iter_entry
+            = sc::_sa_sort_entry(area_size, *sa_set_iter);
 
         //for every existing sorted entry
         for (auto sorted_iter = this->sorted_entries.begin();
@@ -486,7 +487,8 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
  *        Largest Differencing Method (greedy algorithm).
  */
 
-std::optional<int> sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
+std::optional<int>
+sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
 
     std::optional<int> ret;
 
@@ -525,6 +527,67 @@ std::optional<int> sc::worker_mngr::update_scan_area_set(const map_area_set & ma
 }
 
 
+/*
+ *  --- [WORKER MANAGER | INTERNAL INTERFACE] ---
+ */
+
+_SC_DBG_INLINE std::optional<int> sc::worker_mngr::_lock() noexcept {
+    return lock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE std::optional<int> sc::worker_mngr::_unlock() noexcept{
+    return unlock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE bool sc::worker_mngr::_get_lock() const noexcept {
+    return this->in_use;
+}
+
+
+
+_SC_DBG_STATIC
+const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
+
+//scan the selected area set once
+std::optional<int> sc::worker_mngr::_single_run(
+    sc::_scan & scan, const opt & opts, const _opt_scan & opts_scan) {
+
+    int ret;
+
+
+    //wait for threads to be ready
+    while (this->concur.flags | _worker_flag_release_ready) {
+        usleep(_single_run_sleep_interval_usec);
+    }
+
+    //lock the flags
+    do {
+        ret = pthread_mutex_lock(&this->concur.flags_lock);
+    } while (ret != 0);
+
+    //reset the workers ready flag
+    this->concur.flags &= ~_worker_flag_release_ready;
+
+    //unlock flags
+    do {
+        ret = pthread_mutex_unlock(&this->concur.flags_lock);
+    } while (ret != 0);
+
+    //release the threads
+    do {
+        ret = pthread_cond_broadcast(&this->concur.release_count_cond);
+    } while (ret != 0);
+
+    //wait for the threads to finish
+    while (this->concur.flags | _worker_flag_release_ready) {
+        usleep(_single_run_sleep_interval_usec);
+    }
+
+    return 0;
+}
+
 
 /*
  *  --- [WORKER MANAGER | PUBLIC] ---
@@ -547,9 +610,6 @@ sc::worker_mngr::~worker_mngr() {
      */
     pthread_cond_destroy(&this->concur.release_count_cond);
     pthread_mutex_destroy(&this->concur.release_count_lock);
-    
-    pthread_cond_destroy(&this->concur.layer_count_cond);
-    pthread_mutex_destroy(&this->concur.layer_count_lock);
 
     pthread_cond_destroy(&this->concur.alive_count_cond);
     pthread_mutex_destroy(&this->concur.alive_count_lock);
@@ -578,7 +638,7 @@ std::optional<int> sc::worker_mngr::update_workers(const opt & opts,
         if (ret.has_value() == false) return std::nullopt;
 
         //spawn new workers
-        ret = this->spawn_workers(opts);
+        ret = this->spawn_workers();
         if (ret.has_value() == false) return std::nullopt;
 
         //take note that the number of worker threads changed
@@ -604,6 +664,21 @@ std::optional<int> sc::worker_mngr::destroy_workers() {
 
     //kill previous workers
     ret = this->kill_workers();
+    if (ret.has_value() == false) return std::nullopt;
+
+    return 0;
+}
+
+
+std::optional<int> sc::worker_mngr::do_scan(sc::_scan & scan,
+                                            const sc::opt & opts,
+                                            const void * opts_custom) {
+
+    std::optional<int> ret;
+
+
+    //call this scanner's manager
+    ret = scan._manage_scan(*this, opts, opts_custom);
     if (ret.has_value() == false) return std::nullopt;
 
     return 0;

@@ -1,23 +1,65 @@
 //standard template library
-#include <unistd.h>
+#include <optional>
 #include <vector>
 #include <string>
-#include <optional>
 
 //C standard library
 #include <cstring>
 
 //system headers
+#include <unistd.h>
 #include <linux/limits.h>
 
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
+#include <pthread.h>
 
 //local headers
 #include "scancry.h"
 #include "opt.hh"
+#include "util.hh"
 #include "error.hh"
+
+
+
+/*
+ *  --- [OPT | INTERNAL] ---
+ */
+
+_SC_DBG_INLINE std::optional<int> sc::opt::_lock() noexcept {
+    return lock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE std::optional<int> sc::opt::_unlock() noexcept {
+    return unlock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE bool sc::opt::_get_lock() const noexcept {
+    return this->in_use;
+}
+
+
+
+/*
+ *  --- [_OPT_SCAN | INTERNAL] ---
+ */
+
+_SC_DBG_INLINE std::optional<int> sc::_opt_scan::_lock() noexcept {
+    return lock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE std::optional<int> sc::_opt_scan::_unlock() noexcept{
+    return unlock_generic(this->in_use_lock, this->in_use);
+}
+
+
+_SC_DBG_INLINE bool sc::_opt_scan::_get_lock() const noexcept {
+    return this->in_use;
+}
 
 
 
@@ -26,12 +68,45 @@
        * =============== */
 
 /*
- *  --- [PUBLIC] ---
+ *  --- [OPT | PUBLIC] ---
  */
 
+sc::opt::opt(const opt & opts)
+ : in_use_lock(PTHREAD_MUTEX_INITIALIZER),
+   in_use(false),
+   addr_width(opts.addr_width),
+   file_path_out(opts.file_path_out),
+   file_path_in(opts.file_path_in),
+   sessions(opts.sessions),
+   map(opts.map),
+   omit_areas(opts.omit_areas),
+   omit_objs(opts.omit_objs),
+   exclusive_areas(opts.exclusive_areas),
+   exclusive_objs(opts.exclusive_objs),
+   addr_range(opts.addr_range),
+   access(opts.access) {}
+
+
+sc::opt::~opt() {
+
+    if (this->in_use == true) {
+        print_warning("`opt` object destroyed while it was in use.");
+    }
+
+    //destroy lock
+    pthread_mutex_destroy(&this->in_use_lock);
+}
+
+
 //getters & setters
-void sc::opt::set_file_path_out(const std::optional<std::string> & file_path_out) {
+std::optional<int> sc::opt::set_file_path_out(
+    const std::optional<std::string> & file_path_out) {
+
+    _LOCK
     this->file_path_out = file_path_out;
+    _UNLOCK
+
+    return 0;
 }
 
 
@@ -40,8 +115,13 @@ const std::optional<std::string> & sc::opt::get_file_path_out() const {
 }
 
 
-void sc::opt::set_file_path_in(const std::optional<std::string> & file_path_in) {
+std::optional<int> sc::opt::set_file_path_in(const std::optional<std::string> & file_path_in) {
+
+    _LOCK
     this->file_path_in = file_path_in;
+    _UNLOCK
+
+    return 0;
 }
 
 
@@ -50,8 +130,13 @@ const std::optional<std::string> & sc::opt::get_file_path_in() const {
 }
 
 
-void sc::opt::set_sessions(const std::vector<mc_session const *> & sessions) {
+std::optional<int> sc::opt::set_sessions(const std::vector<mc_session const *> & sessions) {
+
+    _LOCK
     this->sessions = sessions;
+    _UNLOCK
+
+    return 0;
 }
 
 
@@ -60,8 +145,13 @@ const std::vector<mc_session const *> & sc::opt::get_sessions() const {
 }
 
 
-void sc::opt::set_map(const mc_vm_map * map) noexcept {
+std::optional<int> sc::opt::set_map(const mc_vm_map * map) noexcept {
+
+    _LOCK
     this->map = map;
+    _UNLOCK
+
+    return 0;
 }
 
 
@@ -70,63 +160,241 @@ mc_vm_map const * sc::opt::get_map() const noexcept {
 }
 
 
-void sc::opt::set_omit_areas(const std::optional<std::vector<cm_lst_node *>> & omit_areas) {
+std::optional<int> sc::opt::set_omit_areas(
+    const std::optional<std::vector<const cm_lst_node *>> & omit_areas) {
+
+    _LOCK
     this->omit_areas = omit_areas;
+    _UNLOCK
+
+    return 0;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_omit_areas() const {
+const std::optional<std::vector<const cm_lst_node *>>
+    & sc::opt::get_omit_areas() const {
+
     return this->omit_areas;
 }
 
 
-void sc::opt::set_omit_objs(const std::optional<std::vector<cm_lst_node *>> & omit_objs) {
+std::optional<int> sc::opt::set_omit_objs(
+    const std::optional<std::vector<const cm_lst_node *>> & omit_objs) {
+
+    _LOCK
     this->omit_objs = omit_objs;
+    _UNLOCK
+
+    return 0;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_omit_objs() const {
+const std::optional<std::vector<const cm_lst_node *>>
+    & sc::opt::get_omit_objs() const {
+
     return this->omit_objs;
 }
 
 
-void sc::opt::set_exclusive_areas(const std::optional<std::vector<cm_lst_node *>> & exclusive_areas) {
+std::optional<int> sc::opt::set_exclusive_areas(
+    const std::optional<std::vector<const cm_lst_node *>> & exclusive_areas) {
+
+    _LOCK
     this->exclusive_areas = exclusive_areas;
+    _UNLOCK
+
+    return 0;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_exclusive_areas() const {
+const std::optional<std::vector<const cm_lst_node *>>
+    & sc::opt::get_exclusive_areas() const {
+
     return this->exclusive_areas;
 }
 
 
-void sc::opt::set_exclusive_objs(const std::optional<std::vector<cm_lst_node *>> & exclusive_objs) {
+std::optional<int> sc::opt::set_exclusive_objs(
+    const std::optional<std::vector<const cm_lst_node *>> & exclusive_objs) {
+
+    _LOCK
     sc::opt::exclusive_objs = exclusive_objs;
+    _UNLOCK
+
+    return 0;
 }
 
 
-const std::optional<std::vector<cm_lst_node *>> & sc::opt::get_exclusive_objs() const {
+const std::optional<std::vector<const cm_lst_node *>>
+    & sc::opt::get_exclusive_objs() const {
+
     return this->exclusive_objs;
 }
 
 
-void sc::opt::set_addr_range(const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range) {
+std::optional<int> sc::opt::set_addr_range(
+    const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range) {
+
+    _LOCK
     this->addr_range = addr_range;
+    _UNLOCK
+
+    return 0;
 }
 
 
-const std::optional<std::pair<uintptr_t, uintptr_t>> sc::opt::get_addr_range() const {
+const std::optional<std::pair<uintptr_t, uintptr_t>>
+    sc::opt::get_addr_range() const {
+
     return this->addr_range;
 }
 
 
-void sc::opt::set_access(const std::optional<cm_byte> & access) noexcept {
+std::optional<int> sc::opt::set_access(
+    const std::optional<cm_byte> & access) noexcept {
+
+    _LOCK
     this->access = access;
+    _UNLOCK
+
+    return 0;
 }
 
 
 std::optional<cm_byte> sc::opt::get_access() const noexcept {
+
     return this->access;
+}
+
+
+
+/*
+ *  --- [OPT_PTRSCAN | PUBLIC] ---
+ */
+
+sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
+ : _opt_scan(),
+   target_addr(opts_ptrscan.target_addr),
+   alignment(opts_ptrscan.alignment),
+   max_obj_sz(opts_ptrscan.max_obj_sz),
+   max_depth(opts_ptrscan.max_depth),
+   static_areas(opts_ptrscan.static_areas),
+   preset_offsets(opts_ptrscan.preset_offsets),
+   smart_scan(opts_ptrscan.smart_scan) {}
+
+
+sc::opt_ptrscan::~opt_ptrscan() {
+
+    if (this->in_use == true) {
+        print_warning("`opt_ptrscan` object destroyed while it was in use.");
+    }
+
+    //destroy lock
+    pthread_mutex_destroy(&this->in_use_lock);
+}
+
+
+//getters & setters
+std::optional<int> sc::opt_ptrscan::set_target_addr(
+    const std::optional<uintptr_t> & target_addr) {
+
+    _LOCK
+    this->target_addr = target_addr;
+    _UNLOCK
+
+    return 0;
+}
+
+
+std::optional<uintptr_t> sc::opt_ptrscan::get_target_addr() const noexcept {
+    return this->target_addr;
+}
+
+
+std::optional<int> sc::opt_ptrscan::set_alignment(
+    const std::optional<off_t> & alignment) {
+
+    _LOCK
+    this->alignment = alignment;
+    _UNLOCK
+
+    return 0;
+}
+
+
+std::optional<off_t> sc::opt_ptrscan::get_alignment() const noexcept {
+    return this->alignment;
+}
+
+
+std::optional<int> sc::opt_ptrscan::set_max_obj_sz(
+    const std::optional<off_t> & max_obj_sz) {
+
+    _LOCK
+    this->max_obj_sz = max_obj_sz;
+    _UNLOCK
+
+    return 0;
+}
+
+
+std::optional<off_t> sc::opt_ptrscan::get_max_obj_sz() const noexcept {
+    return this->max_obj_sz;
+}
+
+
+std::optional<int> sc::opt_ptrscan::set_max_depth(
+    const std::optional<off_t> & max_depth) {
+
+    _LOCK
+    this->max_depth = max_depth;
+    _UNLOCK
+
+    return 0;
+}
+
+
+std::optional<off_t> sc::opt_ptrscan::get_max_depth() const noexcept {
+    return this->max_depth;
+}
+
+
+std::optional<int> sc::opt_ptrscan::set_static_areas(
+    const std::optional<std::vector<cm_lst_node *>> & static_areas) {
+
+    _LOCK
+    if (this->static_areas.has_value()) {
+        this->static_areas = std::unordered_set<cm_lst_node *>(
+            static_areas->begin(), static_areas->end());
+    } else {
+        this->static_areas = std::nullopt;
+    }
+    _UNLOCK
+
+    return 0;
+}
+
+
+const std::optional<std::unordered_set<cm_lst_node *>>
+    & sc::opt_ptrscan::get_static_areas() const {
+    return this->static_areas;
+}
+
+
+std::optional<int> sc::opt_ptrscan::set_preset_offsets(
+    const std::optional<std::vector<off_t>> & preset_offsets) {
+
+    _LOCK
+    this->preset_offsets = preset_offsets;
+    _UNLOCK
+
+    return 0;
+}
+
+
+const std::optional<std::vector<off_t>>
+    & sc::opt_ptrscan::get_preset_offsets() const {
+    return this->preset_offsets;
 }
 
 
@@ -142,7 +410,7 @@ std::optional<cm_byte> sc::opt::get_access() const noexcept {
 //generic setter of constraints
 _SC_DBG_STATIC
 int _opt_c_constraint_setter(sc_opt opts, const cm_vct * v,
-                             void (sc::opt::*set)(const std::optional<std::vector<cm_lst_node *>> &)) {
+                             std::optional<int> (sc::opt::*set)(const std::optional<std::vector<cm_lst_node *>> &)) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -386,7 +654,7 @@ int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions) {
 }
 
 
-void sc_opt_set_map(sc_opt opts, const mc_vm_map * map) {
+std::optional<int> sc_opt_set_map(sc_opt opts, const mc_vm_map * map) {
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);

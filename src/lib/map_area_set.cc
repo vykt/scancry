@@ -143,7 +143,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept
  * any permissions. */
-std::optional<int> sc::map_area_set::update_set(const sc::opt & opts) {
+std::optional<int> sc::map_area_set::update_set(sc::opt & opts) {
 
     cm_lst_node * area_node;
     mc_vm_area * area;

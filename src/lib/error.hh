@@ -1,11 +1,14 @@
 #pragma once
 
 //standard template library
+#include <bits/c++config.h>
 #include <exception>
+#include <string>
 
 
 //internal
 void exception_sc_errno(const std::exception & excp);
+void print_warning(const std::string msg);
 
 
 extern "C" {

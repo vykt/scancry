@@ -9,7 +9,7 @@ LD_DIR=/etc/ld.so.conf.d
 CC=gcc
 CXX=g++
 
-FLAGS=
+FLAGS=-flto -wno-sign-compare
 FLAGS_TEST=-ggdb3 -O0
 WARN_OPTS=-Wall -Wextra
 
@@ -37,8 +37,8 @@ HEADER=scancry.h
 
 #[set build options]
 ifeq ($(build),debug)
-	FLAGS      += -O0 -ggdb3 -Wno-sign-compare -fsanitize=address -DDEBUG
-	FLAGS_TEST += -DDEBUG -Wno-sign-compare
+	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG
+	FLAGS_TEST += -DDEBUG
 	LDFLAGS    += -static-libasan
 else
 	CFLAGS += -O3

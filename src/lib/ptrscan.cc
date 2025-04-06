@@ -5,7 +5,7 @@
 #include <vector>
 #include <list>
 #include <string>
-#include <stdexcept>
+#include <exception>
 
 //external libraries
 #include <cmore.h>
@@ -18,58 +18,38 @@
 #include "error.hh"
 
 
-/*
- *  FIXME: Actually handle exceptions.
- */
-
 
 /*
  *  --- [TREE NODE | PUBLIC] ---
  */
 
-const std::list<std::shared_ptr<sc::_ptrscan_tree_node>> & sc::_ptrscan_tree_node::get_children() const {
-    return this->children;
-}
+//connect a node as a child of another node
+void sc::_ptrscan_tree_node::connect_child(
+    const std::shared_ptr<_ptrscan_tree_node> child_node) {
 
-
-void sc::_ptrscan_tree_node::add_child(std::shared_ptr<_ptrscan_tree_node> child_node) {
     this->children.push_back(child_node);
     return;
 } 
+
+
+//get a reference to the children of a node
+const std::list<std::shared_ptr<sc::_ptrscan_tree_node>>
+    & sc::_ptrscan_tree_node::get_children() const noexcept {
+
+    return this->children;
+}
+
 
 
 /*
  *  --- [TREE | PRIVATE] ---
  */
 
-//RAII for pthread_mutex_t
-sc::_ptrscan_tree::_ptrscan_tree() : next_id(0) {
-
-    int ret;
-
-    ret = pthread_mutex_init(&this->write_mutex, nullptr);
-    if (ret != 0) {
-        throw std::runtime_error(std::string(__FUNCTION__)
-                                 + ": ptrscan tree's write_mutex initialisation failed.");
-    }
-}
-
-
-/*
- *  FIXME: If pthread_mutex_destroy fails, memory is silently leaked.
- *         Consider a better approach, and whether the better approach
- *         is worth forgoing RAII for.
- */
-sc::_ptrscan_tree::~_ptrscan_tree() {
-
-    pthread_mutex_destroy(&this->write_mutex);
-    return;
-}
-
-
 void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
-                                 const cm_lst_node * area_node, const int depth_level,
-                                 const uintptr_t own_addr, const uintptr_t ptr_addr) {
+                                 const cm_lst_node * area_node,
+                                 const int depth_level,
+                                 const uintptr_t own_addr,
+                                 const uintptr_t ptr_addr) {
 
     //create new node
     std::shared_ptr<sc::_ptrscan_tree_node> new_node
@@ -77,12 +57,17 @@ void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
                                                    own_addr, ptr_addr, node);
 
     //add new node to its parent
-    node->add_child(new_node);
+    node->connect_child(new_node);
 
     //add new node to its depth level list
     this->depth_levels[depth_level].push_back(new_node);
 
     return;
+}
+
+
+pthread_mutex_t & sc::_ptrscan_tree::get_write_mutex() noexcept {
+    return this->write_mutex;
 }
 
 
@@ -116,7 +101,7 @@ void sc::ptrscan::_add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
  *  --- [POINTER SCANNER | PUBLIC] ---
  */
 
-//
+//temporary storage for a potential new node in the ptrscan tree
 struct _potential_node {
 
     //[attributes]
@@ -135,33 +120,45 @@ struct _potential_node {
 
 
 //process a single address from a worker thread
-void sc::ptrscan::process_addr(const struct _scan_arg arg,
-                               const opt & opts, const void * const opts_custom) {
+std::optional<int> sc::ptrscan::_process_addr(
+                                        const struct _scan_arg arg,
+                                        const opt * const opts,
+                                        const _opt_scan * const opts_scan) {
 
     /*
-     *  NOTE: Considering this function is called for each byte of memory
-     *        that is scanned, it is imperative that the most common fail
-     *        cases are executed first.
+     *  NOTE: This function is called for each byte of memory that is
+     *        scanned; it is imperative that the most common fail cases
+     *        are considered first.
      */
 
-    //fetch ptrscan options (the C way <3)
-    opt_ptrscan & opts_ptrscan = *((opt_ptrscan *) opts_custom);
+    //fetch ptrscan options
+    opt_ptrscan * opts_ptrscan;
+    try {
+        const opt_ptrscan & _opts_ptrscan
+            = dynamic_cast<const opt_ptrscan &>(opts_scan);
+        opts_ptrscan = (opt_ptrscan *) &_opts_ptrscan;
+    } catch (std::bad_cast) {
+        sc_errno = SC_ERR_OPT_TYPE;
+        return std::nullopt;
+    }
 
     //if not on an alignment boundary, return
-    if ((arg.area_off % *opts_ptrscan.get_alignment()) != 0) return;
+    if ((arg.area_off % opts_ptrscan->get_alignment().value()) != 0) return 0;
 
     //if not enough space is left in the buffer to hold a pointer
+    /* FIXME [should be impossible, remove?]
     off_t required_left = (opts.addr_width == sc::AW64) ? 8 : 4;
-    if (arg.buf_left < required_left) return;
+    if (arg.buf_left < required_left) return 0;
+    */
 
     /*
-     *  const qualifier is discarded; no better way to do this the way
+     *  `const` qualifier is discarded; no better way to do this the way
      *  things are currently organised.
      */
 
     //re-cache the depth level vector at the start of every area
     if (arg.area_off == 0)
-        this->cache_depth_level_vct =
+        this->cache.depth_level_vct =
             (std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> *)
             &this->tree_p->get_depth_level_vct(this->cur_depth_level);
 
@@ -170,16 +167,21 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg,
      *        this call (if any). In case a smart scan is being performed,
      *        this vector will be reset each time a new minimum offset is
      *        found.
+     *
+     *  TODO: Determine whether more than a single minimum is possible
+     *        during a smart scan. For now assume that it is.
      */
 
     //setup new node container
     std::vector<struct _potential_node> new_nodes;
-    off_t min_obj_sz = *opts_ptrscan.get_max_obj_sz();
+    off_t min_obj_sz = opts_ptrscan->get_max_obj_sz().value();
 
     //get potential pointer value
     uintptr_t potential_ptr;
-    if (opts.addr_width == sc::AW32) potential_ptr = *((uint32_t *) arg.cur_byte);
-    if (opts.addr_width == sc::AW64) potential_ptr = *((uint64_t *) arg.cur_byte);
+    if (opts.addr_width == sc::AW32)
+        potential_ptr = *((uint32_t *) arg.cur_byte);
+    if (opts.addr_width == sc::AW64)
+        potential_ptr = *((uint64_t *) arg.cur_byte);
 
 
     /*
@@ -187,32 +189,38 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg,
      */
 
     //for every ptrscan tree node at this depth
-    for (auto level_iter = this->cache_depth_level_vct->begin();
-         level_iter != this->cache_depth_level_vct->end(); ++level_iter) {
+    for (auto level_iter = this->cache.depth_level_vct->begin();
+         level_iter != this->cache.depth_level_vct->end(); ++level_iter) {
 
         //get the current node from the iterator
-        const std::shared_ptr<sc::_ptrscan_tree_node> & now_node = *level_iter;
+        const std::shared_ptr<sc::_ptrscan_tree_node> & now_node
+            = *level_iter;
 
-        //if this potential pointer falls outside the range of this node, skip it
-        if (potential_ptr < (now_node->own_addr - *opts_ptrscan.get_max_obj_sz())
+        //if this potential pointer falls outside the range of this
+        //node, skip it
+        if (potential_ptr <
+                (now_node->own_addr - opts_ptrscan->get_max_obj_sz().value())
             || potential_ptr > (now_node->own_addr)) continue;
 
 
         //else this is a match
 
         //check the offset is correct, if one applies
-        auto presets = opts_ptrscan.get_preset_offsets();
+        auto presets = opts_ptrscan->get_preset_offsets();
         if (presets.has_value() && presets->size() <= this->cur_depth_level)
-            if (potential_ptr != (now_node->own_addr - (*presets)[this->cur_depth_level])) continue;
+            if (potential_ptr != (now_node->own_addr
+                    - (*presets)[this->cur_depth_level])) continue;
         
         //if this is a smart scan, manipulate the new node container
-        if (opts_ptrscan.get_smart_scan() == true) {
+        if (opts_ptrscan->get_smart_scan() == true) {
 
             //if greater than current minimum, ignore this match
-            if ((now_node->own_addr - potential_ptr) > min_obj_sz) continue;
+            if ((now_node->own_addr - potential_ptr)
+                 > min_obj_sz) continue;
 
             //if smaller than current minimum, reset the node container
-            if ((now_node->own_addr - potential_ptr) < min_obj_sz) new_nodes.clear();
+            if ((now_node->own_addr - potential_ptr)
+                 < min_obj_sz) new_nodes.clear();
 
         }
 
@@ -224,32 +232,77 @@ void sc::ptrscan::process_addr(const struct _scan_arg arg,
 
 
     /*
-     *  NOTE: Adding nodes all at once at tne end also minimises mutex thrashing.
+     *  NOTE: Adding nodes all at once at tne end also minimises
+     *        mutex thrashing.
      */
 
     //acquire the mutex
     int ret = pthread_mutex_lock(&this->tree_p->get_write_mutex());
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        throw std::runtime_error(std::string(__FUNCTION__)
-                                 + ": Failed to acquire the ptrscan tree mutex.");
+        return std::nullopt;
     }
 
     //add every new node to the tree
-    for (auto new_iter = new_nodes.begin(); new_iter != new_nodes.end(); ++new_iter) {
+    for (auto new_iter = new_nodes.begin();
+         new_iter != new_nodes.end(); ++new_iter) {
 
         //add the new node to the tree
-        this->tree_p->add_node(new_iter->parent_tree_node, new_iter->area_node,
-                               this->cur_depth_level, new_iter->own_addr, new_iter->ptr_addr);
+        this->tree_p->add_node(new_iter->parent_tree_node,
+                               new_iter->area_node,
+                               this->cur_depth_level,
+                               new_iter->own_addr,
+                               new_iter->ptr_addr);
     }
 
     //release the mutex
     ret = pthread_mutex_unlock(&this->tree_p->get_write_mutex());
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        throw std::runtime_error(std::string(__FUNCTION__)
-                                 + ": Failed to release the ptrscan tree mutex.");
+        return std::nullopt;
     }
 
-    return;
+    return 0;
+}
+
+
+std::optional<int> sc::ptrscan::_manage_scan(
+    sc::worker_mngr & w_mngr, const opt & opts, const _opt_scan & opts_scan) {
+
+    std::optional<int> ret;
+
+
+    //fetch ptrscan options
+    opt_ptrscan * opts_ptrscan;
+    try {
+        const opt_ptrscan & _opts_ptrscan
+            = dynamic_cast<const opt_ptrscan &>(opts_scan);
+        opts_ptrscan = (opt_ptrscan *) &_opts_ptrscan;
+    } catch (std::bad_cast) {
+        sc_errno = SC_ERR_OPT_TYPE;
+        return std::nullopt;
+    }
+
+    //check all necessary options have been set
+    if (opts_ptrscan->get_target_addr().has_value() == false
+        || opts_ptrscan->get_alignment().has_value() == false
+        || opts_ptrscan->get_max_obj_sz().has_value() == false
+        || opts_ptrscan->get_max_depth().has_value() == false) {
+
+        sc_errno = SC_ERR_OPT_MISSING;
+        return std::nullopt;
+    }
+
+    //for every depth level
+    for (int i = 0; i < opts_ptrscan->get_max_depth().value(); ++i) {
+
+        //scan the selected address space once
+        ret = w_mngr._single_run(*this, opts, *opts_scan);
+        if (ret.has_value() == false) return std::nullopt;
+
+        //increment current depth
+        ++this->cur_depth_level;
+    }
+
+    return 0;
 }

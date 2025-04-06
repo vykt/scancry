@@ -4,7 +4,7 @@
 #include <typeinfo>
 
 //C standard library
-#include <stdio.h>
+#include <cstdio>
 
 //local headers
 #include "scancry.h"
@@ -32,6 +32,13 @@ void exception_sc_errno(const std::exception &excp) {
     return;
 }
 
+void print_warning(const std::string msg) {
+
+    std::fprintf(stderr, "[WARNING] %s\n", msg.c_str()); 
+    return;
+}
+
+
 
 /*
  *  --- [EXTERNAL] ---
@@ -42,53 +49,69 @@ void sc_perror(const char * prefix) {
     switch(sc_errno) {
         // 1XX - user errors
         case SC_ERR_OPT_NOMAP:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOMAP_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOMAP_MSG);
             break;
         
         case SC_ERR_OPT_NOSESSION:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOSESSION_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_NOSESSION_MSG);
             break;
 
         case SC_ERR_SCAN_EMPTY:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_SCAN_EMPTY_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_SCAN_EMPTY_MSG);
             break;
 
         case SC_ERR_OPT_EMPTY:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_EMPTY_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_EMPTY_MSG);
+            break;
+            
+        case SC_ERR_OPT_MISSING:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_MISSING_MSG);
+            break;
+
+        case SC_ERR_OPT_TYPE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_TYPE_MSG);
             break;
 
         case SC_ERR_TIMESPEC:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_TIMESPEC_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_TIMESPEC_MSG);
+            break;
+
+        case SC_ERR_IN_USE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_IN_USE_MSG);
             break;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_CMORE_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_CMORE_MSG);
             break;
 
         case SC_ERR_MEMCRY:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_MEMCRY_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_MEMCRY_MSG);
             break;
 
         case SC_ERR_PTHREAD:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_PTHREAD_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_PTHREAD_MSG);
             break;
 
         case SC_ERR_EXCP:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_EXCP_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_EXCP_MSG);
             break;
 
         case SC_ERR_RUN_EXCP:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_RUN_EXCP_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_RUN_EXCP_MSG);
+            break;
+
+        case SC_ERR_DEADLOCK:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_DEADLOCK_MSG);
             break;
 
         // 3XX - environment errors        
         case SC_ERR_MEM:
-            fprintf(stderr, "%s: %s", prefix, SC_ERR_MEM_MSG);
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_MEM_MSG);
             break;
         
         default:
-            fprintf(stderr, "Undefined error code.\n");
+            std::fprintf(stderr, "Undefined error code.\n");
             break;
     }
 
@@ -112,8 +135,17 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_OPT_EMPTY:
             return SC_ERR_OPT_EMPTY_MSG;
 
+        case SC_ERR_OPT_MISSING:
+            return SC_ERR_OPT_MISSING_MSG;
+
+        case SC_ERR_OPT_TYPE:
+            return SC_ERR_OPT_TYPE_MSG;
+
         case SC_ERR_TIMESPEC:
             return SC_ERR_TIMESPEC_MSG;
+
+        case SC_ERR_IN_USE:
+            return SC_ERR_IN_USE_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:
@@ -130,6 +162,9 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_RUN_EXCP:
             return SC_ERR_RUN_EXCP_MSG;
+
+        case SC_ERR_DEADLOCK:
+            return SC_ERR_DEADLOCK_MSG;
 
         // 3XX - environment errors
         case SC_ERR_MEM:

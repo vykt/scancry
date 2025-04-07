@@ -18,48 +18,7 @@
 //local headers
 #include "scancry.h"
 #include "opt.hh"
-#include "util.hh"
 #include "error.hh"
-
-
-
-/*
- *  --- [OPT | INTERNAL] ---
- */
-
-_SC_DBG_INLINE std::optional<int> sc::opt::_lock() noexcept {
-    return lock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE std::optional<int> sc::opt::_unlock() noexcept {
-    return unlock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE bool sc::opt::_get_lock() const noexcept {
-    return this->in_use;
-}
-
-
-
-/*
- *  --- [_OPT_SCAN | INTERNAL] ---
- */
-
-_SC_DBG_INLINE std::optional<int> sc::_opt_scan::_lock() noexcept {
-    return lock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE std::optional<int> sc::_opt_scan::_unlock() noexcept{
-    return unlock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE bool sc::_opt_scan::_get_lock() const noexcept {
-    return this->in_use;
-}
 
 
 
@@ -71,9 +30,14 @@ _SC_DBG_INLINE bool sc::_opt_scan::_get_lock() const noexcept {
  *  --- [OPT | PUBLIC] ---
  */
 
+sc::opt::opt(enum addr_width _addr_width)
+ : _lockable(),
+   map(nullptr),
+   addr_width(_addr_width) {}
+
+
 sc::opt::opt(const opt & opts)
- : in_use_lock(PTHREAD_MUTEX_INITIALIZER),
-   in_use(false),
+ : _lockable(),
    addr_width(opts.addr_width),
    file_path_out(opts.file_path_out),
    file_path_in(opts.file_path_in),
@@ -85,17 +49,6 @@ sc::opt::opt(const opt & opts)
    exclusive_objs(opts.exclusive_objs),
    addr_range(opts.addr_range),
    access(opts.access) {}
-
-
-sc::opt::~opt() {
-
-    if (this->in_use == true) {
-        print_warning("`opt` object destroyed while it was in use.");
-    }
-
-    //destroy lock
-    pthread_mutex_destroy(&this->in_use_lock);
-}
 
 
 //getters & setters
@@ -272,6 +225,11 @@ std::optional<cm_byte> sc::opt::get_access() const noexcept {
  *  --- [OPT_PTRSCAN | PUBLIC] ---
  */
 
+sc::opt_ptrscan::opt_ptrscan()
+ : _opt_scan(),
+   smart_scan(false) {}
+
+
 sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
  : _opt_scan(),
    target_addr(opts_ptrscan.target_addr),
@@ -281,17 +239,6 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
    static_areas(opts_ptrscan.static_areas),
    preset_offsets(opts_ptrscan.preset_offsets),
    smart_scan(opts_ptrscan.smart_scan) {}
-
-
-sc::opt_ptrscan::~opt_ptrscan() {
-
-    if (this->in_use == true) {
-        print_warning("`opt_ptrscan` object destroyed while it was in use.");
-    }
-
-    //destroy lock
-    pthread_mutex_destroy(&this->in_use_lock);
-}
 
 
 //getters & setters

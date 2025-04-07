@@ -9,6 +9,15 @@
 #include "error.hh"
 
 
+
+sc::_lockable::~_lockable() {
+
+    if (this->in_use == true) {
+        print_warning("Destroyed a lockable object while it was locked.");
+    }
+}
+
+
 _SC_DBG_INLINE std::optional<int> sc::_lockable::_lock() noexcept {
 
     int ret;

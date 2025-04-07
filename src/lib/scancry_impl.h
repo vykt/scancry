@@ -57,7 +57,7 @@ class _lockable {
 
     public:
         _lockable() : in_use_lock(PTHREAD_MUTEX_INITIALIZER), in_use(false) {}
-        ~_lockable() { pthread_mutex_destroy(&this->in_use_lock); }
+        ~_lockable();
         
         //lock operations
         std::optional<int> _lock() noexcept;
@@ -99,21 +99,11 @@ struct _scan_arg {
  *  from this class. Workers use a generic `_opt_scan` reference. Through
  *  RTTI the real type is recovered by the appropriate scan class.
  */
-class _opt_scan {
-
-    _SC_DBG_PROTECTED:
-        //lock
-        pthread_mutex_t in_use_lock;
-        bool in_use;
+class _opt_scan : public _lockable {
 
     public:
-        _opt_scan() : in_use_lock(PTHREAD_MUTEX_INITIALIZER), in_use(false) {}
-        virtual ~_opt_scan() { pthread_mutex_destroy(&this->in_use_lock); }
-
-        //lock operations
-        std::optional<int> _lock() noexcept;
-        std::optional<int> _unlock() noexcept;
-        bool _get_lock() const noexcept;
+        _opt_scan() : _lockable() {}
+        virtual ~_opt_scan();
 };
 
 
@@ -123,7 +113,7 @@ class worker_mngr;
 /*
  *  This is an abstract scanner class used for dependency injection.
  */
-class _scan {
+class _scan : public _lockable {
 
     public:
         //[methods]
@@ -191,8 +181,8 @@ class _worker {
         /*
          *  Pointers to the worker manager's cache.
          */
-        const sc::opt ** opts;
-        const sc::_opt_scan ** opts_scan;
+        sc::opt ** const opts;
+        sc::_opt_scan ** const opts_scan;
         sc::_scan ** scan;
 
         //concurrency variables
@@ -212,14 +202,14 @@ class _worker {
     public:
         //[methods]
         //ctor
-        _worker(const opt ** opts,
-                const _opt_scan ** opts_scan,
-                const _scan ** scan,
+        _worker(sc::opt ** const opts,
+                sc::_opt_scan ** const opts_scan,
+                sc::_scan ** scan,
                 const std::vector<std::vector<const cm_lst_node *>>
                     & scan_area_sets,
                 const int scan_area_index,
                 const mc_session * session,
-                struct _worker_concurrency & concur);
+                struct sc::_worker_concurrency & concur);
         ~_worker();
 
         void main();

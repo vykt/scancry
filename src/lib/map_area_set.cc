@@ -68,7 +68,7 @@ bool is_static(const cm_lst_node * const obj_node) {
 
 _SC_DBG_STATIC _SC_DBG_INLINE
 bool is_included(cm_lst_node * node,
-                 const std::vector<cm_lst_node *> & node_set) {
+                 const std::vector<const cm_lst_node *> & node_set) {
 
     //search for this node in the node set
     auto iter = std::find(node_set.begin(), node_set.end(), node);
@@ -162,13 +162,13 @@ std::optional<int> sc::map_area_set::update_set(sc::opt & opts) {
 
 
     //fetch scan constraints
-    const std::optional<std::vector<cm_lst_node *>> & omit_areas_set
+    const std::optional<std::vector<const cm_lst_node *>> & omit_areas_set
         = opts.get_omit_areas();
-    const std::optional<std::vector<cm_lst_node *>> & omit_objs_set
+    const std::optional<std::vector<const cm_lst_node *>> & omit_objs_set
         = opts.get_omit_objs(); 
-    const std::optional<std::vector<cm_lst_node *>> & exclusive_areas_set
+    const std::optional<std::vector<const cm_lst_node *>> & exclusive_areas_set
         = opts.get_exclusive_areas();
-    const std::optional<std::vector<cm_lst_node *>> & exclusive_objs_set
+    const std::optional<std::vector<const cm_lst_node *>> & exclusive_objs_set
         = opts.get_exclusive_objs();
     const std::optional<std::pair<uintptr_t, uintptr_t>> addr_range
         = opts.get_addr_range();

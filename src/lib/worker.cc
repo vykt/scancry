@@ -21,7 +21,6 @@
 //local headers
 #include "scancry.h"
 #include "scancry_impl.h"
-#include "util.hh"
 #include "error.hh"
 
 
@@ -84,15 +83,15 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
         //calculate relevant sizes & offsets
         area_sz     = area->end_addr - area->end_addr;
         left_sz     = area_sz - arg.area_off;
-        buf_real_sz = this->session->page_size - this->opts.addr_width;
+        buf_real_sz = this->session->page_size - (*this->opts)->addr_width;
 
         //copy the end of the buffer to the beginning
         std::memcpy(this->buf,
-                    this->buf + buf_real_sz, this->opts.addr_width);
+                    this->buf + buf_real_sz, (*this->opts)->addr_width);
 
         //clamp read size between some minimum and the real buffer size
         read_sz = std::clamp(left_sz, buf_min_sz, buf_real_sz);
-        buf_off = this->opts.addr_width;
+        buf_off = (*this->opts)->addr_width;
     }
 
     //perform the read
@@ -200,8 +199,8 @@ std::optional<int> sc::_worker::exit() noexcept {
  *  --- [WORKER | PUBLIC] ---
  */
 
-sc::_worker::_worker(const opt ** opts,
-                     const _opt_scan ** opts_scan,
+sc::_worker::_worker(opt ** const opts,
+                     _opt_scan ** const opts_scan,
                      _scan ** scan,
                      const std::vector<std::vector<const cm_lst_node *>>
                         & scan_area_sets,
@@ -277,7 +276,7 @@ void sc::_worker::main() {
                 }
 
                 //send this address to the scanner
-                (*this->scan)->_process_addr();
+                (*this->scan)->_process_addr(scan_arg);
 
                 //increment `_scan_arg` state
                 ++scan_arg.addr;
@@ -303,8 +302,8 @@ std::optional<int> sc::worker_mngr::spawn_workers() {
 
     
     //check sessions have been provided
-    const std::vector<const mc_session *> & sessions = opts.get_sessions();
-    if (opts.get_sessions().size() == 0) {
+    const std::vector<const mc_session *> & sessions = opts->get_sessions();
+    if (opts->get_sessions().size() == 0) {
         sc_errno = SC_ERR_OPT_NOSESSION;
         return std::nullopt;
     }
@@ -313,12 +312,12 @@ std::optional<int> sc::worker_mngr::spawn_workers() {
     for (int i = 0; i < sessions.size(); ++ i) {
 
         //create a new worker
-        this->workers.emplace_back(sc::_worker(opts,
-                                               opts_scan,
+        this->workers.emplace_back(sc::_worker(&this->opts,
+                                               &this->opts_scan,
+                                               &this->scan,
                                                this->scan_area_sets,
                                                i,
                                                sessions[i],
-                                               &this->scan,
                                                this->concur));
 
         //add a pthread_id for this worker
@@ -531,28 +530,11 @@ sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
  *  --- [WORKER MANAGER | INTERNAL INTERFACE] ---
  */
 
-_SC_DBG_INLINE std::optional<int> sc::worker_mngr::_lock() noexcept {
-    return lock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE std::optional<int> sc::worker_mngr::_unlock() noexcept{
-    return unlock_generic(this->in_use_lock, this->in_use);
-}
-
-
-_SC_DBG_INLINE bool sc::worker_mngr::_get_lock() const noexcept {
-    return this->in_use;
-}
-
-
-
 _SC_DBG_STATIC
 const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 //scan the selected area set once
-std::optional<int> sc::worker_mngr::_single_run(
-    sc::_scan & scan, const opt & opts, const _opt_scan & opts_scan) {
+std::optional<int> sc::worker_mngr::_single_run() {
 
     int ret;
 
@@ -593,6 +575,14 @@ std::optional<int> sc::worker_mngr::_single_run(
  *  --- [WORKER MANAGER | PUBLIC] ---
  */
 
+
+sc::worker_mngr::worker_mngr()
+ : _lockable(),
+   opts(nullptr),
+   opts_scan(nullptr),
+   scan(nullptr) {}
+
+
 //cleanup
 sc::worker_mngr::~worker_mngr() {
 
@@ -606,7 +596,7 @@ sc::worker_mngr::~worker_mngr() {
     this->kill_workers();
 
     /*
-     *  This is technically not necessary. On Linux it can't fail.
+     *  This is technically not necessary on Linux. It also can't fail.
      */
     pthread_cond_destroy(&this->concur.release_count_cond);
     pthread_mutex_destroy(&this->concur.release_count_lock);
@@ -620,44 +610,7 @@ sc::worker_mngr::~worker_mngr() {
 }
 
 
-std::optional<int> sc::worker_mngr::update_workers(const opt & opts,
-                                                   const map_area_set & ma_set, const cm_byte flags) {
-
-    std::optional<int> ret;
-    bool same_set_num = true;
-
-
-    //kill previous workers
-    if ((flags & sc::WORKER_MNGR_KEEP_WORKERS) == false) {
-
-        //used to check if the number of workers changed
-        int worker_num = this->workers.size();
-
-        //kill previous workers
-        ret = this->kill_workers();
-        if (ret.has_value() == false) return std::nullopt;
-
-        //spawn new workers
-        ret = this->spawn_workers();
-        if (ret.has_value() == false) return std::nullopt;
-
-        //take note that the number of worker threads changed
-        if (this->workers.size() != worker_num) same_set_num = false;
-    }
-
-    //re-populate scan area sets
-    if (((flags & sc::WORKER_MNGR_KEEP_SCAN_SET) == false) || (same_set_num == false)) {
-
-        //update scan set
-        ret = this->update_scan_area_set(ma_set);
-        if (ret.has_value() == false) return std::nullopt;
-    }
-
-    return 0;
-}
-
-
-std::optional<int> sc::worker_mngr::destroy_workers() {
+std::optional<int> sc::worker_mngr::free_workers() {
 
     std::optional<int> ret;
 
@@ -670,16 +623,89 @@ std::optional<int> sc::worker_mngr::destroy_workers() {
 }
 
 
-std::optional<int> sc::worker_mngr::do_scan(sc::_scan & scan,
-                                            const sc::opt & opts,
-                                            const void * opts_custom) {
+std::optional<int> sc::worker_mngr::do_scan(const sc::opt & opts,
+                                            const sc::_opt_scan & opts_scan,
+                                            sc::_scan & scan,
+                                            const sc::map_area_set & ma_set,
+                                            const cm_byte flags) {
 
     std::optional<int> ret;
+    bool same_set_num = true, run_err = false;
+
+
+    //populate & lock cache
+    this->opts = (sc::opt *) &opts;
+    ret = this->opts->_lock();
+    if (ret.has_value() == false) return std::nullopt; 
+    
+    this->opts_scan = (sc::_opt_scan *) &opts_scan;
+    ret = this->opts_scan->_lock();
+    if (ret.has_value() == false) {
+        ret = this->opts->_unlock();
+        return std::nullopt;
+    }
+    
+    this->scan = (sc::_scan *) &scan;
+    ret = this->scan->_lock();
+    if (ret.has_value() == false) {
+        ret = this->opts->_unlock();
+        ret = this->opts_scan->_unlock();
+        return std::nullopt; 
+    }
+
+    //respawn workers
+    if ((flags & sc::WORKER_MNGR_KEEP_WORKERS) == false) {
+
+        //used to check if the number of workers changed
+        int worker_num = this->workers.size();
+
+        //kill previous workers
+        ret = this->kill_workers();
+        if (ret.has_value() == false) {
+            run_err = true;
+            goto do_scan_cleanup;
+        }
+
+        //spawn new workers
+        ret = this->spawn_workers();
+        if (ret.has_value() == false) {
+            run_err = true;
+            goto do_scan_cleanup;
+        }
+
+        //take note that the number of worker threads changed
+        if (this->workers.size() != worker_num) same_set_num = false;
+    }
+
+    //re-populate scan area sets
+    if (((flags & sc::WORKER_MNGR_KEEP_SCAN_SET) == false)
+        || (same_set_num == false)) {
+
+        //update scan set
+        ret = this->update_scan_area_set(ma_set);
+        if (ret.has_value() == false) {
+            run_err = true;
+            goto do_scan_cleanup;
+        }
+    }
 
 
     //call this scanner's manager
-    ret = scan._manage_scan(*this, opts, opts_custom);
+    ret = scan._manage_scan(*this);
     if (ret.has_value() == false) return std::nullopt;
 
+
+    do_scan_cleanup:
+    ret = this->opts->_lock();
+    if (ret.has_value() == false) run_err = true; 
+    
+    ret = this->opts_scan->_lock();
+    if (ret.has_value() == false) run_err = true;
+    
+    ret = this->scan->_lock();
+    if (ret.has_value() == false) run_err = true; 
+
+
+    if (run_err == true) return std::nullopt;
     return 0;
 }

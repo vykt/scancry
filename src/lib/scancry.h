@@ -54,14 +54,10 @@ enum addr_width {
 /*
  *  Configuration options for all scan types.
  */
-class opt {
+class opt : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        //lock
-        pthread_mutex_t in_use_lock;
-        bool in_use;
-
         //save & load file paths
         std::optional<std::string> file_path_out;
         std::optional<std::string> file_path_in;
@@ -110,13 +106,8 @@ class opt {
     
         //[methods]
         //ctor
-        opt(enum addr_width _addr_width)
-         : in_use_lock(PTHREAD_MUTEX_INITIALIZER),
-           in_use(false),
-           map(nullptr),
-           addr_width(_addr_width) {}
+        opt(enum addr_width _addr_width);
         opt(const opt & opts);
-        ~opt();
 
         /*
          *  NOTE: Using `internal` pseudo-keyword here instead of using
@@ -234,10 +225,7 @@ class opt_ptrscan : public _opt_scan {
 
     public:
         //ctor
-        opt_ptrscan()
-         : _opt_scan(),
-           smart_scan(false) {}
-        ~opt_ptrscan();
+        opt_ptrscan();
         opt_ptrscan(const opt_ptrscan & opts_ptrscan);
 
         //getters & setters
@@ -303,14 +291,10 @@ const constexpr cm_byte WORKER_MNGR_KEEP_SCAN_SET = 0x2;
  *  `worker_mngr` is passed to some scan class instance allowing it
  *  to perform the scan.
  */
-class worker_mngr {
+class worker_mngr : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        //lock
-        pthread_mutex_t in_use_lock;
-        bool in_use;
-
         //worker threads
         std::vector<_worker> workers;
         std::vector<pthread_t> worker_ids;
@@ -336,33 +320,22 @@ class worker_mngr {
 
     public:
         //[methods]
-        /* internal */ std::optional<int> _lock() noexcept;
-        /* internal */ std::optional<int> _unlock() noexcept;
-        /* internal */ bool _get_lock() const noexcept;
-
         //used by implementations of `_scan`
         /* internal */ std::optional<int> _single_run();
         
         //ctor & dtor
-        worker_mngr()
-         : in_use_lock(PTHREAD_MUTEX_INITIALIZER),
-           in_use(false),
-           opts(nullptr),
-           opts_scan(nullptr),
-           scan(nullptr) {}
+        worker_mngr();
         ~worker_mngr();
 
         //control workers
-        std::optional<int> update_workers(
-                                const opt & opts,
-                                const _opt_scan & opts_scan,
-                                _scan & scan,
-                                const map_area_set & ma_set,
-                                const cm_byte flags);
-        std::optional<int> destroy_workers();
+        std::optional<int> free_workers();
 
         //perform a scan
-       std::optional<int> do_scan();
+        std::optional<int> do_scan(const sc::opt & opts,
+                                   const sc::_opt_scan & opts_scan,
+                                   sc::_scan & scan,
+                                   const sc::map_area_set & ma_set,
+                                   const cm_byte flags);
 };
 
 

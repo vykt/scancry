@@ -347,6 +347,19 @@ class worker_mngr : public _lockable {
 class _ptrscan_tree_node;
 class _ptrscan_tree;
 
+
+//pointer scanner flattened tree
+struct ptrscan_chain {
+
+    const cm_lst_node * area_node;
+    const std::vector<off_t> offsets;
+
+    //ctor
+    ptrscan_chain(const cm_lst_node * area_node,
+                  const std::vector<off_t> & offsets);
+};
+
+
 class ptrscan : public _scan {
 
     _SC_DBG_PRIVATE:
@@ -355,28 +368,35 @@ class ptrscan : public _scan {
         std::unique_ptr<_ptrscan_tree> tree_p;
         int cur_depth_level;
 
+        //flattened tree chains
+        std::vector<struct ptrscan_chain> chains;
+
         //cache
         struct _ptrscan_cache cache;
 
         //[methods]
-        void _add_node(std::shared_ptr<_ptrscan_tree_node> parent_node,
-                       const cm_lst_node * area_node,
-                       const uintptr_t own_addr, const
-                       uintptr_t ptr_addr);
+        void add_node(std::shared_ptr<_ptrscan_tree_node> parent_node,
+                      const cm_lst_node * area_node,
+                      const uintptr_t own_addr, const
+                      uintptr_t ptr_addr);
+        std::optional<int> flatten_tree();
 
     public:
         //[methods]
         /* internal */ std::optional<int> _process_addr(
                                     const struct _scan_arg arg,
-                                    const opt & opts,
-                                    const _opt_scan & opts_scan);
+                                    const opt * const opts,
+                                    const _opt_scan * const opts_scan);
         /* internal */ std::optional<int> _manage_scan(
                                     worker_mngr & w_mngr,
-                                    const opt & opts,
-                                    const _opt_scan & opts_scan);
+                                    const opt * const opts,
+                                    const _opt_scan * const opts_scan);
 
         //ctor
-        ptrscan() : cur_depth_level(0), cache({0}) {}
+        ptrscan();
+
+        //reset
+        void reset();
 };
 
 

@@ -121,6 +121,9 @@ class _scan : public _lockable {
         virtual std::optional<int> _process_addr(
                                         const struct _scan_arg arg) = 0;
         virtual std::optional<int> _manage_scan(worker_mngr & w_mngr) = 0;
+
+        //universal interface
+        virtual void reset() = 0;
 };
 
 

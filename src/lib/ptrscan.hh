@@ -50,9 +50,13 @@ class _ptrscan_tree_node {
         void connect_child(
             const std::shared_ptr<_ptrscan_tree_node> child_node);
 
+        //free children
+        void clear();
+
         //getters & setters
         const std::list<std::shared_ptr<_ptrscan_tree_node>>
             & get_children() const noexcept;
+        bool has_children() const noexcept;
 };
 
 
@@ -66,7 +70,7 @@ class _ptrscan_tree {
         //2D vector is desirable here, we need fast iteration
         std::vector<
             std::vector<std::shared_ptr<_ptrscan_tree_node>>> depth_levels;
-        const std::shared_ptr<_ptrscan_tree_node> root_node;
+        std::shared_ptr<_ptrscan_tree_node> root_node;
 
     public:
         //[methods]
@@ -81,11 +85,21 @@ class _ptrscan_tree {
                       const int depth_level,
                       const uintptr_t own_addr,
                       const uintptr_t ptr_addr);
+        void reset();
+
 
         //getters & setters
         pthread_mutex_t & get_write_mutex() noexcept;
         const std::vector<std::shared_ptr<_ptrscan_tree_node>>
             & get_depth_level_vct(int level) const noexcept;
+        std::vector<
+            std::vector<std::shared_ptr<_ptrscan_tree_node>>>
+                ::const_reverse_iterator
+                    get_depth_level_crbegin() const noexcept;
+        std::vector<
+            std::vector<std::shared_ptr<_ptrscan_tree_node>>>
+                ::const_reverse_iterator
+                    get_depth_level_crend() const noexcept;
         const std::shared_ptr<_ptrscan_tree_node> get_root_node() const;
 };
 

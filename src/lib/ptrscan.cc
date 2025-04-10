@@ -5,7 +5,11 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <algorithm>
 #include <exception>
+
+//C standard library
+#include <cstring>
 
 //external libraries
 #include <cmore.h>
@@ -136,9 +140,17 @@ const std::shared_ptr<sc::_ptrscan_tree_node>
  *  --- [POINTER SCANNER CHAIN | PUBLIC] ---
  */
 
-sc::ptrscan_chain::ptrscan_chain(const cm_lst_node * area_node,
+sc::ptrscan_chain::ptrscan_chain(const uint32_t _obj_idx,
                                  const std::vector<off_t> & offsets)
-                                  : area_node(area_node),
+                                  : obj_node(nullptr),
+                                    _obj_idx(_obj_idx),
+                                    offsets(offsets) {}
+
+sc::ptrscan_chain::ptrscan_chain(cm_lst_node * obj_node,
+                                 const uint32_t _obj_idx,
+                                 const std::vector<off_t> & offsets)
+                                  : obj_node(obj_node),
+                                    _obj_idx(_obj_idx),
                                     offsets(offsets) {}
 
 
@@ -159,6 +171,74 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
 }
 
 
+std::pair<std::string, cm_lst_node *> sc::ptrscan::get_chain_data(
+    const cm_lst_node * const area_node) const {
+
+    mc_vm_area * area;
+
+    cm_lst_node * obj_node;
+    mc_vm_obj * obj;
+
+
+    //fetch the appropriate object
+    area = MC_GET_NODE_AREA(area_node);
+    obj_node = (area->obj_node_p == nullptr)
+               ? area->last_obj_node_p : area->obj_node_p;
+    obj = MC_GET_NODE_OBJ(area->last_obj_node_p);
+        
+    return std::pair<std::string, cm_lst_node *>(obj->pathname, obj_node);
+}
+
+
+std::optional<int> sc::ptrscan::get_chain_idx(const std::string & pathname) {
+
+    //find if pathname is already present in the serialised pathnames vector
+    auto iter = std::find(this->ser_pathnames.begin(),
+                          ser_pathnames.end(), pathname);
+
+    //if not present, add it and return its index
+    if (iter == ser_pathnames.end()) {
+        this->ser_pathnames.push_back(pathname);
+        return this->ser_pathnames.size() - 1;
+    }
+
+    //else return index
+    return std::distance(this->ser_pathnames.begin(), iter);
+}
+
+
+std::pair<size_t, size_t> sc::ptrscan::get_file_data_sz() const {
+
+    size_t pathnames_sz = 0, chains_sz = 0;
+
+    //add-up pathname sizes
+    for (auto iter = this->ser_pathnames.begin();
+         iter != this->ser_pathnames.end(); ++iter) {
+
+        //pathname string + null terminator
+        pathnames_sz += iter->size() + 1;
+    }
+
+    //additional null terminator to denote the end of pathnames
+    pathnames_sz += 1;
+
+    //add-up chain sizes
+    for (auto iter = this->chains.begin();
+         iter != this->chains.end(); ++iter) {
+
+        //pathname index
+        chains_sz += 4;
+
+        //offsets & continue/end bytes
+        chains_sz += iter->offsets.size() * 5;
+    }
+
+    //end of each chain contains a continue/end byte
+    chains_sz += this->chains.size();
+
+    return std::pair<size_t, size_t>(pathnames_sz, chains_sz);
+}
+
 
 std::optional<int> sc::ptrscan::flatten_tree() {
 
@@ -168,6 +248,8 @@ std::optional<int> sc::ptrscan::flatten_tree() {
      *        root node. Only the starting area is recorded.
      *
      */
+
+    std::optional<int> ret;
 
     off_t offset;
     std::shared_ptr<sc::_ptrscan_tree_node> child, parent;
@@ -202,8 +284,17 @@ std::optional<int> sc::ptrscan::flatten_tree() {
 
             } while (parent != this->tree_p->get_root_node());
 
+            //fetch data for this chain
+            auto chain_data = this->get_chain_data(node->area_node);
+            ret = this->get_chain_idx(chain_data.first);
+            if (ret.has_value() == false) {
+                sc_errno = SC_ERR_PTR_CHAIN;
+                return std::nullopt;
+            }
+
             //add chain
-            this->chains.emplace_back(ptrscan_chain(node->area_node, offsets));
+            this->chains.emplace_back(ptrscan_chain(chain_data.second,
+                                                    ret.value(), offsets));
 
         } //end for every node at this depth level
 
@@ -434,6 +525,114 @@ std::optional<int> sc::ptrscan::_manage_scan(
 }
 
 
+std::optional<int> sc::ptrscan::_generate_body(
+                                std::vector<cm_byte> & buf) const {
+
+    uint32_t off32;
+
+    off_t buf_off = 0;
+    off_t file_off = sizeof(struct _scancry_file_hdr);
+    struct _ptrscan_file_hdr local_hdr;
+
+
+    //check the scan contains a result to serialise
+    if (this->chains.empty() == true) {
+        sc_errno = SC_ERR_NO_RESULT;
+        return std::nullopt;
+    }
+
+    //get the size of pathnames & chains
+    std::pair<size_t, size_t> ptrscan_data_szs = this->get_file_data_sz();
+
+    //build local header
+    local_hdr.pathnames_num = this->ser_pathnames.size();
+    local_hdr.pathnames_offset = file_off + sizeof(struct _ptrscan_file_hdr);
+    local_hdr.chains_num = this->chains.size();
+    local_hdr.chains_offset = file_off
+                              + sizeof(struct _ptrscan_file_hdr)
+                              + ptrscan_data_szs.first;
+
+    //allocate space in the vector for the data
+    buf.resize(sizeof(struct _ptrscan_file_hdr)
+               + ptrscan_data_szs.first + ptrscan_data_szs.second);
+
+    //store the header
+    std::memcpy(buf.data(), &local_hdr, sizeof(local_hdr));
+    buf_off += sizeof(local_hdr);
+
+    //store every pathname
+    for (auto iter = this->ser_pathnames.begin();
+         iter != this->ser_pathnames.end(); ++iter) {
+
+        std::memcpy(buf.data() + buf_off, iter->c_str(), iter->size());
+        buf[buf_off + iter->size()] = 0x00;
+        buf_off += iter->size() + 1;
+
+    } //end store every pathname
+
+    //store an additional null terminator to denote the end of pathnames
+    buf[buf_off] = 0x00;
+    buf_off += 1;
+
+
+    //store every chain
+    for (auto iter = this->chains.begin();
+         iter != this->chains.end(); ++iter) {
+
+        /*
+         *  NOTE: std::memcpy() is a builtin, calling it on primitives
+         *        isn't slow; it'll compile to just a `mov`.
+         */
+
+        //store pathname index
+        std::memcpy(buf.data() + buf_off,
+                    &iter->_obj_idx, sizeof(iter->_obj_idx));
+
+        //store every offset
+        for (auto inner_iter = iter->offsets.begin();
+             inner_iter != iter->offsets.end(); ++inner_iter) {
+
+            //record offset
+            off32 = *inner_iter;
+            std::memcpy(buf.data() + buf_off, &off32, sizeof(off32));
+
+            //record delimiter or end
+            buf[buf_off + sizeof(off32)]
+                = (inner_iter == --iter->offsets.end())
+                  ? _array_end : _array_delim;
+            buf_off += sizeof(off32) + 1;
+
+        } //end store every offset
+
+    } //end store every chain
+
+    return 0;
+}
+
+
+std::optional<int> sc::ptrscan::_interpret_body(
+                                const std::vector<cm_byte> & buf) {
+
+    //error if buffer doesn't hold a complete ptrscan header
+    if (buf.size() < sizeof(struct _ptrscan_file_hdr)) {
+        sc_errno = SC_ERR_INVALID_FILE;
+        return std::nullopt;
+    }
+
+    //get ptrscan header
+    struct _ptrscan_file_hdr * local_hdr
+        = (struct _ptrscan_file_hdr *) buf.data();
+
+    //if empty, just return
+    if (local_hdr->chains_num == 0 || local_hdr->pathnames_num == 0) {
+        return 1;
+    }
+
+
+    return 0;
+}
+
+
 
 /*
  *  --- [POINTER SCANNER | PUBLIC] ---
@@ -450,7 +649,16 @@ void sc::ptrscan::reset() {
     //reset variables
     this->tree_p->reset();
     this->cur_depth_level = 0;
+    
+    this->ser_pathnames.clear();
+    this->ser_pathnames.shrink_to_fit();
+
     this->chains.clear();
+    this->chains.shrink_to_fit();
+
+    //reset cache
+    this->cache.serial_buf.clear();
+    this->cache.serial_buf.shrink_to_fit();
 
     return;
 }

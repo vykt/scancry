@@ -351,12 +351,20 @@ class _ptrscan_tree;
 //pointer scanner flattened tree
 struct ptrscan_chain {
 
-    const cm_lst_node * area_node;
-    const std::vector<off_t> offsets;
+    _SC_DBG_PRIVATE:
+        cm_lst_node * obj_node;
+
+    public:
+        /* internal */ const uint32_t _obj_idx;
+        const std::vector<off_t> offsets;
 
     //ctor
-    ptrscan_chain(const cm_lst_node * area_node,
+    ptrscan_chain(const uint32_t _obj_idx,
                   const std::vector<off_t> & offsets);
+    ptrscan_chain(cm_lst_node * obj_node,
+                  const uint32_t _obj_idx,
+                  const std::vector<off_t> & offsets);
+    cm_lst_node * get_obj_node() { return this->obj_node; }
 };
 
 
@@ -369,6 +377,7 @@ class ptrscan : public _scan {
         int cur_depth_level;
 
         //flattened tree chains
+        std::vector<std::string> ser_pathnames;
         std::vector<struct ptrscan_chain> chains;
 
         //cache
@@ -379,6 +388,13 @@ class ptrscan : public _scan {
                       const cm_lst_node * area_node,
                       const uintptr_t own_addr, const
                       uintptr_t ptr_addr);
+
+        std::pair<std::string, cm_lst_node *> get_chain_data(
+            const cm_lst_node * const area_node) const;
+        std::optional<int> get_chain_idx(const std::string & pathname);
+
+        std::pair<size_t, size_t> get_file_data_sz() const;
+
         std::optional<int> flatten_tree();
 
     public:
@@ -392,11 +408,36 @@ class ptrscan : public _scan {
                                     const opt * const opts,
                                     const _opt_scan * const opts_scan);
 
+        /* internal */ std::optional<int>
+            _generate_body(std::vector<cm_byte> & buf) const;
+        /* internal */ std::optional<int>
+            _interpret_body(const std::vector<cm_byte> & buf);
+
         //ctor
         ptrscan();
 
         //reset
         void reset();
+};
+
+
+class serialiser : public _lockable {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]    
+        //options cache
+        sc::opt * opts;
+        sc::_scan * scan;
+
+        //[methods]
+        std::optional<int> write_header();
+        std::optional<int> read_header();
+        std::optional<int> write_body();
+        std::optional<int> read_body();
+
+    public:
+        //[methods]
+        serialiser();
 };
 
 
@@ -585,6 +626,8 @@ extern __thread int sc_errno;
 #define SC_ERR_OPT_TYPE       3105
 #define SC_ERR_TIMESPEC       3106
 #define SC_ERR_IN_USE         3107
+#define SC_ERR_NO_RESULT      3108
+#define SC_ERR_INVALID_FILE   3109
 
 // 2XX - internal errors
 #define SC_ERR_CMORE          3200
@@ -593,6 +636,7 @@ extern __thread int sc_errno;
 #define SC_ERR_EXCP           3203
 #define SC_ERR_RUN_EXCP       3204
 #define SC_ERR_DEADLOCK       3205
+#define SC_ERR_PTR_CHAIN      3206
 
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
@@ -617,6 +661,10 @@ extern __thread int sc_errno;
     "Failed to fetch the current monotonic time.\n"
 #define SC_ERR_IN_USE_MSG \
     "Resource you're attempting to modify is currently in use.\n"
+#define SC_ERR_NO_RESULT_MSG \
+    "No results present in this scan.\n"
+#define SC_ERR_INVALID_FILE_MSG \
+    "The provided file is invalid or corrupt.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \
@@ -631,6 +679,9 @@ extern __thread int sc_errno;
     "Internal: An unrecoverable runtime exception was thrown.\n"
 #define SC_ERR_DEADLOCK_MSG \
     "Internal: Pthreads encountered a deadlock.\n"
+#define SC_ERR_PTR_CHAIN_MSG \
+    "Internal: Failed to create a pointer chain.\n"
+
 
 // 3XX - environment errors
 #define SC_ERR_MEM_MSG \

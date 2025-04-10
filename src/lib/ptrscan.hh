@@ -103,4 +103,5 @@ class _ptrscan_tree {
         const std::shared_ptr<_ptrscan_tree_node> get_root_node() const;
 };
 
+
 }; //namespace sc

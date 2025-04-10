@@ -11,6 +11,13 @@
 #include "error.hh"
 
 
+/*
+ *  NOTE: This implementation is extracted from C projects that didn't 
+ *        have a map implementation available. In this project it should
+ *        probably be replaced with `std::map`.
+ */
+
+
 __thread int sc_errno;
 
 
@@ -80,6 +87,14 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_IN_USE_MSG);
             break;
 
+        case SC_ERR_NO_RESULT:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_NO_RESULT_MSG);
+            break;
+
+        case SC_ERR_INVALID_FILE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_INVALID_FILE_MSG);
+            break;
+
         // 2XX - internal errors
         case SC_ERR_CMORE:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_CMORE_MSG);
@@ -103,6 +118,10 @@ void sc_perror(const char * prefix) {
 
         case SC_ERR_DEADLOCK:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_DEADLOCK_MSG);
+            break;
+            
+        case SC_ERR_PTR_CHAIN:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_PTR_CHAIN_MSG);
             break;
 
         // 3XX - environment errors        
@@ -147,6 +166,12 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_IN_USE:
             return SC_ERR_IN_USE_MSG;
 
+        case SC_ERR_NO_RESULT:
+            return SC_ERR_NO_RESULT_MSG;
+
+        case SC_ERR_INVALID_FILE:
+            return SC_ERR_INVALID_FILE_MSG;
+
         // 2XX - internal errors
         case SC_ERR_CMORE:
             return SC_ERR_CMORE_MSG;
@@ -165,6 +190,9 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_DEADLOCK:
             return SC_ERR_DEADLOCK_MSG;
+
+        case SC_ERR_PTR_CHAIN:
+            return SC_ERR_PTR_CHAIN_MSG;
 
         // 3XX - environment errors
         case SC_ERR_MEM:

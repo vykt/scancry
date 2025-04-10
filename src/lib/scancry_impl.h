@@ -1,6 +1,7 @@
 #ifndef SCANCRY_IMPL_H
 #define SCANCRY_IMPL_H
 
+#include <new>
 #ifdef __cplusplus
 #include <optional>
 #include <memory>
@@ -47,7 +48,7 @@ namespace sc {
     if (_lock_ret.has_value() == false) return std::nullopt; \
 
 
-//allows a class to be 
+//allows a class to be locked (prevent modification)
 class _lockable {
 
     _SC_DBG_PRIVATE:
@@ -117,10 +118,16 @@ class _scan : public _lockable {
 
     public:
         //[methods]
-        //dependency injection function
-        virtual std::optional<int> _process_addr(
-                                        const struct _scan_arg arg) = 0;
-        virtual std::optional<int> _manage_scan(worker_mngr & w_mngr) = 0;
+        /* internal */ virtual std::optional<int> _process_addr(
+                                            const struct _scan_arg arg) = 0;
+        /* internal */ virtual std::optional<int> _manage_scan(
+                                            worker_mngr & w_mngr) = 0;
+
+        /* internal */ virtual std::optional<int>
+            _generate_body(std::vector<cm_byte> & buf) const = 0;
+        /* internal */ virtual std::optional<int>
+            _interpret_body(const std::vector<cm_byte> & buf) = 0;
+
 
         //universal interface
         virtual void reset() = 0;
@@ -238,6 +245,56 @@ class _ptrscan_tree_node;
 struct _ptrscan_cache {
 
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> * depth_level_vct;
+    std::vector<cm_byte> serial_buf;
+};
+
+
+/*
+ *  NOTE: ScanCry uses a binary file format with the following sections:
+ *
+ *        Name format: <process comm>.<pid>.sc
+ *               e.g.: netnote.1823.sc
+ *
+ *        File format:
+ *                     [ 1. ScanCry header ]
+ *                     [ 2. scan header    ]
+ *                     [ 3. data           ]
+ *
+ *        The ScanCry header is a generic header applicable to all files.
+ *
+ */
+
+
+//scancry header constants
+const constexpr cm_byte _scancry_magic[4] = {'S', 'C', 0x13, 0x37};
+const constexpr cm_byte _SCAN_TYPE_PTRSCAN = 0x00;
+const constexpr cm_byte _SCAN_TYPE_PTNSCAN = 0x01;
+const constexpr cm_byte _SCAN_TYPE_VALSCAN = 0x02;
+
+//file constants
+const constexpr cm_byte _array_delim = 0x00;
+const constexpr cm_byte _array_end   = 0xFF;
+const constexpr cm_byte _file_end    = 0x80;
+
+
+//ScanCry file header
+struct _scancry_file_hdr {
+
+    cm_byte magic[4];
+    cm_byte version;
+    cm_byte scan_type;
+    uint32_t scan_hdr_offset;
+    uint32_t data_offset;
+};
+
+
+//pointer scan file header
+struct _ptrscan_file_hdr {
+
+    uint32_t pathnames_num;
+    uint32_t pathnames_offset;
+    uint32_t chains_num;
+    uint32_t chains_offset;
 };
 
 

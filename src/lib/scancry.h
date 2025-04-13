@@ -393,7 +393,7 @@ class ptrscan : public _scan {
             const cm_lst_node * const area_node) const;
         std::optional<int> get_chain_idx(const std::string & pathname);
 
-        std::pair<size_t, size_t> get_file_data_sz() const;
+        std::pair<size_t, size_t> get_fbuf_data_sz() const;
 
         std::optional<int> flatten_tree();
 
@@ -408,10 +408,10 @@ class ptrscan : public _scan {
                                     const opt * const opts,
                                     const _opt_scan * const opts_scan);
 
-        /* internal */ std::optional<int>
-            _generate_body(std::vector<cm_byte> & buf) const;
-        /* internal */ std::optional<int>
-            _interpret_body(const std::vector<cm_byte> & buf);
+        /* internal */ std::optional<int> _generate_body(
+            std::vector<cm_byte> & buf, off_t hdr_off) const;
+        /* internal */ std::optional<int> _interpret_body(
+            const std::vector<cm_byte> & buf, off_t hdr_off);
 
         //ctor
         ptrscan();

@@ -123,10 +123,15 @@ class _scan : public _lockable {
         /* internal */ virtual std::optional<int> _manage_scan(
                                             worker_mngr & w_mngr) = 0;
 
-        /* internal */ virtual std::optional<int>
-            _generate_body(std::vector<cm_byte> & buf) const = 0;
-        /* internal */ virtual std::optional<int>
-            _interpret_body(const std::vector<cm_byte> & buf) = 0;
+        /*
+         *  NOTE: _generate_body() is responsible for including the 
+         *        file end byte (`fbuf_util::_file_end`).
+         */
+
+        /* internal */ virtual std::optional<int> _generate_body(
+            std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
+        /* internal */ virtual std::optional<int> _interpret_body(
+            const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
 
 
         //universal interface
@@ -270,11 +275,6 @@ const constexpr cm_byte _scancry_magic[4] = {'S', 'C', 0x13, 0x37};
 const constexpr cm_byte _SCAN_TYPE_PTRSCAN = 0x00;
 const constexpr cm_byte _SCAN_TYPE_PTNSCAN = 0x01;
 const constexpr cm_byte _SCAN_TYPE_VALSCAN = 0x02;
-
-//file constants
-const constexpr cm_byte _array_delim = 0x00;
-const constexpr cm_byte _array_end   = 0xFF;
-const constexpr cm_byte _file_end    = 0x80;
 
 
 //ScanCry file header

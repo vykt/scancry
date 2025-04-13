@@ -19,6 +19,7 @@
 //local headers
 #include "scancry.h"
 #include "ptrscan.hh"
+#include "fbuf_util.hh"
 #include "error.hh"
 
 
@@ -207,7 +208,7 @@ std::optional<int> sc::ptrscan::get_chain_idx(const std::string & pathname) {
 }
 
 
-std::pair<size_t, size_t> sc::ptrscan::get_file_data_sz() const {
+std::pair<size_t, size_t> sc::ptrscan::get_fbuf_data_sz() const {
 
     size_t pathnames_sz = 0, chains_sz = 0;
 
@@ -526,13 +527,15 @@ std::optional<int> sc::ptrscan::_manage_scan(
 
 
 std::optional<int> sc::ptrscan::_generate_body(
-                                std::vector<cm_byte> & buf) const {
+    std::vector<cm_byte> & buf, off_t hdr_off) const {
 
+    std::optional<int> ret;
+    struct _ptrscan_file_hdr local_hdr;
+
+    cm_byte ctrl_byte;
     uint32_t off32;
 
     off_t buf_off = 0;
-    off_t file_off = sizeof(struct _scancry_file_hdr);
-    struct _ptrscan_file_hdr local_hdr;
 
 
     //check the scan contains a result to serialise
@@ -542,92 +545,112 @@ std::optional<int> sc::ptrscan::_generate_body(
     }
 
     //get the size of pathnames & chains
-    std::pair<size_t, size_t> ptrscan_data_szs = this->get_file_data_sz();
+    std::pair<size_t, size_t> ptrscan_data_szs = this->get_fbuf_data_sz();
 
     //build local header
     local_hdr.pathnames_num = this->ser_pathnames.size();
-    local_hdr.pathnames_offset = file_off + sizeof(struct _ptrscan_file_hdr);
+    local_hdr.pathnames_offset = hdr_off + sizeof(local_hdr);
     local_hdr.chains_num = this->chains.size();
-    local_hdr.chains_offset = file_off
-                              + sizeof(struct _ptrscan_file_hdr)
+    local_hdr.chains_offset = hdr_off
+                              + sizeof(local_hdr)
                               + ptrscan_data_szs.first;
 
     //allocate space in the vector for the data
-    buf.resize(sizeof(struct _ptrscan_file_hdr)
-               + ptrscan_data_szs.first + ptrscan_data_szs.second);
+    buf.resize(sizeof(local_hdr)
+               + ptrscan_data_szs.first + ptrscan_data_szs.second + 1);
+
 
     //store the header
-    std::memcpy(buf.data(), &local_hdr, sizeof(local_hdr));
-    buf_off += sizeof(local_hdr);
+    ret = fbuf_util::pack_type<struct _ptrscan_file_hdr>(buf,
+                                                         buf_off, local_hdr);
+    if (ret.has_value() == false) return std::nullopt;
+    
 
     //store every pathname
     for (auto iter = this->ser_pathnames.begin();
          iter != this->ser_pathnames.end(); ++iter) {
 
-        std::memcpy(buf.data() + buf_off, iter->c_str(), iter->size());
-        buf[buf_off + iter->size()] = 0x00;
-        buf_off += iter->size() + 1;
-
-    } //end store every pathname
+        ret = fbuf_util::pack_string(buf, buf_off, *iter);
+        if (ret.has_value() == false) return std::nullopt;
+    }
 
     //store an additional null terminator to denote the end of pathnames
-    buf[buf_off] = 0x00;
-    buf_off += 1;
-
+    ctrl_byte = 0x00;
+    ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
+    if (ret.has_value() == false) return std::nullopt;
+    
 
     //store every chain
     for (auto iter = this->chains.begin();
          iter != this->chains.end(); ++iter) {
 
-        /*
-         *  NOTE: std::memcpy() is a builtin, calling it on primitives
-         *        isn't slow; it'll compile to just a `mov`.
-         */
-
         //store pathname index
-        std::memcpy(buf.data() + buf_off,
-                    &iter->_obj_idx, sizeof(iter->_obj_idx));
+        ret = fbuf_util::pack_type(buf, buf_off, iter->_obj_idx);
+        if (ret.has_value() == false) return std::nullopt;
 
         //store every offset
-        for (auto inner_iter = iter->offsets.begin();
-             inner_iter != iter->offsets.end(); ++inner_iter) {
+        ret = fbuf_util::pack_type_array(buf, buf_off, iter->offsets);
+        if (ret.has_value() == false) return std::nullopt;
+    }
 
-            //record offset
-            off32 = *inner_iter;
-            std::memcpy(buf.data() + buf_off, &off32, sizeof(off32));
-
-            //record delimiter or end
-            buf[buf_off + sizeof(off32)]
-                = (inner_iter == --iter->offsets.end())
-                  ? _array_end : _array_delim;
-            buf_off += sizeof(off32) + 1;
-
-        } //end store every offset
-
-    } //end store every chain
+    //store the file end byte
+    ctrl_byte = fbuf_util::_file_end;
+    ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
+    if (ret.has_value() == false) return std::nullopt;
 
     return 0;
 }
 
 
 std::optional<int> sc::ptrscan::_interpret_body(
-                                const std::vector<cm_byte> & buf) {
+    const std::vector<cm_byte> & buf, off_t hdr_off) {
 
-    //error if buffer doesn't hold a complete ptrscan header
-    if (buf.size() < sizeof(struct _ptrscan_file_hdr)) {
-        sc_errno = SC_ERR_INVALID_FILE;
-        return std::nullopt;
-    }
+    off_t buf_off = 0;
 
-    //get ptrscan header
-    struct _ptrscan_file_hdr * local_hdr
-        = (struct _ptrscan_file_hdr *) buf.data();
+    std::optional<std::string> path_str;
+    std::vector<std::string> pathnames;
 
-    //if empty, just return
-    if (local_hdr->chains_num == 0 || local_hdr->pathnames_num == 0) {
-        return 1;
-    }
 
+    //fetch the ptrscan header
+    std::optional<struct _ptrscan_file_hdr> local_hdr
+        = fbuf_util::unpack_type<struct _ptrscan_file_hdr>(buf, buf_off);
+    if (local_hdr.has_value() == false) return std::nullopt;
+
+    //fetch every pathname
+    do {
+
+        //fetch the pathname string
+        std::optional<std::string> path_str
+            = fbuf_util::unpack_string(buf, buf_off);
+        if (path_str.has_value() == false) return std::nullopt;
+
+        //if there are no more strings, stop
+        if (path_str->empty()) break;
+
+        //otherwise add this pathname to the pathnames vector
+        pathnames.push_back(path_str.value());
+
+    } while(true);
+
+    /*
+     *  TODO:
+     *
+     *    1) Resolve each string to a MemCry area.
+     *
+     *    2) Read each ptrscan chain, and build a `ptrscan_chain` for it.
+     *
+     *  FIXME:
+     *
+     *    Consider verifying vs. simply reading the results of some scan.
+     *    This means that the serialiser must have flags that can be passed
+     *    to its `read()` call. A flag must be settable to simply display
+     *    the results instead of preparing them for processing/verification.
+     *
+     *    In terms of ptrscan specifically, this means a chain must have an
+     *    optionally settable field that simply stores the pathname and
+     *    basename instead of linking it to some MemCry obj. In such a mode,
+     *    since there is no matching or verification, no chains are discarded.
+     */
 
     return 0;
 }

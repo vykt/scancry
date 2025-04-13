@@ -411,7 +411,8 @@ class ptrscan : public _scan {
         /* internal */ std::optional<int> _generate_body(
             std::vector<cm_byte> & buf, off_t hdr_off) const;
         /* internal */ std::optional<int> _interpret_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off);
+            const std::vector<cm_byte> & buf, off_t hdr_off,
+            const mc_vm_map & map);
 
         //ctor
         ptrscan();

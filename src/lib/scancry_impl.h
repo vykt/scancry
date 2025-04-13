@@ -109,7 +109,9 @@ class _opt_scan : public _lockable {
 
 
 //defined in `scancry.h`
+class map_area_set;
 class worker_mngr;
+
 
 /*
  *  This is an abstract scanner class used for dependency injection.
@@ -131,8 +133,8 @@ class _scan : public _lockable {
         /* internal */ virtual std::optional<int> _generate_body(
             std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
         /* internal */ virtual std::optional<int> _interpret_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
-
+            const std::vector<cm_byte> & buf, off_t hdr_off,
+            const mc_vm_map & map) = 0;
 
         //universal interface
         virtual void reset() = 0;

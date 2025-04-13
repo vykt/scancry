@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <vector>
 #include <list>
+#include <unordered_map>
 #include <string>
 #include <algorithm>
 #include <exception>
@@ -603,12 +604,20 @@ std::optional<int> sc::ptrscan::_generate_body(
 
 
 std::optional<int> sc::ptrscan::_interpret_body(
-    const std::vector<cm_byte> & buf, off_t hdr_off) {
+    const std::vector<cm_byte> & buf, off_t hdr_off,
+    const mc_vm_map & map) {
 
     off_t buf_off = 0;
 
-    std::optional<std::string> path_str;
-    std::vector<std::string> pathnames;
+    cm_lst_node * obj_node;
+    std::vector<off_t> offsets;
+    std::unordered_map<std::string, cm_lst_node *> obj_node_map;
+
+
+    /*
+     *  FIXME: Fix this function to make it work for simply displaying
+     *         data, not verifying.
+     */
 
 
     //fetch the ptrscan header
@@ -620,38 +629,62 @@ std::optional<int> sc::ptrscan::_interpret_body(
     do {
 
         //fetch the pathname string
-        std::optional<std::string> path_str
+        std::optional<std::string> pathname
             = fbuf_util::unpack_string(buf, buf_off);
-        if (path_str.has_value() == false) return std::nullopt;
+        if (pathname.has_value() == false) return std::nullopt;
 
         //if there are no more strings, stop
-        if (path_str->empty()) break;
+        if (pathname->empty()) break;
 
         //otherwise add this pathname to the pathnames vector
-        pathnames.push_back(path_str.value());
+        this->ser_pathnames.push_back(pathname.value());
 
     } while(true);
 
-    /*
-     *  TODO:
-     *
-     *    1) Resolve each string to a MemCry area.
-     *
-     *    2) Read each ptrscan chain, and build a `ptrscan_chain` for it.
-     *
-     *  FIXME:
-     *
-     *    Consider verifying vs. simply reading the results of some scan.
-     *    This means that the serialiser must have flags that can be passed
-     *    to its `read()` call. A flag must be settable to simply display
-     *    the results instead of preparing them for processing/verification.
-     *
-     *    In terms of ptrscan specifically, this means a chain must have an
-     *    optionally settable field that simply stores the pathname and
-     *    basename instead of linking it to some MemCry obj. In such a mode,
-     *    since there is no matching or verification, no chains are discarded.
-     */
 
+    //associate each read pathname to a vm_obj node if one is present
+    for (auto iter = this->ser_pathnames.begin();
+         iter != this->ser_pathnames.end(); ++iter) {
+
+        obj_node = mc_get_obj_by_pathname(&map, iter->c_str());        
+        obj_node_map[*iter] = obj_node;
+    }
+
+
+    //fetch each chain
+    do {
+
+        offsets.clear();
+
+        //fetch the object index
+        std::optional<uint32_t> obj_idx
+            = fbuf_util::unpack_type<uint32_t>(buf, buf_off);
+        if (obj_idx.has_value() == false) return std::nullopt;
+
+        //fetch the chain array
+        std::optional<std::vector<uint32_t>> chain_arr
+            = fbuf_util::unpack_type_array<uint32_t>(buf, buf_off);        
+        if (obj_idx.has_value() == false) return std::nullopt;
+
+        //fetch the MemCry object for this pathname, if one is present
+        obj_node = mc_get_obj_by_pathname(
+                      &map, this->ser_pathnames[*obj_idx].c_str());
+        if (obj_node == nullptr) continue;
+
+        //convert on-disk `uint32_t` to `off_t`
+        for (auto iter = chain_arr->begin();
+             iter != chain_arr->end(); ++ iter) {
+            offsets.push_back((off_t) *iter);
+        }
+
+        //add this chain to the chain list
+        this->chains.emplace_back(ptrscan_chain(obj_node, *obj_idx, offsets));
+
+        if ((buf.size() >= buf_off) || buf[buf_off] == fbuf_util::_file_end)
+            break;
+
+    } while (true);
+    
     return 0;
 }
 

@@ -9,6 +9,7 @@
 #include <list>
 #include <unordered_set>
 #include <string>
+#include <functional>
 #include <type_traits>
 #endif
 
@@ -351,22 +352,27 @@ class _ptrscan_tree;
 //pointer scanner flattened tree
 struct ptrscan_chain {
 
-    _SC_DBG_PRIVATE:
-        cm_lst_node * obj_node;
-
     public:
         /* internal */ const uint32_t _obj_idx;
+
+        /*
+         *  NOTE: Not using a std::variant here instead of two 
+         *        std::optionals to simplify the C interface.
+         */
+    
+        const std::optional<cm_lst_node *> obj_node;
+        const std::optional<std::string> pathname;
         const std::vector<off_t> offsets;
 
     //ctor
-    ptrscan_chain(const uint32_t _obj_idx,
-                  const std::vector<off_t> & offsets);
-    ptrscan_chain(cm_lst_node * obj_node,
+    ptrscan_chain(const cm_lst_node * obj_node,
                   const uint32_t _obj_idx,
                   const std::vector<off_t> & offsets);
-    cm_lst_node * get_obj_node() { return this->obj_node; }
+    ptrscan_chain(const std::string pathname,
+                  const uint32_t _obj_idx,
+                  const std::vector<off_t> & offsets);
 };
-
+ 
 
 class ptrscan : public _scan {
 
@@ -394,6 +400,11 @@ class ptrscan : public _scan {
         std::optional<int> get_chain_idx(const std::string & pathname);
 
         std::pair<size_t, size_t> get_fbuf_data_sz() const;
+        std::optional<int> handle_body_start(
+            const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
+        std::optional<std::pair<uint32_t, std::vector<off_t>>>
+            handle_body_chain(
+                const std::vector<cm_byte> & buf, off_t & buf_off);
 
         std::optional<int> flatten_tree();
 
@@ -410,9 +421,11 @@ class ptrscan : public _scan {
 
         /* internal */ std::optional<int> _generate_body(
             std::vector<cm_byte> & buf, off_t hdr_off) const;
-        /* internal */ std::optional<int> _interpret_body(
+        /* internal */ std::optional<int> _process_body(
             const std::vector<cm_byte> & buf, off_t hdr_off,
             const mc_vm_map & map);
+        /* internal */ virtual std::optional<int> _read_body(
+            const std::vector<cm_byte> & buf, off_t hdr_off);
 
         //ctor
         ptrscan();

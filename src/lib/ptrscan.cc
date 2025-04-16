@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <string>
 #include <algorithm>
+#include <functional>
 #include <exception>
 
 //C standard library
@@ -142,19 +143,19 @@ const std::shared_ptr<sc::_ptrscan_tree_node>
  *  --- [POINTER SCANNER CHAIN | PUBLIC] ---
  */
 
-sc::ptrscan_chain::ptrscan_chain(const uint32_t _obj_idx,
-                                 const std::vector<off_t> & offsets)
-                                  : obj_node(nullptr),
-                                    _obj_idx(_obj_idx),
-                                    offsets(offsets) {}
-
-sc::ptrscan_chain::ptrscan_chain(cm_lst_node * obj_node,
+sc::ptrscan_chain::ptrscan_chain(const cm_lst_node * obj_node,
                                  const uint32_t _obj_idx,
                                  const std::vector<off_t> & offsets)
-                                  : obj_node(obj_node),
+                                  : obj_node((cm_lst_node *) obj_node),
                                     _obj_idx(_obj_idx),
                                     offsets(offsets) {}
 
+sc::ptrscan_chain::ptrscan_chain(const std::string pathname,
+                                 const uint32_t _obj_idx,
+                                 const std::vector<off_t> & offsets)
+                                  : pathname(pathname),
+                                    _obj_idx(_obj_idx),
+                                    offsets(offsets) {}
 
 
 /*
@@ -239,6 +240,63 @@ std::pair<size_t, size_t> sc::ptrscan::get_fbuf_data_sz() const {
     chains_sz += this->chains.size();
 
     return std::pair<size_t, size_t>(pathnames_sz, chains_sz);
+}
+
+
+//interpret the start of the file buffer
+std::optional<int> sc::ptrscan::handle_body_start(
+    const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off) {
+
+    //fetch the ptrscan header
+    std::optional<struct _ptrscan_file_hdr> local_hdr
+        = fbuf_util::unpack_type<struct _ptrscan_file_hdr>(buf, buf_off);
+    if (local_hdr.has_value() == false) return std::nullopt;
+
+    //fetch every pathname
+    do {
+
+        //fetch the pathname string
+        std::optional<std::string> pathname
+            = fbuf_util::unpack_string(buf, buf_off);
+        if (pathname.has_value() == false) return std::nullopt;
+
+        //if there are no more strings, stop
+        if (pathname->empty()) break;
+
+        //otherwise add this pathname to the pathnames vector
+        this->ser_pathnames.push_back(pathname.value());
+
+    } while(true);
+
+    return 0;
+}
+
+
+//interpret a single chain in the file buffer
+std::optional<std::pair<uint32_t, std::vector<off_t>>>
+    sc::ptrscan::handle_body_chain(
+        const std::vector<cm_byte> & buf, off_t & buf_off) {
+
+    std::vector<off_t> offsets;
+
+    
+    //fetch the object index
+    std::optional<uint32_t> obj_idx
+        = fbuf_util::unpack_type<uint32_t>(buf, buf_off);
+    if (obj_idx.has_value() == false) return std::nullopt;
+
+    //fetch the chain array
+    std::optional<std::vector<uint32_t>> chain_arr
+        = fbuf_util::unpack_type_array<uint32_t>(buf, buf_off);        
+    if (obj_idx.has_value() == false) return std::nullopt;
+
+    //convert on-disk `uint32_t` to `off_t`
+    for (auto iter = chain_arr->begin();
+         iter != chain_arr->end(); ++ iter) {
+        offsets.push_back((off_t) *iter);
+    }
+
+    return std::pair<uint32_t, std::vector<off_t>>(*obj_idx, offsets);
 }
 
 
@@ -603,44 +661,22 @@ std::optional<int> sc::ptrscan::_generate_body(
 }
 
 
-std::optional<int> sc::ptrscan::_interpret_body(
+std::optional<int> sc::ptrscan::_process_body(
     const std::vector<cm_byte> & buf, off_t hdr_off,
     const mc_vm_map & map) {
+
+    std::optional<int> ret;
+    std::optional<std::pair<uint32_t, std::vector<off_t>>> inprog_chain;
 
     off_t buf_off = 0;
 
     cm_lst_node * obj_node;
-    std::vector<off_t> offsets;
     std::unordered_map<std::string, cm_lst_node *> obj_node_map;
 
 
-    /*
-     *  FIXME: Fix this function to make it work for simply displaying
-     *         data, not verifying.
-     */
-
-
-    //fetch the ptrscan header
-    std::optional<struct _ptrscan_file_hdr> local_hdr
-        = fbuf_util::unpack_type<struct _ptrscan_file_hdr>(buf, buf_off);
-    if (local_hdr.has_value() == false) return std::nullopt;
-
-    //fetch every pathname
-    do {
-
-        //fetch the pathname string
-        std::optional<std::string> pathname
-            = fbuf_util::unpack_string(buf, buf_off);
-        if (pathname.has_value() == false) return std::nullopt;
-
-        //if there are no more strings, stop
-        if (pathname->empty()) break;
-
-        //otherwise add this pathname to the pathnames vector
-        this->ser_pathnames.push_back(pathname.value());
-
-    } while(true);
-
+    //process the start of the header
+    ret = this->handle_body_start(buf, hdr_off, buf_off);
+    if (ret.has_value() == false) return std::nullopt;
 
     //associate each read pathname to a vm_obj node if one is present
     for (auto iter = this->ser_pathnames.begin();
@@ -654,31 +690,61 @@ std::optional<int> sc::ptrscan::_interpret_body(
     //fetch each chain
     do {
 
-        offsets.clear();
-
-        //fetch the object index
-        std::optional<uint32_t> obj_idx
-            = fbuf_util::unpack_type<uint32_t>(buf, buf_off);
-        if (obj_idx.has_value() == false) return std::nullopt;
-
-        //fetch the chain array
-        std::optional<std::vector<uint32_t>> chain_arr
-            = fbuf_util::unpack_type_array<uint32_t>(buf, buf_off);        
-        if (obj_idx.has_value() == false) return std::nullopt;
+        //get pathname index & offset chains
+        inprog_chain = this->handle_body_chain(buf, buf_off);
+        if (inprog_chain.has_value() == false) {
+            this->ser_pathnames.clear();
+            this->ser_pathnames.shrink_to_fit();
+            return std::nullopt;
+        }
 
         //fetch the MemCry object for this pathname, if one is present
         obj_node = mc_get_obj_by_pathname(
-                      &map, this->ser_pathnames[*obj_idx].c_str());
+                      &map, this->ser_pathnames[inprog_chain->first].c_str());
         if (obj_node == nullptr) continue;
 
-        //convert on-disk `uint32_t` to `off_t`
-        for (auto iter = chain_arr->begin();
-             iter != chain_arr->end(); ++ iter) {
-            offsets.push_back((off_t) *iter);
+        //add this chain to the chain list
+        this->chains.emplace_back(ptrscan_chain(
+            obj_node, inprog_chain->first, inprog_chain->second));
+
+        if ((buf.size() >= buf_off) || buf[buf_off] == fbuf_util::_file_end)
+            break;
+
+    } while (true);
+    
+    return 0;
+}
+
+
+std::optional<int> sc::ptrscan::_read_body(
+    const std::vector<cm_byte> & buf, off_t hdr_off) {
+
+    std::optional<int> ret;
+    std::optional<std::pair<uint32_t, std::vector<off_t>>> inprog_chain;
+
+    off_t buf_off = 0;
+
+
+    //process the start of the header
+    ret = this->handle_body_start(buf, hdr_off, buf_off);
+    if (ret.has_value() == false) return std::nullopt;
+
+
+    //fetch each chain
+    do {
+
+        //get pathname index & offset chains
+        inprog_chain = this->handle_body_chain(buf, buf_off);
+        if (inprog_chain.has_value() == false) {
+            this->ser_pathnames.clear();
+            this->ser_pathnames.shrink_to_fit();
+            return std::nullopt;
         }
 
         //add this chain to the chain list
-        this->chains.emplace_back(ptrscan_chain(obj_node, *obj_idx, offsets));
+        this->chains.emplace_back(ptrscan_chain(
+            this->ser_pathnames[inprog_chain->first],
+            inprog_chain->first, inprog_chain->second));
 
         if ((buf.size() >= buf_off) || buf[buf_off] == fbuf_util::_file_end)
             break;

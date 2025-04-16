@@ -132,9 +132,11 @@ class _scan : public _lockable {
 
         /* internal */ virtual std::optional<int> _generate_body(
             std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
-        /* internal */ virtual std::optional<int> _interpret_body(
+        /* internal */ virtual std::optional<int> _process_body(
             const std::vector<cm_byte> & buf, off_t hdr_off,
             const mc_vm_map & map) = 0;
+        /* internal */ virtual std::optional<int> _read_body(
+            const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
 
         //universal interface
         virtual void reset() = 0;

@@ -280,7 +280,7 @@ class opt_ptrscan : public _opt_scan {
  *  Abstraction above `mc_vm_map`; uses constraints from the opt class
  *  to arrive at a set of areas to scan.
  */
-class map_area_set {
+class map_area_set : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
@@ -324,8 +324,7 @@ class worker_pool : public _lockable {
         std::vector<std::vector<const cm_lst_node *>> scan_area_sets;
 
         //options cache
-        sc::opt * opts;
-        sc::_opt_scan * opts_scan;
+        const sc::opt * opts;
         sc::_scan * scan;
 
         //concurrency
@@ -344,19 +343,18 @@ class worker_pool : public _lockable {
         //used by implementations of `_scan`
         /* internal */ [[nodiscard]] int _single_run();
         
+        //setup ahead of a scan
+        /* internal */ [[nodiscard]] int setup(const sc::opt & opts,
+                                               sc::_scan & scan,
+                                               const sc::map_area_set & ma_set,
+                                               const cm_byte flags);
+        
         //ctor & dtor
         worker_pool();
         ~worker_pool();
 
         //control workers
         [[nodiscard]] int free_workers();
-
-        //perform a scan
-        [[nodiscard]] int do_scan(const sc::opt & opts,
-                                  const sc::_opt_scan & opts_scan,
-                                  sc::_scan & scan,
-                                  const sc::map_area_set & ma_set,
-                                  const cm_byte flags);
 };
 
 
@@ -435,13 +433,12 @@ class ptrscan : public _scan {
                 handle_body_chain(
                     const std::vector<cm_byte> & buf, off_t & buf_off);
 
+        void do_reset();
+
     public:
         //[methods]
         /* internal */ [[nodiscard]] _SC_DBG_INLINE int _process_addr(
                     const struct _scan_arg arg, const opt * const opts,
-                    const _opt_scan * const opts_scan) override final;
-        /* internal */ [[nodiscard]] int _manage_scan(
-                    worker_mngr & w_mngr, const opt * const opts,
                     const _opt_scan * const opts_scan) override final;
 
         /* internal */ [[nodiscard]] int _generate_body(
@@ -454,7 +451,15 @@ class ptrscan : public _scan {
 
         //ctor
         ptrscan();
-        void reset() override final;
+        [[nodiscard]] int reset() override final;
+
+        //perform a scan
+        [[nodiscard]] int scan(
+                    sc::opt & opts,
+                    sc::opt_ptrscan & opts_ptrscan,
+                    sc::map_area_set & ma_set,
+                    worker_pool & w_pool,
+                    cm_byte flags);
 
         //verify chains
         [[nodiscard]] int verify(

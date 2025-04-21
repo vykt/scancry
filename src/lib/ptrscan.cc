@@ -403,6 +403,26 @@ bool is_chain_valid(const uintptr_t target_addr,
 }
 
 
+void sc::ptrscan::do_reset() {
+    
+    //reset variables
+    this->tree_p->reset();
+    this->cur_depth_level = 0;
+    
+    this->ser_pathnames.clear();
+    this->ser_pathnames.shrink_to_fit();
+
+    this->chains.clear();
+    this->chains.shrink_to_fit();
+
+    //reset cache
+    this->cache.serial_buf.clear();
+    this->cache.serial_buf.shrink_to_fit();
+
+    return;
+}
+
+
 
 /*
  *  --- [POINTER SCANNER | INTERFACE] ---
@@ -573,7 +593,7 @@ std::optional<int> sc::ptrscan::_process_addr(
 }
 
 
-std::optional<int> sc::ptrscan::_manage_scan(
+int sc::ptrscan::_manage_scan(
                                         sc::worker_mngr & w_mngr,
                                         const opt * const opts,
                                         const _opt_scan * const opts_scan) {
@@ -822,31 +842,112 @@ sc::ptrscan::ptrscan()
    cache({0}) {}
 
 
-/*
- *  FIXME: This can be called externally or internally, needs to be locked
- *         if called externally. Split into 2 functions?
- */
-void sc::ptrscan::reset() {
+[[nodiscard]] int sc::ptrscan::reset() {
 
-    //reset variables
-    this->tree_p->reset();
-    this->cur_depth_level = 0;
-    
-    this->ser_pathnames.clear();
-    this->ser_pathnames.shrink_to_fit();
+    _LOCK;
+    this->do_reset();
+    _UNLOCK;
 
-    this->chains.clear();
-    this->chains.shrink_to_fit();
-
-    //reset cache
-    this->cache.serial_buf.clear();
-    this->cache.serial_buf.shrink_to_fit();
-
-    return;
+    return 0;
 }
 
 
-std::optional<int> sc::ptrscan::verify(
+[[nodiscard]] int sc::ptrscan::scan(
+                    sc::opt & opts,
+                    sc::opt_ptrscan & opts_ptrscan,
+                    sc::map_area_set & ma_set,
+                    worker_pool & w_pool,
+                    const cm_byte flags) {
+
+    /*
+     *  NOTE: This method is full of goto's, but I can't think of a
+     *        better approach. 5 layers of indentation is not a better
+     *        approach.
+     */
+
+    int ret;
+    bool run_err = false;
+
+
+    //lock the scanner
+    _LOCK
+
+    //reset the pointer scan
+    this->do_reset();
+
+
+    //lock options
+    ret = opts._lock();
+    if (ret != 0) {
+        run_err = true;
+        goto _scan_ret;
+    }
+
+    //lock ptrscan options
+    ret = opts_ptrscan._lock();
+    if (ret != 0) {
+        run_err = false;
+        goto _scan_unlock_opts;
+    }
+
+    //lock the map areas set
+    ret = ma_set._lock();
+    if (ret != 0) {
+        run_err = false;
+        goto _scan_unlock_opts_ptrscan;
+    }
+
+    //check all necessary options have been set
+    if (opts_ptrscan.get_target_addr().has_value() == false
+        || opts_ptrscan.get_alignment().has_value() == false
+        || opts_ptrscan.get_max_obj_sz().has_value() == false
+        || opts_ptrscan.get_max_depth().has_value() == false) {
+
+        sc_errno = SC_ERR_OPT_MISSING;
+        run_err = true;
+        goto _scan_unlock_all;
+    }
+
+    //setup the worker pool
+    ret = w_pool.setup(opts, *this, ma_set, flags);
+    if (ret != 0) goto _scan_unlock_all;
+
+
+    //for every depth level
+    for (int i = 0; i < opts_ptrscan.get_max_depth().value(); ++i) {
+
+        //scan the selected address space once
+        ret = w_pool._single_run();
+        if (ret != 0) goto _scan_unlock_all;
+
+        //increment current depth
+        ++this->cur_depth_level;
+    }
+
+    //flatten the tree
+    ret = this->flatten_tree();
+    if (ret != 0) goto _scan_unlock_all;
+
+
+    _scan_unlock_all:
+    ret = ma_set._unlock();
+    if (ret != 0) run_err = true;
+
+    _scan_unlock_opts_ptrscan:
+    ret = opts_ptrscan._unlock();
+    if (ret != 0) run_err = true;
+
+    _scan_unlock_opts:
+    ret = opts._unlock();
+    if (ret != 0) run_err = true;
+    
+    _scan_ret:
+    _UNLOCK
+    return run_err ? -1 : 0;
+}
+
+
+[[nodiscard]] int sc::ptrscan::verify(
         sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan) {
 
     bool valid;
@@ -898,7 +999,7 @@ std::optional<int> sc::ptrscan::verify(
 
     _verify_fail:
     _UNLOCK
-    return std::nullopt;
+    return -1
 }
 
 

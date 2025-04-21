@@ -534,7 +534,7 @@ _SC_DBG_STATIC
 const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 //scan the selected area set once
-std::optional<int> sc::worker_mngr::_single_run() {
+[[nodiscard]] int sc::worker_pool::_single_run() {
 
     int ret;
 
@@ -565,6 +565,50 @@ std::optional<int> sc::worker_mngr::_single_run() {
     //wait for the threads to finish
     while (this->concur.flags | _worker_flag_release_ready) {
         usleep(_single_run_sleep_interval_usec);
+    }
+
+    return 0;
+}
+
+
+[[nodiscard]] int sc::worker_pool::setup(const sc::opt & opts,
+                                         sc::_scan & scan,
+                                         const sc::map_area_set & ma_set,
+                                         const cm_byte flags) {
+
+    int ret;
+    bool same_set_num = true;
+
+
+    //populate cache
+    this->opts = reinterpret_cast<const sc::opt *>(&opts);
+    this->scan = reinterpret_cast<sc::_scan *>(&scan);
+
+    //respawn workers
+    if ((flags & sc::WORKER_POOL_KEEP_WORKERS) == false) {
+
+        //used to check if the number of workers changed
+        int worker_num = this->workers.size();
+
+        //kill previous workers
+        ret = this->kill_workers();
+        if (ret != 0) return -1;
+
+        //spawn new workers
+        ret = this->spawn_workers();
+        if (ret != 0) return -1;
+
+        //take note that the number of worker threads changed
+        if (this->workers.size() != worker_num) same_set_num = false;
+    }
+
+    //re-populate scan area sets
+    if (((flags & sc::WORKER_POOL_KEEP_SCAN_SET) == false)
+        || (same_set_num == false)) {
+
+        //update scan set
+        ret = this->update_scan_area_set(ma_set);
+        if (ret != 0) return -1;
     }
 
     return 0;
@@ -619,93 +663,5 @@ std::optional<int> sc::worker_mngr::free_workers() {
     ret = this->kill_workers();
     if (ret.has_value() == false) return std::nullopt;
 
-    return 0;
-}
-
-
-std::optional<int> sc::worker_mngr::do_scan(const sc::opt & opts,
-                                            const sc::_opt_scan & opts_scan,
-                                            sc::_scan & scan,
-                                            const sc::map_area_set & ma_set,
-                                            const cm_byte flags) {
-
-    std::optional<int> ret;
-    bool same_set_num = true, run_err = false;
-
-
-    //populate & lock cache
-    this->opts = (sc::opt *) &opts;
-    ret = this->opts->_lock();
-    if (ret.has_value() == false) return std::nullopt; 
-    
-    this->opts_scan = (sc::_opt_scan *) &opts_scan;
-    ret = this->opts_scan->_lock();
-    if (ret.has_value() == false) {
-        ret = this->opts->_unlock();
-        return std::nullopt;
-    }
-    
-    this->scan = (sc::_scan *) &scan;
-    ret = this->scan->_lock();
-    if (ret.has_value() == false) {
-        ret = this->opts->_unlock();
-        ret = this->opts_scan->_unlock();
-        return std::nullopt; 
-    }
-
-    //respawn workers
-    if ((flags & sc::WORKER_MNGR_KEEP_WORKERS) == false) {
-
-        //used to check if the number of workers changed
-        int worker_num = this->workers.size();
-
-        //kill previous workers
-        ret = this->kill_workers();
-        if (ret.has_value() == false) {
-            run_err = true;
-            goto do_scan_cleanup;
-        }
-
-        //spawn new workers
-        ret = this->spawn_workers();
-        if (ret.has_value() == false) {
-            run_err = true;
-            goto do_scan_cleanup;
-        }
-
-        //take note that the number of worker threads changed
-        if (this->workers.size() != worker_num) same_set_num = false;
-    }
-
-    //re-populate scan area sets
-    if (((flags & sc::WORKER_MNGR_KEEP_SCAN_SET) == false)
-        || (same_set_num == false)) {
-
-        //update scan set
-        ret = this->update_scan_area_set(ma_set);
-        if (ret.has_value() == false) {
-            run_err = true;
-            goto do_scan_cleanup;
-        }
-    }
-
-
-    //call this scanner's manager
-    ret = scan._manage_scan(*this);
-    if (ret.has_value() == false) return std::nullopt;
-
-
-    do_scan_cleanup:
-    ret = this->opts->_lock();
-    if (ret.has_value() == false) run_err = true; 
-    
-    ret = this->opts_scan->_lock();
-    if (ret.has_value() == false) run_err = true;
-    
-    ret = this->scan->_lock();
-    if (ret.has_value() == false) run_err = true; 
-
-
-    if (run_err == true) return std::nullopt;
     return 0;
 }

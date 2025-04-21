@@ -95,6 +95,11 @@ struct _scan_arg {
 };
 
 
+//defined in `scancry.h`
+class map_area_set;
+class worker_pool;
+
+
 /*
  *  This is an empty options class. Options for each scan class inherit
  *  from this class. Workers use a generic `_opt_scan` reference. Through
@@ -112,11 +117,6 @@ class _opt_scan : public _lockable {
 };
 
 
-//defined in `scancry.h`
-class map_area_set;
-class worker_mngr;
-
-
 /*
  *  This is an abstract scanner class used for dependency injection.
  */
@@ -129,7 +129,7 @@ class _scan : public _lockable {
                     const struct _scan_arg arg, const opt * const opts,
                     const _opt_scan * const opts_scan) = 0;
         /* internal */ [[nodiscard]] virtual int _manage_scan(
-                worker_mngr & w_mngr, const opt * const opts,
+                worker_pool & w_pool, const opt * const opts,
                 const _opt_scan * const opts_scan) = 0;
 
         /*
@@ -146,7 +146,7 @@ class _scan : public _lockable {
                 const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
 
         //universal interface
-        virtual void reset() = 0;
+        [[nodiscard]] virtual int reset() = 0;
 };
 
 

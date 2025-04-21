@@ -18,44 +18,43 @@ sc::_lockable::~_lockable() {
 }
 
 
-_SC_DBG_INLINE std::optional<int> sc::_lockable::_lock() noexcept {
+_SC_DBG_INLINE int sc::_lockable::_lock() noexcept {
 
-    int ret;
-    std::optional<int> ret_opt;
+    int ret, ret_val;
 
     ret = pthread_mutex_trylock(&this->in_use_lock);
     if (ret != 0) {
         if (ret == EBUSY) sc_errno = SC_ERR_IN_USE;
         else sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     if (in_use == true) {
         sc_errno = SC_ERR_PTHREAD;
-        ret_opt = std::nullopt;
+        ret_val = -1;
     } else {
         in_use = true;
-        ret_opt = 0;
+        ret_val = 0;
     }
     
     ret = pthread_mutex_unlock(&this->in_use_lock);
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
-    return ret_opt;
+    return ret_val;
 }
 
 
-_SC_DBG_INLINE std::optional<int> sc::_lockable::_unlock() noexcept {
+_SC_DBG_INLINE int sc::_lockable::_unlock() noexcept {
 
     int ret;
     ret = pthread_mutex_trylock(&this->in_use_lock);
     if (ret != 0) {
         if (ret == EBUSY) return 1;
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     in_use = false;
@@ -63,7 +62,7 @@ _SC_DBG_INLINE std::optional<int> sc::_lockable::_unlock() noexcept {
     ret = pthread_mutex_unlock(&this->in_use_lock);
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     return 0;

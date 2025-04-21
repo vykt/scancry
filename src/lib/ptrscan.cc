@@ -1,7 +1,6 @@
 //standard template library
 #include <optional>
 #include <memory>
-#include <type_traits>
 #include <vector>
 #include <list>
 #include <unordered_map>
@@ -364,6 +363,46 @@ std::optional<int> sc::ptrscan::flatten_tree() {
 }
 
 
+/*
+ *  NOTE: To verify if a chain is valid, simply attempt to follow it.
+ *        If it arrives at the expected address, it is valid. Failure
+ *        can be caused by both incorrect final address and failure to
+ *        read (e.g.: trying to read unmapped memory).
+ */
+
+bool is_chain_valid(const uintptr_t target_addr,
+                    const struct sc::ptrscan_chain & chain,
+                    mc_session & session) {
+
+    int ret;
+    uintptr_t addr;
+    
+    cm_lst_node * obj_node;
+    mc_vm_obj * obj;
+
+    //return false if chain is malformed
+    if ((chain.obj_node.has_value() == false)
+        || (chain.obj_node.value() == nullptr)) return false;
+
+    //get relevant object & bootstrap iteration
+    obj_node = chain.obj_node.value();
+    obj = MC_GET_NODE_OBJ(obj_node);
+    addr = obj->start_addr;
+
+    //for every offset
+    for (auto iter = chain.offsets.begin();
+         iter != chain.offsets.end(); ++iter) {
+
+        //read next address
+        addr += *iter;
+        ret = mc_read(&session, addr, (cm_byte *) &addr, sizeof(addr));
+        if (ret != 0) return false;
+    }
+
+    return (addr == target_addr) ? true : false;
+}
+
+
 
 /*
  *  --- [POINTER SCANNER | INTERFACE] ---
@@ -586,7 +625,7 @@ std::optional<int> sc::ptrscan::_manage_scan(
 
 
 std::optional<int> sc::ptrscan::_generate_body(
-    std::vector<cm_byte> & buf, off_t hdr_off) const {
+    std::vector<cm_byte> & buf, off_t hdr_off) {
 
     std::optional<int> ret;
     struct _ptrscan_file_hdr local_hdr;
@@ -595,16 +634,20 @@ std::optional<int> sc::ptrscan::_generate_body(
     uint32_t off32;
 
     off_t buf_off = 0;
+    std::pair<size_t, size_t> ptrscan_data_szs;
 
+
+    //lock scanner
+    _LOCK
 
     //check the scan contains a result to serialise
     if (this->chains.empty() == true) {
         sc_errno = SC_ERR_NO_RESULT;
-        return std::nullopt;
+        goto _read_body_fail;
     }
 
     //get the size of pathnames & chains
-    std::pair<size_t, size_t> ptrscan_data_szs = this->get_fbuf_data_sz();
+    ptrscan_data_szs = this->get_fbuf_data_sz();
 
     //build local header
     local_hdr.pathnames_num = this->ser_pathnames.size();
@@ -620,9 +663,9 @@ std::optional<int> sc::ptrscan::_generate_body(
 
 
     //store the header
-    ret = fbuf_util::pack_type<struct _ptrscan_file_hdr>(buf,
-                                                         buf_off, local_hdr);
-    if (ret.has_value() == false) return std::nullopt;
+    ret = fbuf_util::pack_type<struct _ptrscan_file_hdr>(
+                                                buf, buf_off, local_hdr);
+    if (ret.has_value() == false) goto _read_body_fail;
     
 
     //store every pathname
@@ -630,13 +673,13 @@ std::optional<int> sc::ptrscan::_generate_body(
          iter != this->ser_pathnames.end(); ++iter) {
 
         ret = fbuf_util::pack_string(buf, buf_off, *iter);
-        if (ret.has_value() == false) return std::nullopt;
+        if (ret.has_value() == false) goto _read_body_fail;
     }
 
     //store an additional null terminator to denote the end of pathnames
     ctrl_byte = 0x00;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret.has_value() == false) return std::nullopt;
+    if (ret.has_value() == false) goto _read_body_fail;
     
 
     //store every chain
@@ -645,19 +688,24 @@ std::optional<int> sc::ptrscan::_generate_body(
 
         //store pathname index
         ret = fbuf_util::pack_type(buf, buf_off, iter->_obj_idx);
-        if (ret.has_value() == false) return std::nullopt;
+        if (ret.has_value() == false) goto _read_body_fail;
 
         //store every offset
         ret = fbuf_util::pack_type_array(buf, buf_off, iter->offsets);
-        if (ret.has_value() == false) return std::nullopt;
+        if (ret.has_value() == false) goto _read_body_fail;
     }
 
     //store the file end byte
     ctrl_byte = fbuf_util::_file_end;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret.has_value() == false) return std::nullopt;
+    if (ret.has_value() == false) goto _read_body_fail;
 
+    _UNLOCK
     return 0;
+
+    _read_body_fail:
+    _UNLOCK
+    return std::nullopt;
 }
 
 
@@ -674,9 +722,12 @@ std::optional<int> sc::ptrscan::_process_body(
     std::unordered_map<std::string, cm_lst_node *> obj_node_map;
 
 
+    //lock scanner
+    _LOCK
+
     //process the start of the header
     ret = this->handle_body_start(buf, hdr_off, buf_off);
-    if (ret.has_value() == false) return std::nullopt;
+    if (ret.has_value() == false) goto _process_body_fail;
 
     //associate each read pathname to a vm_obj node if one is present
     for (auto iter = this->ser_pathnames.begin();
@@ -695,7 +746,7 @@ std::optional<int> sc::ptrscan::_process_body(
         if (inprog_chain.has_value() == false) {
             this->ser_pathnames.clear();
             this->ser_pathnames.shrink_to_fit();
-            return std::nullopt;
+            goto _process_body_fail;
         }
 
         //fetch the MemCry object for this pathname, if one is present
@@ -711,8 +762,13 @@ std::optional<int> sc::ptrscan::_process_body(
             break;
 
     } while (true);
-    
+
+    _UNLOCK
     return 0;
+
+    _process_body_fail:
+    _UNLOCK
+    return std::nullopt;
 }
 
 
@@ -766,6 +822,10 @@ sc::ptrscan::ptrscan()
    cache({0}) {}
 
 
+/*
+ *  FIXME: This can be called externally or internally, needs to be locked
+ *         if called externally. Split into 2 functions?
+ */
 void sc::ptrscan::reset() {
 
     //reset variables
@@ -783,4 +843,66 @@ void sc::ptrscan::reset() {
     this->cache.serial_buf.shrink_to_fit();
 
     return;
+}
+
+
+std::optional<int> sc::ptrscan::verify(
+        sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan) {
+
+    bool valid;
+    mc_session * session;
+
+
+    //lock scanner
+    _LOCK
+
+    //check a target address is provided
+    if (opts_ptrscan.get_target_addr().has_value() == false) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _verify_fail;
+    }
+
+    //check at least one session is provided
+    if (opts.get_sessions().empty() == true) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _verify_fail;
+    }
+
+    //check there are chains to verify
+    if (this->chains.empty() == true) {
+        sc_errno = SC_ERR_NO_RESULT;
+        goto _verify_fail;
+    }
+
+    //check chains were processed if read from disk
+    if (this->chains[0].obj_node.has_value() == false) {
+        sc_errno = SC_ERR_SHALLOW_RESULT;
+        goto _verify_fail;
+    }
+
+    //for every chain
+    for (int i = 0; i < this->chains.size(); ++i) {
+
+        //delete this chain if it fails verification
+        valid = is_chain_valid(opts_ptrscan.get_target_addr().value(),
+                               this->chains[i],
+                               *((mc_session *) opts.get_sessions()[0]));
+        if (valid == false) {
+            this->chains.erase(this->chains.begin() + i);
+            --i;
+        }
+    } //end for every chain
+
+    _UNLOCK
+    return 0;
+
+    _verify_fail:
+    _UNLOCK
+    return std::nullopt;
+}
+
+
+//fetch pointer chains
+const std::vector<struct sc::ptrscan_chain> sc::ptrscan::get_chains() {
+    return this->chains;    
 }

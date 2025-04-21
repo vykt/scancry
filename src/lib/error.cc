@@ -91,8 +91,16 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_NO_RESULT_MSG);
             break;
 
+        case SC_ERR_SHALLOW_RESULT:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_SHALLOW_RESULT_MSG);
+            break;
+
         case SC_ERR_INVALID_FILE:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_INVALID_FILE_MSG);
+            break;
+
+        case SC_ERR_VERSION_FILE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_VERSION_FILE_MSG);
             break;
 
         // 2XX - internal errors
@@ -124,11 +132,19 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_PTR_CHAIN_MSG);
             break;
 
+        case SC_ERR_RTTI:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_RTTI_MSG);
+            break;
+
         // 3XX - environment errors        
         case SC_ERR_MEM:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_MEM_MSG);
             break;
-        
+
+        case SC_ERR_FILE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_FILE_MSG);
+            break;
+
         default:
             std::fprintf(stderr, "Undefined error code.\n");
             break;
@@ -169,8 +185,14 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_NO_RESULT:
             return SC_ERR_NO_RESULT_MSG;
 
+        case SC_ERR_SHALLOW_RESULT:
+            return SC_ERR_SHALLOW_RESULT_MSG;
+
         case SC_ERR_INVALID_FILE:
             return SC_ERR_INVALID_FILE_MSG;
+
+        case SC_ERR_VERSION_FILE:
+            return SC_ERR_VERSION_FILE_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:
@@ -194,9 +216,15 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_PTR_CHAIN:
             return SC_ERR_PTR_CHAIN_MSG;
 
+        case SC_ERR_RTTI:
+            return SC_ERR_RTTI_MSG;
+
         // 3XX - environment errors
         case SC_ERR_MEM:
             return SC_ERR_MEM_MSG;
+
+        case SC_ERR_FILE:
+            return SC_ERR_FILE_MSG;
 
         default:
             return "Undefined error code.\n";

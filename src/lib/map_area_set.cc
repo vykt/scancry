@@ -139,6 +139,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 /*
  *  --- [PUBLIC]
  */
+
 /* This method will build the selected set of areas for a scan. In
  * addition to the constraint vectors defined in `opt`, an `access_bitfield`
  * defines required permissions for every area. Set it to 0 to accept

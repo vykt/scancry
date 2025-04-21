@@ -9,6 +9,7 @@
 #include <list>
 #include <unordered_set>
 #include <string>
+#include <fstream>
 #include <functional>
 #include <type_traits>
 #endif
@@ -110,6 +111,9 @@ class opt : public _lockable {
         opt(enum addr_width _addr_width);
         opt(const opt & opts);
 
+        //reset
+        void reset(); //TODO Implement this
+
         /*
          *  NOTE: Using `internal` pseudo-keyword here instead of using
          *        C++'s `friend` keyword. Given the internal complexity
@@ -119,60 +123,62 @@ class opt : public _lockable {
          *        been so carefully nurtured.
          */
 
-        //lock operations
-        /* internal */ std::optional<int> _lock() noexcept;
-        /* internal */ std::optional<int> _unlock() noexcept;
-        /* internal */ bool _get_lock() const noexcept;
-
         //getters & setters
-        std::optional<int>
-            set_file_path_out(const std::optional<std::string> & file_path_out);
-        const std::optional<std::string> & get_file_path_out() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_file_path_out(
+            const std::optional<std::string> & file_path_out);
+        [[nodiscard]] _SC_DBG_INLINE const std::optional<std::string> &
+            get_file_path_out() const;
 
-        std::optional<int>
-            set_file_path_in(const std::optional<std::string> & file_path_in);
-        const std::optional<std::string> & get_file_path_in() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_file_path_in(
+            const std::optional<std::string> & file_path_in);
+        [[nodiscard]] _SC_DBG_INLINE const std::optional<std::string> &
+            get_file_path_in() const;
 
-        std::optional<int>
-            set_sessions(const std::vector<mc_session const *> & sessions);
-        const std::vector<mc_session const *> & get_sessions() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_sessions(
+            const std::vector<mc_session const *> & sessions);
+        [[nodiscard]] _SC_DBG_INLINE const std::vector<mc_session const *> &
+            get_sessions() const;
 
-        std::optional<int>
+        [[nodiscard]] _SC_DBG_INLINE int
             set_map(const mc_vm_map * map) noexcept;
-        mc_vm_map const * get_map() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE mc_vm_map const * get_map() const noexcept;
         
-        std::optional<int> set_omit_areas(
-            const std::optional<std::vector<const cm_lst_node *>>
-                & omit_areas);
-        const std::optional<std::vector<const cm_lst_node *>>
-            & get_omit_areas() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_omit_areas(
+            const std::optional<std::vector<const cm_lst_node *>> & omit_areas);
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::vector<const cm_lst_node *>> &
+                get_omit_areas() const;
 
-        std::optional<int> set_omit_objs(
-            const std::optional<std::vector<const cm_lst_node *>>
-                & omit_objs);
-        const std::optional<std::vector<const cm_lst_node *>>
-            & get_omit_objs() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_omit_objs(
+            const std::optional<std::vector<const cm_lst_node *>> & omit_objs);
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::vector<const cm_lst_node *>> &
+                get_omit_objs() const;
 
-        std::optional<int> set_exclusive_areas(
+        [[nodiscard]] _SC_DBG_INLINE int set_exclusive_areas(
             const std::optional<std::vector<const cm_lst_node *>>
-                & exclusive_areas);
-        const std::optional<std::vector<const cm_lst_node *>>
-            & get_exclusive_areas() const;
+            & exclusive_areas);
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::vector<const cm_lst_node *>> &
+                get_exclusive_areas() const;
 
-        std::optional<int> set_exclusive_objs(
+        [[nodiscard]] _SC_DBG_INLINE int set_exclusive_objs(
             const std::optional<std::vector<const cm_lst_node *>>
                 & exclusive_objs);
-        const std::optional<std::vector<const cm_lst_node *>>
-            & get_exclusive_objs() const;
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::vector<const cm_lst_node *>> &
+                get_exclusive_objs() const;
 
-        std::optional<int> set_addr_range(
+        [[nodiscard]] _SC_DBG_INLINE int set_addr_range(
             const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range);
-        const std::optional<std::pair<uintptr_t, uintptr_t>>
-            get_addr_range() const;
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::pair<uintptr_t, uintptr_t>>
+                get_addr_range() const;
 
-        std::optional<int> set_access(
+        [[nodiscard]] _SC_DBG_INLINE int set_access(
             const std::optional<cm_byte> & access) noexcept;
-        std::optional<cm_byte> get_access() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE std::optional<cm_byte>
+            get_access() const noexcept;
 };
 
 
@@ -229,34 +235,44 @@ class opt_ptrscan : public _opt_scan {
         opt_ptrscan();
         opt_ptrscan(const opt_ptrscan & opts_ptrscan);
 
+        //reset
+        void reset() override final; //TODO implement this
+
         //getters & setters
-        std::optional<int> set_target_addr(
+        [[nodiscard]] _SC_DBG_INLINE int set_target_addr(
             const std::optional<uintptr_t> & target_addr);
-        std::optional<uintptr_t> get_target_addr() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE std::optional<uintptr_t>
+            get_target_addr() const noexcept;
         
-        std::optional<int> set_alignment(
+        [[nodiscard]] _SC_DBG_INLINE int set_alignment(
             const std::optional<off_t> & alignment);
-        std::optional<off_t> get_alignment() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+            get_alignment() const noexcept;
         
-        std::optional<int> set_max_obj_sz(
+        [[nodiscard]] _SC_DBG_INLINE int set_max_obj_sz(
             const std::optional<off_t> & max_obj_sz);
-        std::optional<off_t> get_max_obj_sz() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+            get_max_obj_sz() const noexcept;
         
-        std::optional<int> set_max_depth(
+        [[nodiscard]] _SC_DBG_INLINE int set_max_depth(
             const std::optional<off_t> & max_depth);
-        std::optional<off_t> get_max_depth() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+            get_max_depth() const noexcept;
         
-        std::optional<int> set_static_areas(const std::optional<
-            std::vector<cm_lst_node *>> & static_areas);
-        const std::optional<
-            std::unordered_set<cm_lst_node *>> & get_static_areas() const;
+        [[nodiscard]] _SC_DBG_INLINE int set_static_areas(
+            const std::optional<std::vector<cm_lst_node *>> & static_areas);
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::unordered_set<cm_lst_node *>> &
+                get_static_areas() const;
         
-        std::optional<int> set_preset_offsets(
+        [[nodiscard]] _SC_DBG_INLINE int set_preset_offsets(
             const std::optional<std::vector<off_t>> & preset_offsets);
-        const std::optional<std::vector<off_t>> & get_preset_offsets() const;
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::optional<std::vector<off_t>> &
+                get_preset_offsets() const;
         
-        std::optional<int> set_smart_scan(bool do_smart_scan);
-        std::optional<bool> get_smart_scan() const noexcept;    
+        [[nodiscard]] _SC_DBG_INLINE int set_smart_scan(bool do_smart_scan);
+        [[nodiscard]] _SC_DBG_INLINE bool get_smart_scan() const noexcept;    
 };
 
 
@@ -275,15 +291,17 @@ class map_area_set {
         std::optional<int> update_set(opt & opts);
 
         //getters & setters
-        const std::unordered_set<cm_lst_node *> & get_area_nodes() const noexcept {
+        const std::unordered_set<cm_lst_node *> &
+            get_area_nodes() const noexcept {
+
             return area_nodes;
         }
 };
 
 
 //flags to alter behaviour of `worker_mngr::update_workers()`
-const constexpr cm_byte WORKER_MNGR_KEEP_WORKERS  = 0x1;
-const constexpr cm_byte WORKER_MNGR_KEEP_SCAN_SET = 0x2;
+const constexpr cm_byte WORKER_POOL_KEEP_WORKERS  = 0x1;
+const constexpr cm_byte WORKER_POOL_KEEP_SCAN_SET = 0x2;
 
 /*
  *  Manager of worker threads, responsible for spawning, dispatching,
@@ -292,7 +310,7 @@ const constexpr cm_byte WORKER_MNGR_KEEP_SCAN_SET = 0x2;
  *  `worker_mngr` is passed to some scan class instance allowing it
  *  to perform the scan.
  */
-class worker_mngr : public _lockable {
+class worker_pool : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
@@ -314,29 +332,31 @@ class worker_mngr : public _lockable {
         struct _worker_concurrency concur;
 
         //[methods]
-        std::optional<int> spawn_workers();
-        std::optional<int> kill_workers();
-        std::optional<int> sort_by_size(const map_area_set & ma_set);
-        std::optional<int> update_scan_area_set(const map_area_set & ma_set);
+        [[nodiscard]] _SC_DBG_INLINE int spawn_workers();
+        [[nodiscard]] _SC_DBG_INLINE int kill_workers();
+        [[nodiscard]] _SC_DBG_INLINE int
+            sort_by_size(const map_area_set & ma_set);
+        [[nodiscard]] _SC_DBG_INLINE int
+            update_scan_area_set(const map_area_set & ma_set);
 
     public:
         //[methods]
         //used by implementations of `_scan`
-        /* internal */ std::optional<int> _single_run();
+        /* internal */ [[nodiscard]] int _single_run();
         
         //ctor & dtor
-        worker_mngr();
-        ~worker_mngr();
+        worker_pool();
+        ~worker_pool();
 
         //control workers
-        std::optional<int> free_workers();
+        [[nodiscard]] int free_workers();
 
         //perform a scan
-        std::optional<int> do_scan(const sc::opt & opts,
-                                   const sc::_opt_scan & opts_scan,
-                                   sc::_scan & scan,
-                                   const sc::map_area_set & ma_set,
-                                   const cm_byte flags);
+        [[nodiscard]] int do_scan(const sc::opt & opts,
+                                  const sc::_opt_scan & opts_scan,
+                                  sc::_scan & scan,
+                                  const sc::map_area_set & ma_set,
+                                  const cm_byte flags);
 };
 
 
@@ -395,63 +415,77 @@ class ptrscan : public _scan {
                       const uintptr_t own_addr, const
                       uintptr_t ptr_addr);
 
-        std::pair<std::string, cm_lst_node *> get_chain_data(
-            const cm_lst_node * const area_node) const;
-        std::optional<int> get_chain_idx(const std::string & pathname);
+        [[nodiscard]] _SC_DBG_INLINE std::pair<std::string, cm_lst_node *>
+            get_chain_data(const cm_lst_node * const area_node) const;
+        [[nodiscard]] _SC_DBG_INLINE int
+            get_chain_idx(const std::string & pathname) const;
 
-        std::pair<size_t, size_t> get_fbuf_data_sz() const;
-        std::optional<int> handle_body_start(
+        [[nodiscard]] int flatten_tree();
+        [[nodiscard]] _SC_DBG_INLINE bool
+            is_chain_valid(const uintptr_t target_addr,
+                           const struct sc::ptrscan_chain & chain,
+                           mc_session & session) const;
+
+        [[nodiscard]] _SC_DBG_INLINE std::pair<size_t, size_t>
+            get_fbuf_data_sz() const;
+        [[nodiscard]] _SC_DBG_INLINE int handle_body_start(
             const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
-        std::optional<std::pair<uint32_t, std::vector<off_t>>>
-            handle_body_chain(
-                const std::vector<cm_byte> & buf, off_t & buf_off);
-
-        std::optional<int> flatten_tree();
+        [[nodiscard]] _SC_DBG_INLINE
+            std::optional<std::pair<uint32_t, std::vector<off_t>>>
+                handle_body_chain(
+                    const std::vector<cm_byte> & buf, off_t & buf_off);
 
     public:
         //[methods]
-        /* internal */ std::optional<int> _process_addr(
-                                    const struct _scan_arg arg,
-                                    const opt * const opts,
-                                    const _opt_scan * const opts_scan);
-        /* internal */ std::optional<int> _manage_scan(
-                                    worker_mngr & w_mngr,
-                                    const opt * const opts,
-                                    const _opt_scan * const opts_scan);
+        /* internal */ [[nodiscard]] _SC_DBG_INLINE int _process_addr(
+                    const struct _scan_arg arg, const opt * const opts,
+                    const _opt_scan * const opts_scan) override final;
+        /* internal */ [[nodiscard]] int _manage_scan(
+                    worker_mngr & w_mngr, const opt * const opts,
+                    const _opt_scan * const opts_scan) override final;
 
-        /* internal */ std::optional<int> _generate_body(
-            std::vector<cm_byte> & buf, off_t hdr_off) const;
-        /* internal */ std::optional<int> _process_body(
+        /* internal */ [[nodiscard]] int _generate_body(
+            std::vector<cm_byte> & buf, off_t hdr_off) const override final;
+        /* internal */ [[nodiscard]] int _process_body(
             const std::vector<cm_byte> & buf, off_t hdr_off,
-            const mc_vm_map & map);
-        /* internal */ virtual std::optional<int> _read_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off);
+            const mc_vm_map & map) override final;
+        /* internal */ [[nodiscard]] int _read_body(
+            const std::vector<cm_byte> & buf, off_t hdr_off) override final;
 
         //ctor
         ptrscan();
+        void reset() override final;
 
-        //reset
-        void reset();
+        //verify chains
+        [[nodiscard]] int verify(
+            sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan);
+
+        //getters & setters
+        [[nodiscard]] _SC_DBG_INLINE
+            const std::vector<struct ptrscan_chain> & get_chains() const;
 };
 
 
 class serialiser : public _lockable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]    
-        //options cache
-        sc::opt * opts;
-        sc::_scan * scan;
-
         //[methods]
-        std::optional<int> write_header();
-        std::optional<int> read_header();
-        std::optional<int> write_body();
-        std::optional<int> read_body();
+        //miscellaneous
+        [[nodiscard]] _SC_DBG_INLINE std::optional<cm_byte>
+            get_scan_type(_scan * scan) const;
+        [[nodiscard]] _SC_DBG_INLINE bool
+            is_header_valid(sc::_scancry_file_hdr & hdr) const;
 
     public:
         //[methods]
-        serialiser();
+        [[nodiscard]] int save_scan(
+            sc::_scan & scan, const sc::opt & opts);
+        [[nodiscard]] int load_scan(
+            sc::_scan & scan, const sc::opt & opts, bool shallow);
+
+    /*
+     *  TODO: Consider implementing a way to fetch file metadata
+     */
 };
 
 
@@ -641,7 +675,9 @@ extern __thread int sc_errno;
 #define SC_ERR_TIMESPEC       3106
 #define SC_ERR_IN_USE         3107
 #define SC_ERR_NO_RESULT      3108
-#define SC_ERR_INVALID_FILE   3109
+#define SC_ERR_SHALLOW_RESULT 3109
+#define SC_ERR_INVALID_FILE   3110
+#define SC_ERR_VERSION_FILE   3111
 
 // 2XX - internal errors
 #define SC_ERR_CMORE          3200
@@ -651,9 +687,11 @@ extern __thread int sc_errno;
 #define SC_ERR_RUN_EXCP       3204
 #define SC_ERR_DEADLOCK       3205
 #define SC_ERR_PTR_CHAIN      3206
+#define SC_ERR_RTTI           3207
 
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
+#define SC_ERR_FILE           3301
 
 
 // [error code messages]
@@ -677,8 +715,12 @@ extern __thread int sc_errno;
     "Resource you're attempting to modify is currently in use.\n"
 #define SC_ERR_NO_RESULT_MSG \
     "No results present in this scan.\n"
+#define SC_ERR_SHALLOW_RESULT_MSG \
+    "Shallow result format can't be verified.\n"
 #define SC_ERR_INVALID_FILE_MSG \
     "The provided file is invalid or corrupt.\n"
+#define SC_ERR_VERSION_FILE_MSG \
+    "The provided file's version is incompatible.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \
@@ -695,11 +737,15 @@ extern __thread int sc_errno;
     "Internal: Pthreads encountered a deadlock.\n"
 #define SC_ERR_PTR_CHAIN_MSG \
     "Internal: Failed to create a pointer chain.\n"
-
+#define SC_ERR_RTTI_MSG \
+    "Internal: RTTI cast error.\n"
 
 // 3XX - environment errors
 #define SC_ERR_MEM_MSG \
     "Failed to acquire the necessary memory.\n"
+
+#define SC_ERR_FILE_MSG \
+    "Failed to open, read, or write to a file.\n"
 
 
 #endif //define SCANCRY_H

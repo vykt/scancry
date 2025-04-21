@@ -39,13 +39,13 @@ namespace sc {
 
 
 //concisely lock/unlock a lockable class
-#define _LOCK                                                \
-    std::optional<int> _lock_ret = this->_lock();            \
-    if (_lock_ret.has_value() == false) return std::nullopt; \
+#define _LOCK                        \
+    { int _lock_ret = this->_lock(); \
+    if (_lock_ret != 0) return -1; } \
 
-#define _UNLOCK                                              \
-    _lock_ret = this->_unlock();                             \
-    if (_lock_ret.has_value() == false) return std::nullopt; \
+#define _UNLOCK                        \
+    { int _lock_ret = this->_unlock(); \
+    if (_lock_ret != 0) return -1; }   \
 
 
 //allows a class to be locked (prevent modification)
@@ -61,9 +61,9 @@ class _lockable {
         ~_lockable();
         
         //lock operations
-        std::optional<int> _lock() noexcept;
-        std::optional<int> _unlock() noexcept;
-        bool _get_lock() const noexcept;
+        [[nodiscard]] _SC_DBG_INLINE int _lock() noexcept;
+        [[nodiscard]] _SC_DBG_INLINE int _unlock() noexcept;
+        [[nodiscard]] _SC_DBG_INLINE  bool _get_lock() const noexcept;
 };
 
 
@@ -103,8 +103,12 @@ struct _scan_arg {
 class _opt_scan : public _lockable {
 
     public:
+        //ctor
         _opt_scan() : _lockable() {}
         virtual ~_opt_scan();
+
+        //reset
+        virtual void reset();
 };
 
 
@@ -120,23 +124,26 @@ class _scan : public _lockable {
 
     public:
         //[methods]
-        /* internal */ virtual std::optional<int> _process_addr(
-                                            const struct _scan_arg arg) = 0;
-        /* internal */ virtual std::optional<int> _manage_scan(
-                                            worker_mngr & w_mngr) = 0;
+        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE int
+                _process_addr(
+                    const struct _scan_arg arg, const opt * const opts,
+                    const _opt_scan * const opts_scan) = 0;
+        /* internal */ [[nodiscard]] virtual int _manage_scan(
+                worker_mngr & w_mngr, const opt * const opts,
+                const _opt_scan * const opts_scan) = 0;
 
         /*
          *  NOTE: _generate_body() is responsible for including the 
          *        file end byte (`fbuf_util::_file_end`).
          */
 
-        /* internal */ virtual std::optional<int> _generate_body(
-            std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
-        /* internal */ virtual std::optional<int> _process_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off,
-            const mc_vm_map & map) = 0;
-        /* internal */ virtual std::optional<int> _read_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
+        /* internal */ [[nodiscard]] virtual int _generate_body(
+                std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
+        /* internal */ [[nodiscard]] virtual int _process_body(
+                const std::vector<cm_byte> & buf, off_t hdr_off,
+                const mc_vm_map & map) = 0;
+        /* internal */ [[nodiscard]] virtual int _read_body(
+                const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
 
         //universal interface
         virtual void reset() = 0;
@@ -184,7 +191,6 @@ struct _worker_concurrency {
 class _worker {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
 
         /*
          *  NOTE: It is necessary to store a reference to the vector
@@ -193,6 +199,8 @@ class _worker {
          *        a case where all scan area sets are destroyed because
          *        the user supplied a new `map_area_set`.
          */
+        
+        //[attributes]
         const std::vector<std::vector<const cm_lst_node *>> & scan_area_sets;
         const int scan_area_index;
         const mc_session * session;
@@ -211,12 +219,13 @@ class _worker {
         cm_byte * buf;
 
         //[methods]
-        std::optional<int> read_buffer_smart(struct _scan_arg & arg) noexcept;
+        [[nodiscard]] _SC_DBG_INLINE
+            int read_buffer_smart(struct _scan_arg & arg) noexcept;
 
         //synchronisation
-        std::optional<int> release_wait() noexcept;
-        std::optional<int> layer_wait() noexcept;
-        std::optional<int> exit() noexcept;
+        [[nodiscard]] _SC_DBG_INLINE int release_wait() noexcept;
+        [[nodiscard]] _SC_DBG_INLINE int layer_wait() noexcept;
+        void exit() noexcept;
 
     public:
         //[methods]
@@ -275,20 +284,23 @@ struct _ptrscan_cache {
 
 
 //scancry header constants
-const constexpr cm_byte _scancry_magic[4] = {'S', 'C', 0x13, 0x37};
-const constexpr cm_byte _SCAN_TYPE_PTRSCAN = 0x00;
-const constexpr cm_byte _SCAN_TYPE_PTNSCAN = 0x01;
-const constexpr cm_byte _SCAN_TYPE_VALSCAN = 0x02;
+const constexpr int _scancry_magic_sz = 4;
+const constexpr cm_byte _scancry_magic[_scancry_magic_sz]
+                                           = {'S', 'C', 0x13, 0x37};
+const constexpr cm_byte _scan_type_ptrscan = 0x00;
+const constexpr cm_byte _scan_type_ptnscan = 0x01;
+const constexpr cm_byte _scan_type_valscan = 0x02;
+
+//versions
+const constexpr cm_byte _scancry_file_ver_0 = 0;
 
 
 //ScanCry file header
 struct _scancry_file_hdr {
 
-    cm_byte magic[4];
+    cm_byte magic[_scancry_magic_sz];
     cm_byte version;
     cm_byte scan_type;
-    uint32_t scan_hdr_offset;
-    uint32_t data_offset;
 };
 
 

@@ -18,10 +18,10 @@
 
 
 
-#define _CHECK_BUF(sz) if ((buf_left - sz) < 0) { \
-                           sc_errno = SC_ERR_INVALID_FILE; \
-                           return std::nullopt; \
-                       }
+#define _CHECK_BUF(sz, err_ret) if ((buf_left - sz) < 0) {          \
+                                    sc_errno = SC_ERR_INVALID_FILE; \
+                                    return err_ret;                 \
+                                }
 #define _UPDATE(sz) buf_off += sz; buf_left -= sz; cur_byte += sz;
 
 
@@ -32,14 +32,14 @@
  */
 
 //write an arbitrary length string to a file buffer
-std::optional<int> fbuf_util::pack_string(
+int fbuf_util::pack_string(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const std::string & str) {
 
     cm_byte * cur_byte = (cm_byte *) buf.data() + buf_off;
     ssize_t buf_left = buf.size() - buf_off;
 
-    _CHECK_BUF(str.size() + 1);
+    _CHECK_BUF(str.size() + 1, -1);
     std::memcpy((cm_byte *) (buf.data() + buf_off), str.c_str(), str.size());
     _UPDATE(str.size() + 1);
 
@@ -49,14 +49,14 @@ std::optional<int> fbuf_util::pack_string(
 
 //write an arbitrary type to a file buffer
 template <typename T>
-std::optional<int> fbuf_util::pack_type(
+int fbuf_util::pack_type(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const T & type) {
 
     cm_byte * cur_byte = (cm_byte *) buf.data() + buf_off;
     ssize_t buf_left = buf.size() - buf_off;
 
-    _CHECK_BUF(sizeof(type));
+    _CHECK_BUF(sizeof(type), -1);
     std::memcpy((cm_byte *) (buf.data() + buf_off), &type, sizeof(type));
     _UPDATE(sizeof(type));
 
@@ -66,7 +66,7 @@ std::optional<int> fbuf_util::pack_type(
 
 //write an arbitrary length array of some type to a file buffer
 template <typename T>
-std::optional<int> fbuf_util::pack_type_array(
+int fbuf_util::pack_type_array(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const std::vector<T> & type_arr) {
 
@@ -74,7 +74,7 @@ std::optional<int> fbuf_util::pack_type_array(
     ssize_t buf_left = buf.size() - buf_off;
 
     //check file buffer has enough space
-    _CHECK_BUF((sizeof(T) + 1) * type_arr.size());
+    _CHECK_BUF((sizeof(T) + 1) * type_arr.size(), -1);
 
     //pack every array element
     for (auto iter = type_arr.begin(); iter != type_arr.end(); ++iter) {
@@ -108,7 +108,7 @@ std::optional<std::string> fbuf_util::unpack_string(
 
 
     //setup iteration
-    _CHECK_BUF(sizeof(cm_byte));
+    _CHECK_BUF(sizeof(cm_byte), std::nullopt);
     cur_byte = (cm_byte *) buf.data() + buf_off;
 
     //keep adding characters until encountering a null terminator
@@ -162,7 +162,7 @@ _SC_DBG_INLINE std::optional<std::vector<T>> fbuf_util::unpack_type_array(
 
 
     //setup iteration
-    _CHECK_BUF(sizeof(cm_byte));
+    _CHECK_BUF(sizeof(cm_byte), std::nullopt);
     cur_byte = (cm_byte *) buf.data() + buf_off;
 
     //iterate over array entries until meeting `arr_end` control byte

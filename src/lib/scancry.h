@@ -124,61 +124,54 @@ class opt : public _lockable {
          */
 
         //getters & setters
-        [[nodiscard]] _SC_DBG_INLINE int set_file_path_out(
+        [[nodiscard]] int set_file_path_out(
             const std::optional<std::string> & file_path_out);
-        [[nodiscard]] _SC_DBG_INLINE const std::optional<std::string> &
+        [[nodiscard]] const std::optional<std::string> &
             get_file_path_out() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_file_path_in(
+        [[nodiscard]] int set_file_path_in(
             const std::optional<std::string> & file_path_in);
-        [[nodiscard]] _SC_DBG_INLINE const std::optional<std::string> &
+        [[nodiscard]] const std::optional<std::string> &
             get_file_path_in() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_sessions(
+        [[nodiscard]] int set_sessions(
             const std::vector<mc_session const *> & sessions);
-        [[nodiscard]] _SC_DBG_INLINE const std::vector<mc_session const *> &
+        [[nodiscard]] const std::vector<mc_session const *> &
             get_sessions() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int
-            set_map(const mc_vm_map * map) noexcept;
-        [[nodiscard]] _SC_DBG_INLINE mc_vm_map const * get_map() const noexcept;
+        [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
+        [[nodiscard]] mc_vm_map const * get_map() const noexcept;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_omit_areas(
+        [[nodiscard]] int set_omit_areas(
             const std::optional<std::vector<const cm_lst_node *>> & omit_areas);
-        [[nodiscard]] _SC_DBG_INLINE
-            const std::optional<std::vector<const cm_lst_node *>> &
+        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
                 get_omit_areas() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_omit_objs(
+        [[nodiscard]] int set_omit_objs(
             const std::optional<std::vector<const cm_lst_node *>> & omit_objs);
-        [[nodiscard]] _SC_DBG_INLINE
-            const std::optional<std::vector<const cm_lst_node *>> &
+        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
                 get_omit_objs() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_exclusive_areas(
-            const std::optional<std::vector<const cm_lst_node *>>
-            & exclusive_areas);
-        [[nodiscard]] _SC_DBG_INLINE
+        [[nodiscard]] int set_exclusive_areas(
             const std::optional<std::vector<const cm_lst_node *>> &
-                get_exclusive_areas() const;
+                exclusive_areas);
+        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
+            get_exclusive_areas() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_exclusive_objs(
-            const std::optional<std::vector<const cm_lst_node *>>
-                & exclusive_objs);
-        [[nodiscard]] _SC_DBG_INLINE
+        [[nodiscard]] int set_exclusive_objs(
             const std::optional<std::vector<const cm_lst_node *>> &
-                get_exclusive_objs() const;
+                exclusive_objs);
+        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
+            get_exclusive_objs() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_addr_range(
+        [[nodiscard]] int set_addr_range(
             const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range);
-        [[nodiscard]] _SC_DBG_INLINE
-            const std::optional<std::pair<uintptr_t, uintptr_t>>
-                get_addr_range() const;
+        [[nodiscard]] const std::optional<std::pair<uintptr_t, uintptr_t>>
+            get_addr_range() const;
 
-        [[nodiscard]] _SC_DBG_INLINE int set_access(
+        [[nodiscard]] int set_access(
             const std::optional<cm_byte> & access) noexcept;
-        [[nodiscard]] _SC_DBG_INLINE std::optional<cm_byte>
-            get_access() const noexcept;
+        [[nodiscard]] std::optional<cm_byte> get_access() const noexcept;
 };
 
 
@@ -239,40 +232,38 @@ class opt_ptrscan : public _opt_scan {
         void reset() override final; //TODO implement this
 
         //getters & setters
-        [[nodiscard]] _SC_DBG_INLINE int set_target_addr(
+        [[nodiscard]] int set_target_addr(
             const std::optional<uintptr_t> & target_addr);
-        [[nodiscard]] _SC_DBG_INLINE std::optional<uintptr_t>
+        [[nodiscard]] std::optional<uintptr_t>
             get_target_addr() const noexcept;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_alignment(
+        [[nodiscard]] int set_alignment(
             const std::optional<off_t> & alignment);
-        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+        [[nodiscard]] std::optional<off_t>
             get_alignment() const noexcept;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_max_obj_sz(
+        [[nodiscard]] int set_max_obj_sz(
             const std::optional<off_t> & max_obj_sz);
-        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+        [[nodiscard]] std::optional<off_t>
             get_max_obj_sz() const noexcept;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_max_depth(
+        [[nodiscard]] int set_max_depth(
             const std::optional<off_t> & max_depth);
-        [[nodiscard]] _SC_DBG_INLINE std::optional<off_t>
+        [[nodiscard]] std::optional<off_t>
             get_max_depth() const noexcept;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_static_areas(
+        [[nodiscard]] int set_static_areas(
             const std::optional<std::vector<cm_lst_node *>> & static_areas);
-        [[nodiscard]] _SC_DBG_INLINE
-            const std::optional<std::unordered_set<cm_lst_node *>> &
-                get_static_areas() const;
+        [[nodiscard]] const std::optional<std::unordered_set<cm_lst_node *>> &
+            get_static_areas() const;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_preset_offsets(
+        [[nodiscard]] int set_preset_offsets(
             const std::optional<std::vector<off_t>> & preset_offsets);
-        [[nodiscard]] _SC_DBG_INLINE
-            const std::optional<std::vector<off_t>> &
-                get_preset_offsets() const;
+        [[nodiscard]] const std::optional<std::vector<off_t>> &
+            get_preset_offsets() const;
         
-        [[nodiscard]] _SC_DBG_INLINE int set_smart_scan(bool do_smart_scan);
-        [[nodiscard]] _SC_DBG_INLINE bool get_smart_scan() const noexcept;    
+        [[nodiscard]] int set_smart_scan(bool do_smart_scan);
+        [[nodiscard]] bool get_smart_scan() const noexcept;    
 };
 
 
@@ -288,14 +279,11 @@ class map_area_set : public _lockable {
 
     public:
         //[methods]
-        std::optional<int> update_set(opt & opts);
+        [[nodiscard]] int update_set(opt & opts);
 
         //getters & setters
-        const std::unordered_set<cm_lst_node *> &
-            get_area_nodes() const noexcept {
-
-            return area_nodes;
-        }
+        [[nodiscard]] const std::unordered_set<cm_lst_node *> &
+            get_area_nodes() const noexcept;
 };
 
 
@@ -331,11 +319,11 @@ class worker_pool : public _lockable {
         struct _worker_concurrency concur;
 
         //[methods]
-        [[nodiscard]] _SC_DBG_INLINE int spawn_workers();
-        [[nodiscard]] _SC_DBG_INLINE int kill_workers();
-        [[nodiscard]] _SC_DBG_INLINE int
+        [[nodiscard]] int spawn_workers();
+        [[nodiscard]] int kill_workers();
+        [[nodiscard]] int
             sort_by_size(const map_area_set & ma_set);
-        [[nodiscard]] _SC_DBG_INLINE int
+        [[nodiscard]] int
             update_scan_area_set(const map_area_set & ma_set);
 
     public:
@@ -413,22 +401,22 @@ class ptrscan : public _scan {
                       const uintptr_t own_addr, const
                       uintptr_t ptr_addr);
 
-        [[nodiscard]] _SC_DBG_INLINE std::pair<std::string, cm_lst_node *>
+        [[nodiscard]] std::pair<std::string, cm_lst_node *>
             get_chain_data(const cm_lst_node * const area_node) const;
-        [[nodiscard]] _SC_DBG_INLINE int
+        [[nodiscard]] int
             get_chain_idx(const std::string & pathname) const;
 
         [[nodiscard]] int flatten_tree();
-        [[nodiscard]] _SC_DBG_INLINE bool
+        [[nodiscard]] bool
             is_chain_valid(const uintptr_t target_addr,
                            const struct sc::ptrscan_chain & chain,
                            mc_session & session) const;
 
-        [[nodiscard]] _SC_DBG_INLINE std::pair<size_t, size_t>
+        [[nodiscard]] std::pair<size_t, size_t>
             get_fbuf_data_sz() const;
-        [[nodiscard]] _SC_DBG_INLINE int handle_body_start(
+        [[nodiscard]] int handle_body_start(
             const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
-        [[nodiscard]] _SC_DBG_INLINE
+        [[nodiscard]]
             std::optional<std::pair<uint32_t, std::vector<off_t>>>
                 handle_body_chain(
                     const std::vector<cm_byte> & buf, off_t & buf_off);
@@ -437,7 +425,7 @@ class ptrscan : public _scan {
 
     public:
         //[methods]
-        /* internal */ [[nodiscard]] _SC_DBG_INLINE int _process_addr(
+        /* internal */ [[nodiscard]] int _process_addr(
                     const struct _scan_arg arg, const opt * const opts,
                     const _opt_scan * const opts_scan) override final;
 
@@ -466,7 +454,7 @@ class ptrscan : public _scan {
             sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan);
 
         //getters & setters
-        [[nodiscard]] _SC_DBG_INLINE
+        [[nodiscard]]
             const std::vector<struct ptrscan_chain> & get_chains() const;
 };
 
@@ -476,9 +464,9 @@ class serialiser : public _lockable {
     _SC_DBG_PRIVATE:
         //[methods]
         //miscellaneous
-        [[nodiscard]] _SC_DBG_INLINE std::optional<cm_byte>
+        [[nodiscard]] std::optional<cm_byte>
             get_scan_type(_scan * scan) const;
-        [[nodiscard]] _SC_DBG_INLINE bool
+        [[nodiscard]] bool
             is_header_valid(sc::_scancry_file_hdr & hdr) const;
 
     public:

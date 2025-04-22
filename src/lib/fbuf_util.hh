@@ -18,17 +18,17 @@ const constexpr cm_byte _file_end         = 0xBB;
 
 
 //file buffer packing
-std::optional<int> pack_string(
+int pack_string(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const std::string & str);
 
 template <typename T>
-std::optional<int> pack_type(
+int pack_type(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const T & type);
 
 template <typename T>
-std::optional<int> pack_type_array(
+int pack_type_array(
     const std::vector<cm_byte> & buf,
     off_t & buf_off, const std::vector<T> & type_arr);
 

@@ -19,6 +19,7 @@
 #include "scancry.h"
 #include "opt.hh"
 #include "error.hh"
+#include "scancry_impl.h"
 
 
 
@@ -52,7 +53,7 @@ sc::opt::opt(const opt & opts)
 
 
 //getters & setters
-std::optional<int> sc::opt::set_file_path_out(
+[[nodiscard]] int sc::opt::set_file_path_out(
     const std::optional<std::string> & file_path_out) {
 
     _LOCK
@@ -63,12 +64,15 @@ std::optional<int> sc::opt::set_file_path_out(
 }
 
 
-const std::optional<std::string> & sc::opt::get_file_path_out() const {
+[[nodiscard]] const std::optional<std::string> &
+    sc::opt::get_file_path_out() const {
+
     return this->file_path_out;
 }
 
 
-std::optional<int> sc::opt::set_file_path_in(const std::optional<std::string> & file_path_in) {
+[[nodiscard]] int sc::opt::set_file_path_in(
+    const std::optional<std::string> & file_path_in) {
 
     _LOCK
     this->file_path_in = file_path_in;
@@ -78,12 +82,15 @@ std::optional<int> sc::opt::set_file_path_in(const std::optional<std::string> & 
 }
 
 
-const std::optional<std::string> & sc::opt::get_file_path_in() const {
+[[nodiscard]] const std::optional<std::string> &
+    sc::opt::get_file_path_in() const {
+
     return this->file_path_in;
 }
 
 
-std::optional<int> sc::opt::set_sessions(const std::vector<mc_session const *> & sessions) {
+[[nodiscard]] int sc::opt::set_sessions(
+    const std::vector<mc_session const *> & sessions) {
 
     _LOCK
     this->sessions = sessions;
@@ -93,12 +100,15 @@ std::optional<int> sc::opt::set_sessions(const std::vector<mc_session const *> &
 }
 
 
-const std::vector<mc_session const *> & sc::opt::get_sessions() const {
+[[nodiscard]] const std::vector<mc_session const *> &
+    sc::opt::get_sessions() const {
+
     return this->sessions;
 }
 
 
-std::optional<int> sc::opt::set_map(const mc_vm_map * map) noexcept {
+[[nodiscard]] int sc::opt::set_map(
+    const mc_vm_map * map) noexcept {
 
     _LOCK
     this->map = map;
@@ -108,12 +118,14 @@ std::optional<int> sc::opt::set_map(const mc_vm_map * map) noexcept {
 }
 
 
-mc_vm_map const * sc::opt::get_map() const noexcept {
+[[nodiscard]] mc_vm_map const *
+    sc::opt::get_map() const noexcept {
+
     return this->map;
 }
 
 
-std::optional<int> sc::opt::set_omit_areas(
+[[nodiscard]] int sc::opt::set_omit_areas(
     const std::optional<std::vector<const cm_lst_node *>> & omit_areas) {
 
     _LOCK
@@ -124,14 +136,14 @@ std::optional<int> sc::opt::set_omit_areas(
 }
 
 
-const std::optional<std::vector<const cm_lst_node *>>
+[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
     & sc::opt::get_omit_areas() const {
 
     return this->omit_areas;
 }
 
 
-std::optional<int> sc::opt::set_omit_objs(
+[[nodiscard]] int sc::opt::set_omit_objs(
     const std::optional<std::vector<const cm_lst_node *>> & omit_objs) {
 
     _LOCK
@@ -142,14 +154,14 @@ std::optional<int> sc::opt::set_omit_objs(
 }
 
 
-const std::optional<std::vector<const cm_lst_node *>>
-    & sc::opt::get_omit_objs() const {
+[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
+        & sc::opt::get_omit_objs() const {
 
     return this->omit_objs;
 }
 
 
-std::optional<int> sc::opt::set_exclusive_areas(
+[[nodiscard]] int sc::opt::set_exclusive_areas(
     const std::optional<std::vector<const cm_lst_node *>> & exclusive_areas) {
 
     _LOCK
@@ -160,14 +172,14 @@ std::optional<int> sc::opt::set_exclusive_areas(
 }
 
 
-const std::optional<std::vector<const cm_lst_node *>>
+[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
     & sc::opt::get_exclusive_areas() const {
 
     return this->exclusive_areas;
 }
 
 
-std::optional<int> sc::opt::set_exclusive_objs(
+[[nodiscard]] int sc::opt::set_exclusive_objs(
     const std::optional<std::vector<const cm_lst_node *>> & exclusive_objs) {
 
     _LOCK
@@ -178,14 +190,14 @@ std::optional<int> sc::opt::set_exclusive_objs(
 }
 
 
-const std::optional<std::vector<const cm_lst_node *>>
+[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
     & sc::opt::get_exclusive_objs() const {
 
     return this->exclusive_objs;
 }
 
 
-std::optional<int> sc::opt::set_addr_range(
+[[nodiscard]] int sc::opt::set_addr_range(
     const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range) {
 
     _LOCK
@@ -196,14 +208,14 @@ std::optional<int> sc::opt::set_addr_range(
 }
 
 
-const std::optional<std::pair<uintptr_t, uintptr_t>>
+[[nodiscard]] const std::optional<std::pair<uintptr_t, uintptr_t>>
     sc::opt::get_addr_range() const {
 
     return this->addr_range;
 }
 
 
-std::optional<int> sc::opt::set_access(
+[[nodiscard]] int sc::opt::set_access(
     const std::optional<cm_byte> & access) noexcept {
 
     _LOCK
@@ -214,7 +226,7 @@ std::optional<int> sc::opt::set_access(
 }
 
 
-std::optional<cm_byte> sc::opt::get_access() const noexcept {
+[[nodiscard]] std::optional<cm_byte> sc::opt::get_access() const noexcept {
 
     return this->access;
 }
@@ -242,7 +254,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 
 //getters & setters
-std::optional<int> sc::opt_ptrscan::set_target_addr(
+[[nodiscard]] int sc::opt_ptrscan::set_target_addr(
     const std::optional<uintptr_t> & target_addr) {
 
     _LOCK
@@ -253,12 +265,14 @@ std::optional<int> sc::opt_ptrscan::set_target_addr(
 }
 
 
-std::optional<uintptr_t> sc::opt_ptrscan::get_target_addr() const noexcept {
+[[nodiscard]] std::optional<uintptr_t>
+    sc::opt_ptrscan::get_target_addr() const noexcept {
+
     return this->target_addr;
 }
 
 
-std::optional<int> sc::opt_ptrscan::set_alignment(
+[[nodiscard]] int sc::opt_ptrscan::set_alignment(
     const std::optional<off_t> & alignment) {
 
     _LOCK
@@ -269,12 +283,14 @@ std::optional<int> sc::opt_ptrscan::set_alignment(
 }
 
 
-std::optional<off_t> sc::opt_ptrscan::get_alignment() const noexcept {
+[[nodiscard]] std::optional<off_t>
+    sc::opt_ptrscan::get_alignment() const noexcept {
+
     return this->alignment;
 }
 
 
-std::optional<int> sc::opt_ptrscan::set_max_obj_sz(
+[[nodiscard]] int sc::opt_ptrscan::set_max_obj_sz(
     const std::optional<off_t> & max_obj_sz) {
 
     _LOCK
@@ -285,12 +301,14 @@ std::optional<int> sc::opt_ptrscan::set_max_obj_sz(
 }
 
 
-std::optional<off_t> sc::opt_ptrscan::get_max_obj_sz() const noexcept {
+[[nodiscard]] std::optional<off_t>
+    sc::opt_ptrscan::get_max_obj_sz() const noexcept {
+
     return this->max_obj_sz;
 }
 
 
-std::optional<int> sc::opt_ptrscan::set_max_depth(
+[[nodiscard]] int sc::opt_ptrscan::set_max_depth(
     const std::optional<off_t> & max_depth) {
 
     _LOCK
@@ -301,12 +319,14 @@ std::optional<int> sc::opt_ptrscan::set_max_depth(
 }
 
 
-std::optional<off_t> sc::opt_ptrscan::get_max_depth() const noexcept {
+[[nodiscard]] std::optional<off_t>
+    sc::opt_ptrscan::get_max_depth() const noexcept {
+
     return this->max_depth;
 }
 
 
-std::optional<int> sc::opt_ptrscan::set_static_areas(
+[[nodiscard]] int sc::opt_ptrscan::set_static_areas(
     const std::optional<std::vector<cm_lst_node *>> & static_areas) {
 
     _LOCK
@@ -322,13 +342,14 @@ std::optional<int> sc::opt_ptrscan::set_static_areas(
 }
 
 
-const std::optional<std::unordered_set<cm_lst_node *>>
+[[nodiscard]] const std::optional<std::unordered_set<cm_lst_node *>>
     & sc::opt_ptrscan::get_static_areas() const {
+
     return this->static_areas;
 }
 
 
-std::optional<int> sc::opt_ptrscan::set_preset_offsets(
+[[nodiscard]] int sc::opt_ptrscan::set_preset_offsets(
     const std::optional<std::vector<off_t>> & preset_offsets) {
 
     _LOCK
@@ -339,8 +360,9 @@ std::optional<int> sc::opt_ptrscan::set_preset_offsets(
 }
 
 
-const std::optional<std::vector<off_t>>
+[[nodiscard]] const std::optional<std::vector<off_t>>
     & sc::opt_ptrscan::get_preset_offsets() const {
+
     return this->preset_offsets;
 }
 

@@ -32,7 +32,7 @@
  *  --- [INTERNAL] ---
  */
 
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 bool is_blacklisted(const char * pathname) {
 
     //for every blacklisted pathname
@@ -52,7 +52,7 @@ bool is_blacklisted(const char * pathname) {
  * segments (or their equivalents) in mmap'ed executables. Typically
  * for such objects, their pathname begins with a '/' and the object
  * contains multiple areas (r--, rw-, r-x, etc.). */
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 bool is_static(const cm_lst_node * const obj_node) {
 
     //fetch object from node
@@ -66,7 +66,7 @@ bool is_static(const cm_lst_node * const obj_node) {
 }
 
 
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 bool is_included(cm_lst_node * node,
                  const std::vector<const cm_lst_node *> & node_set) {
 
@@ -79,7 +79,7 @@ bool is_included(cm_lst_node * node,
 }
 
 
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 
     cm_byte area_access_bit, access_bitfield_bit, bitmask;
@@ -109,7 +109,7 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 }
 
 
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 bool in_addr_range(const mc_vm_area * area,
                    const std::pair<uintptr_t, uintptr_t> addr_range) {
 
@@ -121,7 +121,7 @@ bool in_addr_range(const mc_vm_area * area,
 }
 
 
-_SC_DBG_STATIC _SC_DBG_INLINE
+[[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
 cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
     cm_lst_node * area_node_ptr;
@@ -140,11 +140,14 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  *  --- [PUBLIC]
  */
 
-/* This method will build the selected set of areas for a scan. In
- * addition to the constraint vectors defined in `opt`, an `access_bitfield`
- * defines required permissions for every area. Set it to 0 to accept
- * any permissions. */
-std::optional<int> sc::map_area_set::update_set(sc::opt & opts) {
+/*
+ * NOTE: This method will build the selected set of areas for a scan. In
+ *       addition to the constraint vectors defined in `opt`, an
+ *       `access_bitfield` defines required permissions for every area.
+ *       Set it to 0 to accept any permissions.
+ */
+
+[[nodiscard]] int sc::map_area_set::update_set(sc::opt & opts) {
 
     cm_lst_node * area_node;
     mc_vm_area * area;
@@ -179,7 +182,7 @@ std::optional<int> sc::map_area_set::update_set(sc::opt & opts) {
     mc_vm_map const * map = opts.get_map();
     if (map == nullptr || map->vm_areas.len == 0) {
         sc_errno = SC_ERR_OPT_NOMAP;
-        return std::nullopt;
+        return -1;
     }
 
 
@@ -282,10 +285,17 @@ std::optional<int> sc::map_area_set::update_set(sc::opt & opts) {
 
     if (this->area_nodes.empty() == true) {
         sc_errno = SC_ERR_SCAN_EMPTY;
-        return std::nullopt;
+        return -1;
     }
 
     return 0;
+}
+
+
+[[nodiscard]] const std::unordered_set<cm_lst_node *> &
+        sc::map_area_set::get_area_nodes() const noexcept {
+
+    return this->area_nodes;
 }
 
 

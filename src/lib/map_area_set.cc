@@ -149,6 +149,8 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
 [[nodiscard]] int sc::map_area_set::update_set(sc::opt & opts) {
 
+    int ret;
+
     cm_lst_node * area_node;
     mc_vm_area * area;
     
@@ -160,6 +162,8 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
     bool exclusive_included;
     bool first_iter;
 
+    //apply lock
+    _LOCK(-1)
 
     //empty previous scan set
     this->area_nodes.clear();
@@ -182,6 +186,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
     mc_vm_map const * map = opts.get_map();
     if (map == nullptr || map->vm_areas.len == 0) {
         sc_errno = SC_ERR_OPT_NOMAP;
+        _UNLOCK(-1)
         return -1;
     }
 
@@ -285,9 +290,11 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
     if (this->area_nodes.empty() == true) {
         sc_errno = SC_ERR_SCAN_EMPTY;
+        _UNLOCK(-1)
         return -1;
     }
 
+    _UNLOCK(-1)
     return 0;
 }
 

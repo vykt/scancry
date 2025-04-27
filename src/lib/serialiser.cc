@@ -26,7 +26,7 @@
  */
 
 [[nodiscard]] _SC_DBG_INLINE std::optional<cm_byte>
-sc::serialiser::get_scan_type(sc::_scan * scan) {
+sc::serialiser::get_scan_type(sc::_scan * scan) const {
 
     if (dynamic_cast<sc::ptrscan *>(scan)) {
         return sc::_scan_type_ptrscan;
@@ -38,7 +38,7 @@ sc::serialiser::get_scan_type(sc::_scan * scan) {
 
 
 [[nodiscard]] _SC_DBG_INLINE bool
-sc::serialiser::is_header_valid(sc::_scancry_file_hdr & hdr) {
+sc::serialiser::is_header_valid(sc::_scancry_file_hdr & hdr) const {
 
     //check file magic
     auto diff = std::memcmp(
@@ -77,7 +77,7 @@ sc::serialiser::save_scan(
 
 
     //apply lock
-    _LOCK
+    _LOCK(-1)
 
     //check that a file is provided
     if (opts.get_file_path_out().has_value() == false) {
@@ -128,7 +128,7 @@ sc::serialiser::save_scan(
     fs.close();
 
     _save_scan_fail:
-    _UNLOCK
+    _UNLOCK(-1)
     return -1;
 }
 
@@ -147,7 +147,7 @@ sc::serialiser::load_scan(
 
 
     //apply lock
-    _LOCK
+    _LOCK(-1)
 
     //open an input file stream
     fs = std::ifstream(opts.get_file_path_in().value(),
@@ -189,8 +189,6 @@ sc::serialiser::load_scan(
     fs.close();
 
     _save_scan_fail:
-    _UNLOCK
+    _UNLOCK(-1)
     return -1;
 }
-
-

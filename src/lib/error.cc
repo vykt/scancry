@@ -41,10 +41,16 @@ void exception_sc_errno(const std::exception &excp) {
 
 void print_warning(const std::string msg) {
 
-    std::fprintf(stderr, "[WARNING] %s\n", msg.c_str()); 
+    std::fprintf(stderr, "<ScanCry>[WARNING] %s\n", msg.c_str()); 
     return;
 }
 
+
+void print_critical(const std::string msg) {
+
+    std::fprintf(stderr, "<ScanCry>[CRITICAL] %s\n", msg.c_str());
+    return;
+}
 
 
 /*

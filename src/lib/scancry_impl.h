@@ -39,13 +39,18 @@ namespace sc {
 
 
 //concisely lock/unlock a lockable class
-#define _LOCK                        \
-    { int _lock_ret = this->_lock(); \
-    if (_lock_ret != 0) return -1; } \
+#define _LOCK(badret)                                         \
+    { int _lock_ret = this->_lock();                          \
+        if (_lock_ret != 0) {                                 \
+            if (_lock_ret == EBUSY) sc_errno = SC_ERR_IN_USE; \
+            else sc_errno = SC_ERR_PTHREAD;                   \
+            return badret;                                    \
+        }                                                     \
+    }                                                         \
 
-#define _UNLOCK                        \
-    { int _lock_ret = this->_unlock(); \
-    if (_lock_ret != 0) return -1; }   \
+#define _UNLOCK(badret)                                             \
+    { int _lock_ret = this->_unlock();                              \
+    if (_lock_ret != 0) sc_errno = SC_ERR_PTHREAD; return badret; } \
 
 
 //allows a class to be locked (prevent modification)
@@ -61,9 +66,9 @@ class _lockable {
         ~_lockable();
         
         //lock operations
-        [[nodiscard]] _SC_DBG_INLINE int _lock() noexcept;
-        [[nodiscard]] _SC_DBG_INLINE int _unlock() noexcept;
-        [[nodiscard]] _SC_DBG_INLINE  bool _get_lock() const noexcept;
+        [[nodiscard]] int _lock() noexcept;
+        [[nodiscard]] int _unlock() noexcept;
+        [[nodiscard]] bool _get_lock() const noexcept;
 };
 
 
@@ -138,7 +143,7 @@ class _scan : public _lockable {
          */
 
         /* internal */ [[nodiscard]] virtual int _generate_body(
-                std::vector<cm_byte> & buf, off_t hdr_off) const = 0;
+                std::vector<cm_byte> & buf, off_t hdr_off) = 0;
         /* internal */ [[nodiscard]] virtual int _process_body(
                 const std::vector<cm_byte> & buf, off_t hdr_off,
                 const mc_vm_map & map) = 0;
@@ -219,12 +224,11 @@ class _worker {
         cm_byte * buf;
 
         //[methods]
-        [[nodiscard]] _SC_DBG_INLINE
-            int read_buffer_smart(struct _scan_arg & arg) noexcept;
+        [[nodiscard]] int read_buffer_smart(struct _scan_arg & arg) noexcept;
 
         //synchronisation
-        [[nodiscard]] _SC_DBG_INLINE int release_wait() noexcept;
-        [[nodiscard]] _SC_DBG_INLINE int layer_wait() noexcept;
+        [[nodiscard]] int release_wait() noexcept;
+        [[nodiscard]] int layer_wait() noexcept;
         void exit() noexcept;
 
     public:

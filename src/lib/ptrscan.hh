@@ -54,9 +54,9 @@ class _ptrscan_tree_node {
         void clear();
 
         //getters & setters
-        const std::list<std::shared_ptr<_ptrscan_tree_node>>
+        [[nodiscard]] const std::list<std::shared_ptr<_ptrscan_tree_node>>
             & get_children() const noexcept;
-        bool has_children() const noexcept;
+        [[nodiscard]] bool has_children() const noexcept;
 };
 
 
@@ -89,18 +89,19 @@ class _ptrscan_tree {
 
 
         //getters & setters
-        pthread_mutex_t & get_write_mutex() noexcept;
-        const std::vector<std::shared_ptr<_ptrscan_tree_node>>
+        [[nodiscard]] pthread_mutex_t & get_write_mutex() noexcept;
+        [[nodiscard]] const std::vector<std::shared_ptr<_ptrscan_tree_node>>
             & get_depth_level_vct(int level) const noexcept;
-        std::vector<
+        [[nodiscard]] std::vector<
             std::vector<std::shared_ptr<_ptrscan_tree_node>>>
                 ::const_reverse_iterator
                     get_depth_level_crbegin() const noexcept;
-        std::vector<
+        [[nodiscard]] std::vector<
             std::vector<std::shared_ptr<_ptrscan_tree_node>>>
                 ::const_reverse_iterator
                     get_depth_level_crend() const noexcept;
-        const std::shared_ptr<_ptrscan_tree_node> get_root_node() const;
+        [[nodiscard]] const std::shared_ptr<
+            _ptrscan_tree_node> get_root_node() const;
 };
 
 

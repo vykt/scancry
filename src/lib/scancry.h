@@ -312,7 +312,8 @@ class worker_pool : public _lockable {
         std::vector<std::vector<const cm_lst_node *>> scan_area_sets;
 
         //options cache
-        const sc::opt * opts;
+        sc::opt * opts;
+        sc::_opt_scan * opts_scan;
         sc::_scan * scan;
 
         //concurrency
@@ -332,7 +333,8 @@ class worker_pool : public _lockable {
         /* internal */ [[nodiscard]] int _single_run();
         
         //setup ahead of a scan
-        /* internal */ [[nodiscard]] int setup(const sc::opt & opts,
+        /* internal */ [[nodiscard]] int setup(sc::opt & opts,
+                                               sc::_opt_scan & opts_scan,
                                                sc::_scan & scan,
                                                const sc::map_area_set & ma_set,
                                                const cm_byte flags);
@@ -403,10 +405,8 @@ class ptrscan : public _scan {
 
         [[nodiscard]] std::pair<std::string, cm_lst_node *>
             get_chain_data(const cm_lst_node * const area_node) const;
-        [[nodiscard]] int
-            get_chain_idx(const std::string & pathname) const;
+        [[nodiscard]] int get_chain_idx(const std::string & pathname);
 
-        [[nodiscard]] int flatten_tree();
         [[nodiscard]] bool
             is_chain_valid(const uintptr_t target_addr,
                            const struct sc::ptrscan_chain & chain,
@@ -420,6 +420,7 @@ class ptrscan : public _scan {
             std::optional<std::pair<uint32_t, std::vector<off_t>>>
                 handle_body_chain(
                     const std::vector<cm_byte> & buf, off_t & buf_off);
+        [[nodiscard]] int flatten_tree();
 
         void do_reset();
 
@@ -430,12 +431,14 @@ class ptrscan : public _scan {
                     const _opt_scan * const opts_scan) override final;
 
         /* internal */ [[nodiscard]] int _generate_body(
-            std::vector<cm_byte> & buf, off_t hdr_off) const override final;
+                    std::vector<cm_byte> & buf,
+                    const off_t hdr_off) override final;
         /* internal */ [[nodiscard]] int _process_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off,
-            const mc_vm_map & map) override final;
+                    const std::vector<cm_byte> & buf, off_t hdr_off,
+                    const mc_vm_map & map) override final;
         /* internal */ [[nodiscard]] int _read_body(
-            const std::vector<cm_byte> & buf, off_t hdr_off) override final;
+                    const std::vector<cm_byte> & buf,
+                    off_t hdr_off) override final;
 
         //ctor
         ptrscan();
@@ -739,6 +742,5 @@ extern __thread int sc_errno;
 
 #define SC_ERR_FILE_MSG \
     "Failed to open, read, or write to a file.\n"
-
 
 #endif //define SCANCRY_H

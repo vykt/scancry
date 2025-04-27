@@ -24,7 +24,7 @@
 #include "error.hh"
 
 
-#define RET_PTHREAD_ERR { sc_errno = SC_ERR_PTHREAD; return std::nullopt; }
+#define RET_PTHREAD_ERR { sc_errno = SC_ERR_PTHREAD; return -1; }
 
 
 /*
@@ -53,7 +53,7 @@ void * _bootstrap_worker(void * arg) {
  *  --- [WORKER | PRIVATE] ---
  */
 
-_SC_DBG_INLINE std::optional<int>
+[[nodiscard]] _SC_DBG_INLINE int
 sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
     int ret;
@@ -98,7 +98,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     ret = mc_read(this->session, arg.addr, this->buf + buf_off, read_sz);
     if (ret != 0) {
         sc_errno = SC_ERR_MEMCRY;
-        return std::nullopt;
+        return -1;
     }
 
     //reset `_scan_arg` state related to the read buffer
@@ -109,7 +109,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 }
 
 
-std::optional<int> sc::_worker::release_wait() noexcept {
+[[nodiscard]] _SC_DBG_INLINE int sc::_worker::release_wait() noexcept {
 
     int ret;
 
@@ -146,18 +146,26 @@ std::optional<int> sc::_worker::release_wait() noexcept {
 }
 
 
-std::optional<int> sc::_worker::exit() noexcept {
+void sc::_worker::exit() noexcept {
 
     int ret;
 
 
     //lock the alive count    
     ret = pthread_mutex_lock(&this->concur.alive_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
+    if (ret != 0) {
+        print_critical(
+            "Worker failed to acquire the alive count lock on exit, count is now corrupted.");
+        pthread_exit(0);
+    }
 
     //lock the waiting count
     ret = pthread_mutex_lock(&this->concur.release_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
+    if (ret != 0) {
+        print_critical(
+            "Worker failed to acquire the waiting count lock on exit, expect a deadlock.");
+        pthread_exit(0);
+    }
 
     //decrement alive count
     --this->concur.alive_count;
@@ -167,29 +175,49 @@ std::optional<int> sc::_worker::exit() noexcept {
         
         //lock flags
         ret = pthread_mutex_lock(&this->concur.flags_lock);
-        if (ret != 0) RET_PTHREAD_ERR
+        if (ret != 0) {
+            print_critical(
+                "Worker failed to acquire the flags lock on exit, expect a deadlock.");
+                pthread_exit(0);
+        }
 
         //set the workers ready flag
         this->concur.flags |= _worker_flag_release_ready;
 
         //unlock flags
         ret = pthread_mutex_unlock(&this->concur.flags_lock);
-        if (ret != 0) RET_PTHREAD_ERR
+        if (ret != 0) {
+            print_critical(
+                "Worker failed to release the flags lock on exit, expect a deadlock.");
+        }
+        pthread_exit(0);
     }
 
     //unlock the waiting count
     ret = pthread_mutex_unlock(&this->concur.release_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
+    if (ret != 0) {
+        print_critical(
+            "Worker failed to release the waiting count lock on exit, expect a deadlock.");
+        pthread_exit(0);
+    }
 
     //send a signal to the manager if the live count is now zero
     if (this->concur.alive_count == 0) {
         ret = pthread_cond_broadcast(&this->concur.alive_count_cond);
-        if (ret != 0) RET_PTHREAD_ERR
+        if (ret != 0) {
+            print_critical(
+                "Worker failed to signal the manager on exit, expect a deadlock.");
+            pthread_exit(0);
+        }
     }
     
     //unlock alive count
     ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
+    if (ret != 0) {
+        print_critical(
+            "Worker failed to release the alive count on exit, expect a deadlock.");
+        pthread_exit(0);
+    }
 
     pthread_exit(0);
 }
@@ -229,14 +257,15 @@ sc::_worker::~_worker() {
 
 void sc::_worker::main() {
 
-    std::optional<int> ret;
+    int ret;
 
 
     //repeatedly perform requested scans
     while (true) {
 
         //wait for the manager to release this worker
-        this->release_wait();
+        ret = this->release_wait();
+        if (ret != 0) this->exit();
 
         //fetch own scan areas
         const std::vector<const cm_lst_node *> & scan_set
@@ -272,11 +301,17 @@ void sc::_worker::main() {
                 //fetch next buffer if current buffer has run out
                 if (scan_arg.buf_left <= (*this->opts)->addr_width) {
                     ret = this->read_buffer_smart(scan_arg);
-                    if (ret.has_value() == false) this->exit();
+                    if (ret != 0) this->exit();
                 }
 
                 //send this address to the scanner
-                (*this->scan)->_process_addr(scan_arg);
+                ret = (*this->scan)->_process_addr(scan_arg,
+                                                   *this->opts,
+                                                   *this->opts_scan);
+                if (ret != 0) {
+                    print_warning("`_process_addr()` encountered an error.");
+                    this->exit();
+                }
 
                 //increment `_scan_arg` state
                 ++scan_arg.addr;
@@ -293,19 +328,19 @@ void sc::_worker::main() {
 
 
 /*
- *  --- [WORKER MANAGER | PRIVATE] ---
+ *  --- [WORKER POOL | PRIVATE] ---
  */
 
-std::optional<int> sc::worker_mngr::spawn_workers() {
+[[nodiscard]] int sc::worker_pool::spawn_workers() {
 
-    std::optional<int> ret;
+    int ret;
 
     
     //check sessions have been provided
     const std::vector<const mc_session *> & sessions = opts->get_sessions();
     if (opts->get_sessions().size() == 0) {
         sc_errno = SC_ERR_OPT_NOSESSION;
-        return std::nullopt;
+        return -1;
     }
 
     //for every provided session
@@ -328,7 +363,7 @@ std::optional<int> sc::worker_mngr::spawn_workers() {
                              _bootstrap_worker, &this->workers.back());
         if (ret != 0) {
             sc_errno = SC_ERR_PTHREAD;
-            return std::nullopt;
+            return -1;
         }
 
     } //end for every provided session
@@ -337,7 +372,7 @@ std::optional<int> sc::worker_mngr::spawn_workers() {
 }
 
 
-std::optional<int> sc::worker_mngr::kill_workers() {
+[[nodiscard]] int sc::worker_pool::kill_workers() {
 
     int ret;
     bool join_good = true;
@@ -379,7 +414,7 @@ std::optional<int> sc::worker_mngr::kill_workers() {
         ret = clock_gettime(CLOCK_MONOTONIC, &time);
         if (ret == -1) {
             sc_errno = SC_ERR_TIMESPEC;
-            return std::nullopt;
+            return -1;
         }
         time.tv_nsec += 500000;
 
@@ -406,7 +441,7 @@ std::optional<int> sc::worker_mngr::kill_workers() {
     //report any error now
     if (join_good == false) {
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     //empty worker-related vectors
@@ -422,7 +457,7 @@ std::optional<int> sc::worker_mngr::kill_workers() {
  *        Improvements are very welcome.
  */
 
-std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
+[[nodiscard]] int sc::worker_pool::sort_by_size(const map_area_set & ma_set) {
 
     mc_vm_area * area;
     size_t area_size;
@@ -436,7 +471,7 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
     //if scan areas set is empty, return an error
     if (scan_area_nodes.empty() == true) {
         sc_errno = SC_ERR_SCAN_EMPTY;
-        return std::nullopt;
+        return -1;
     }
 
     //add first element to initialise iteration
@@ -483,13 +518,13 @@ std::optional<int> sc::worker_mngr::sort_by_size(const map_area_set & ma_set) {
 
 /*
  *  NOTE: Dividing areas between workers is currently done using the
- *        Largest Differencing Method (greedy algorithm).
+ *        Largest Differencing Method (this is a greedy algorithm).
  */
 
-std::optional<int>
-sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
+[[nodiscard]] int
+sc::worker_pool::update_scan_area_set(const map_area_set & ma_set) {
 
-    std::optional<int> ret;
+    int ret;
 
 
     //reset existing scan_area_sets
@@ -497,7 +532,7 @@ sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
 
     //get a sorted version of the scan areas hashmap
     ret = sort_by_size(ma_set);
-    if (ret == std::nullopt) return std::nullopt;
+    if (ret == -1) return -1;
 
 
     /*
@@ -527,7 +562,7 @@ sc::worker_mngr::update_scan_area_set(const map_area_set & ma_set) {
 
 
 /*
- *  --- [WORKER MANAGER | INTERNAL INTERFACE] ---
+ *  --- [WORKER POOL | INTERNAL INTERFACE] ---
  */
 
 _SC_DBG_STATIC
@@ -571,7 +606,8 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 }
 
 
-[[nodiscard]] int sc::worker_pool::setup(const sc::opt & opts,
+[[nodiscard]] int sc::worker_pool::setup(sc::opt & opts,
+                                         sc::_opt_scan & opts_scan,
                                          sc::_scan & scan,
                                          const sc::map_area_set & ma_set,
                                          const cm_byte flags) {
@@ -581,7 +617,7 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 
     //populate cache
-    this->opts = reinterpret_cast<const sc::opt *>(&opts);
+    this->opts = reinterpret_cast<sc::opt *>(&opts);
     this->scan = reinterpret_cast<sc::_scan *>(&scan);
 
     //respawn workers
@@ -616,11 +652,11 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 
 /*
- *  --- [WORKER MANAGER | PUBLIC] ---
+ *  --- [WORKER POOL | PUBLIC] ---
  */
 
 
-sc::worker_mngr::worker_mngr()
+sc::worker_pool::worker_pool()
  : _lockable(),
    opts(nullptr),
    opts_scan(nullptr),
@@ -628,7 +664,7 @@ sc::worker_mngr::worker_mngr()
 
 
 //cleanup
-sc::worker_mngr::~worker_mngr() {
+sc::worker_pool::~worker_pool() {
 
     /*
      *  NOTE: This is another instance of favouring RAII over proper error
@@ -636,8 +672,14 @@ sc::worker_mngr::~worker_mngr() {
      *        the user isn't notified if one occurs.
      */
 
+    int ret;
+
+
     //kill any workers
-    this->kill_workers();
+    ret = this->kill_workers();
+    if (ret != 0) {
+        print_warning("Worker threads were not cleaned properly.");
+    }
 
     /*
      *  This is technically not necessary on Linux. It also can't fail.
@@ -654,14 +696,14 @@ sc::worker_mngr::~worker_mngr() {
 }
 
 
-std::optional<int> sc::worker_mngr::free_workers() {
+[[nodiscard]] int sc::worker_pool::free_workers() {
 
-    std::optional<int> ret;
+    int ret;
 
 
     //kill previous workers
     ret = this->kill_workers();
-    if (ret.has_value() == false) return std::nullopt;
+    if (ret == -1) return -1;
 
     return 0;
 }

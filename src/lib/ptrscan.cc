@@ -44,14 +44,14 @@ void sc::_ptrscan_tree_node::clear() {
 
 
 //get a reference to the children of a node
-const std::list<std::shared_ptr<sc::_ptrscan_tree_node>>
+[[nodiscard]] const std::list<std::shared_ptr<sc::_ptrscan_tree_node>>
     & sc::_ptrscan_tree_node::get_children() const noexcept {
 
     return this->children;
 }
 
 
-bool sc::_ptrscan_tree_node::has_children() const noexcept {
+[[nodiscard]] bool sc::_ptrscan_tree_node::has_children() const noexcept {
     return this->children.empty();
 }
 
@@ -100,19 +100,19 @@ void sc::_ptrscan_tree::reset() {
 }
 
 
-pthread_mutex_t & sc::_ptrscan_tree::get_write_mutex() noexcept {
+[[nodiscard]] pthread_mutex_t & sc::_ptrscan_tree::get_write_mutex() noexcept {
     return this->write_mutex;
 }
 
 
-const std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> &
+[[nodiscard]] const std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> &
     sc::_ptrscan_tree::get_depth_level_vct(int level) const noexcept {
 
     return this->depth_levels[level];
 }
 
 
-std::vector<
+[[nodiscard]] std::vector<
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>>>
         ::const_reverse_iterator
             sc::_ptrscan_tree::get_depth_level_crbegin() const noexcept {
@@ -121,7 +121,7 @@ std::vector<
 }
 
 
-std::vector<
+[[nodiscard]] std::vector<
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>>>
         ::const_reverse_iterator
             sc::_ptrscan_tree::get_depth_level_crend() const noexcept {
@@ -130,7 +130,7 @@ std::vector<
 }
 
 
-const std::shared_ptr<sc::_ptrscan_tree_node>
+[[nodiscard]] const std::shared_ptr<sc::_ptrscan_tree_node>
     sc::_ptrscan_tree::get_root_node() const {
 
     return this->root_node;
@@ -163,7 +163,8 @@ sc::ptrscan_chain::ptrscan_chain(const std::string pathname,
 
 void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
                            const cm_lst_node * area_node,
-                           const uintptr_t own_addr, const uintptr_t ptr_addr) {
+                           const uintptr_t own_addr,
+                           const uintptr_t ptr_addr) {
 
     //create node inside the ptrscan tree
     this->tree_p->add_node(
@@ -173,8 +174,9 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
 }
 
 
-std::pair<std::string, cm_lst_node *> sc::ptrscan::get_chain_data(
-    const cm_lst_node * const area_node) const {
+[[nodiscard]] std::pair<std::string, cm_lst_node *>
+    sc::ptrscan::get_chain_data(
+        const cm_lst_node * const area_node) const {
 
     mc_vm_area * area;
 
@@ -192,7 +194,8 @@ std::pair<std::string, cm_lst_node *> sc::ptrscan::get_chain_data(
 }
 
 
-std::optional<int> sc::ptrscan::get_chain_idx(const std::string & pathname) {
+[[nodiscard]] _SC_DBG_INLINE int
+    sc::ptrscan::get_chain_idx(const std::string & pathname) {
 
     //find if pathname is already present in the serialised pathnames vector
     auto iter = std::find(this->ser_pathnames.begin(),
@@ -209,7 +212,8 @@ std::optional<int> sc::ptrscan::get_chain_idx(const std::string & pathname) {
 }
 
 
-std::pair<size_t, size_t> sc::ptrscan::get_fbuf_data_sz() const {
+[[nodiscard]] std::pair<size_t, size_t>
+    sc::ptrscan::get_fbuf_data_sz() const {
 
     size_t pathnames_sz = 0, chains_sz = 0;
 
@@ -243,13 +247,13 @@ std::pair<size_t, size_t> sc::ptrscan::get_fbuf_data_sz() const {
 
 
 //interpret the start of the file buffer
-std::optional<int> sc::ptrscan::handle_body_start(
+[[nodiscard]] int sc::ptrscan::handle_body_start(
     const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off) {
 
     //fetch the ptrscan header
     std::optional<struct _ptrscan_file_hdr> local_hdr
         = fbuf_util::unpack_type<struct _ptrscan_file_hdr>(buf, buf_off);
-    if (local_hdr.has_value() == false) return std::nullopt;
+    if (local_hdr.has_value() == false) return -1;
 
     //fetch every pathname
     do {
@@ -257,7 +261,7 @@ std::optional<int> sc::ptrscan::handle_body_start(
         //fetch the pathname string
         std::optional<std::string> pathname
             = fbuf_util::unpack_string(buf, buf_off);
-        if (pathname.has_value() == false) return std::nullopt;
+        if (pathname.has_value() == false) return -1;
 
         //if there are no more strings, stop
         if (pathname->empty()) break;
@@ -272,7 +276,7 @@ std::optional<int> sc::ptrscan::handle_body_start(
 
 
 //interpret a single chain in the file buffer
-std::optional<std::pair<uint32_t, std::vector<off_t>>>
+[[nodiscard]] std::optional<std::pair<uint32_t, std::vector<off_t>>>
     sc::ptrscan::handle_body_chain(
         const std::vector<cm_byte> & buf, off_t & buf_off) {
 
@@ -299,7 +303,7 @@ std::optional<std::pair<uint32_t, std::vector<off_t>>>
 }
 
 
-std::optional<int> sc::ptrscan::flatten_tree() {
+[[nodiscard]] int sc::ptrscan::flatten_tree() {
 
     /*
      *  NOTE: To extract individual pointer chains from the pointer scan
@@ -308,8 +312,7 @@ std::optional<int> sc::ptrscan::flatten_tree() {
      *
      */
 
-    std::optional<int> ret;
-
+    int idx;
     off_t offset;
     std::shared_ptr<sc::_ptrscan_tree_node> child, parent;
 
@@ -345,15 +348,11 @@ std::optional<int> sc::ptrscan::flatten_tree() {
 
             //fetch data for this chain
             auto chain_data = this->get_chain_data(node->area_node);
-            ret = this->get_chain_idx(chain_data.first);
-            if (ret.has_value() == false) {
-                sc_errno = SC_ERR_PTR_CHAIN;
-                return std::nullopt;
-            }
+            idx = this->get_chain_idx(chain_data.first);
 
             //add chain
             this->chains.emplace_back(ptrscan_chain(chain_data.second,
-                                                    ret.value(), offsets));
+                                                    idx, offsets));
 
         } //end for every node at this depth level
 
@@ -370,15 +369,16 @@ std::optional<int> sc::ptrscan::flatten_tree() {
  *        read (e.g.: trying to read unmapped memory).
  */
 
-bool is_chain_valid(const uintptr_t target_addr,
-                    const struct sc::ptrscan_chain & chain,
-                    mc_session & session) {
+[[nodiscard]] bool is_chain_valid(const uintptr_t target_addr,
+                                  const struct sc::ptrscan_chain & chain,
+                                  mc_session & session) {
 
     int ret;
     uintptr_t addr;
     
     cm_lst_node * obj_node;
     mc_vm_obj * obj;
+
 
     //return false if chain is malformed
     if ((chain.obj_node.has_value() == false)
@@ -449,10 +449,10 @@ struct _potential_node {
 
 
 //process a single address from a worker thread
-std::optional<int> sc::ptrscan::_process_addr(
-                                        const struct _scan_arg arg,
-                                        const opt * const opts,
-                                        const _opt_scan * const opts_scan) {
+[[nodiscard]] int sc::ptrscan::_process_addr(
+                                    const struct _scan_arg arg,
+                                    const opt * const opts,
+                                    const _opt_scan * const opts_scan) {
 
     /*
      *  NOTE: This function is called for each byte of memory that is
@@ -567,7 +567,7 @@ std::optional<int> sc::ptrscan::_process_addr(
     int ret = pthread_mutex_lock(&this->tree_p->get_write_mutex());
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     //add every new node to the tree
@@ -586,66 +586,15 @@ std::optional<int> sc::ptrscan::_process_addr(
     ret = pthread_mutex_unlock(&this->tree_p->get_write_mutex());
     if (ret != 0) {
         sc_errno = SC_ERR_PTHREAD;
-        return std::nullopt;
+        return -1;
     }
 
     return 0;
 }
 
 
-int sc::ptrscan::_manage_scan(
-                                        sc::worker_mngr & w_mngr,
-                                        const opt * const opts,
-                                        const _opt_scan * const opts_scan) {
-
-    std::optional<int> ret;
-
-
-    //reset the pointer scan
-    this->reset();
-
-    //fetch ptrscan options
-    opt_ptrscan * opts_ptrscan;
-    try {
-        const opt_ptrscan * const _opts_ptrscan
-            = dynamic_cast<const opt_ptrscan * const>(opts_scan);
-        opts_ptrscan = (opt_ptrscan *) _opts_ptrscan;
-    } catch (std::bad_cast) {
-        sc_errno = SC_ERR_OPT_TYPE;
-        return std::nullopt;
-    }
-
-    //check all necessary options have been set
-    if (opts_ptrscan->get_target_addr().has_value() == false
-        || opts_ptrscan->get_alignment().has_value() == false
-        || opts_ptrscan->get_max_obj_sz().has_value() == false
-        || opts_ptrscan->get_max_depth().has_value() == false) {
-
-        sc_errno = SC_ERR_OPT_MISSING;
-        return std::nullopt;
-    }
-
-    //for every depth level
-    for (int i = 0; i < opts_ptrscan->get_max_depth().value(); ++i) {
-
-        //scan the selected address space once
-        ret = w_mngr._single_run();
-        if (ret.has_value() == false) return std::nullopt;
-
-        //increment current depth
-        ++this->cur_depth_level;
-    }
-
-    //flatten the tree
-    ret = this->flatten_tree();
-    if (ret.has_value() == false) return std::nullopt;
-
-    return 0;
-}
-
-
-std::optional<int> sc::ptrscan::_generate_body(
-    std::vector<cm_byte> & buf, off_t hdr_off) {
+[[nodiscard]] int sc::ptrscan::_generate_body(
+    std::vector<cm_byte> & buf, const off_t hdr_off) {
 
     std::optional<int> ret;
     struct _ptrscan_file_hdr local_hdr;
@@ -658,7 +607,7 @@ std::optional<int> sc::ptrscan::_generate_body(
 
 
     //lock scanner
-    _LOCK
+    _LOCK(-1)
 
     //check the scan contains a result to serialise
     if (this->chains.empty() == true) {
@@ -720,18 +669,17 @@ std::optional<int> sc::ptrscan::_generate_body(
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
     if (ret.has_value() == false) goto _read_body_fail;
 
-    _UNLOCK
+    _UNLOCK(-1)
     return 0;
 
     _read_body_fail:
-    _UNLOCK
-    return std::nullopt;
+    _UNLOCK(-1)
+    return -1;
 }
 
 
-std::optional<int> sc::ptrscan::_process_body(
-    const std::vector<cm_byte> & buf, off_t hdr_off,
-    const mc_vm_map & map) {
+[[nodiscard]] int sc::ptrscan::_process_body(
+    const std::vector<cm_byte> & buf, off_t hdr_off, const mc_vm_map & map) {
 
     std::optional<int> ret;
     std::optional<std::pair<uint32_t, std::vector<off_t>>> inprog_chain;
@@ -743,7 +691,7 @@ std::optional<int> sc::ptrscan::_process_body(
 
 
     //lock scanner
-    _LOCK
+    _LOCK(-1)
 
     //process the start of the header
     ret = this->handle_body_start(buf, hdr_off, buf_off);
@@ -783,16 +731,16 @@ std::optional<int> sc::ptrscan::_process_body(
 
     } while (true);
 
-    _UNLOCK
+    _UNLOCK(-1)
     return 0;
 
     _process_body_fail:
-    _UNLOCK
-    return std::nullopt;
+    _UNLOCK(-1)
+    return -1;
 }
 
 
-std::optional<int> sc::ptrscan::_read_body(
+[[nodiscard]] int sc::ptrscan::_read_body(
     const std::vector<cm_byte> & buf, off_t hdr_off) {
 
     std::optional<int> ret;
@@ -801,9 +749,12 @@ std::optional<int> sc::ptrscan::_read_body(
     off_t buf_off = 0;
 
 
+    //lock scanner
+    _LOCK(-1)
+
     //process the start of the header
     ret = this->handle_body_start(buf, hdr_off, buf_off);
-    if (ret.has_value() == false) return std::nullopt;
+    if (ret.has_value() == false) goto _read_body_fail;
 
 
     //fetch each chain
@@ -814,7 +765,7 @@ std::optional<int> sc::ptrscan::_read_body(
         if (inprog_chain.has_value() == false) {
             this->ser_pathnames.clear();
             this->ser_pathnames.shrink_to_fit();
-            return std::nullopt;
+            goto _read_body_fail;
         }
 
         //add this chain to the chain list
@@ -827,7 +778,12 @@ std::optional<int> sc::ptrscan::_read_body(
 
     } while (true);
     
+    _UNLOCK(-1)
     return 0;
+
+    _read_body_fail:
+    _UNLOCK(-1)
+    return -1;
 }
 
 
@@ -844,9 +800,9 @@ sc::ptrscan::ptrscan()
 
 [[nodiscard]] int sc::ptrscan::reset() {
 
-    _LOCK;
+    _LOCK(-1);
     this->do_reset();
-    _UNLOCK;
+    _UNLOCK(-1);
 
     return 0;
 }
@@ -870,7 +826,7 @@ sc::ptrscan::ptrscan()
 
 
     //lock the scanner
-    _LOCK
+    _LOCK(-1)
 
     //reset the pointer scan
     this->do_reset();
@@ -909,7 +865,7 @@ sc::ptrscan::ptrscan()
     }
 
     //setup the worker pool
-    ret = w_pool.setup(opts, *this, ma_set, flags);
+    ret = w_pool.setup(opts, opts_ptrscan, *this, ma_set, flags);
     if (ret != 0) goto _scan_unlock_all;
 
 
@@ -942,7 +898,7 @@ sc::ptrscan::ptrscan()
     if (ret != 0) run_err = true;
     
     _scan_ret:
-    _UNLOCK
+    _UNLOCK(-1)
     return run_err ? -1 : 0;
 }
 
@@ -955,7 +911,7 @@ sc::ptrscan::ptrscan()
 
 
     //lock scanner
-    _LOCK
+    _LOCK(-1)
 
     //check a target address is provided
     if (opts_ptrscan.get_target_addr().has_value() == false) {
@@ -994,16 +950,16 @@ sc::ptrscan::ptrscan()
         }
     } //end for every chain
 
-    _UNLOCK
+    _UNLOCK(-1)
     return 0;
 
     _verify_fail:
-    _UNLOCK
-    return -1
+    _UNLOCK(-1)
+    return -1;
 }
 
 
 //fetch pointer chains
-const std::vector<struct sc::ptrscan_chain> sc::ptrscan::get_chains() {
+const std::vector<struct sc::ptrscan_chain> & sc::ptrscan::get_chains() const {
     return this->chains;    
 }

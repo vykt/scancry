@@ -9,6 +9,7 @@
 //internal
 void exception_sc_errno(const std::exception & excp);
 void print_warning(const std::string msg);
+void print_critical(const std::string msg);
 
 
 extern "C" {

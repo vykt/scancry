@@ -118,7 +118,7 @@ class _opt_scan : public _lockable {
         virtual ~_opt_scan();
 
         //reset
-        virtual void reset();
+        [[nodiscard]] virtual int reset();
 };
 
 

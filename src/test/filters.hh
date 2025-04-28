@@ -9,7 +9,7 @@
  */
 
 //C++ interface opt class tests
-inline const constexpr int test_cc_opt_subtests_num = 11;
+inline const constexpr int test_cc_opt_subtests_num = 12;
 inline const constexpr char * test_cc_opt_subtests[] = {
     "test_cc_opt",
     "test_cc_opt_file_path_out",
@@ -21,12 +21,13 @@ inline const constexpr char * test_cc_opt_subtests[] = {
     "test_cc_opt_exclusive_areas",
     "test_cc_opt_exclusive_objs",
     "test_cc_opt_addr_range",
-    "test_cc_opt_access"
+    "test_cc_opt_access",
+    "test_cc_opt_reset"
 };
 
 
 //C interface opt class tests
-inline const constexpr int test_c_opt_subtests_num = 12;
+inline const constexpr int test_c_opt_subtests_num = 13;
 inline const constexpr char * test_c_opt_subtests[] = {
     "test_c_sc_opt",
     "test_c_sc_opt_file_path_out",
@@ -39,7 +40,38 @@ inline const constexpr char * test_c_opt_subtests[] = {
     "test_c_sc_opt_exclusive_areas",
     "test_c_sc_opt_exclusive_objs",
     "test_c_sc_opt_addr_range",
-    "test_c_sc_opt_access"
+    "test_c_sc_opt_access",
+    "test_c_sc_opt_reset"
+};
+
+
+//C++ interface opt_ptrscan class tests
+inline const constexpr int test_cc_opt_ptrscan_subtests_num = 9;
+inline const constexpr char * test_cc_opt_ptrscan_subtests[] = {
+    "test_cc_sc_opt_ptrscan",
+    "test_cc_sc_opt_ptrscan_target_addr",
+    "test_cc_sc_opt_ptrscan_alignment",
+    "test_cc_sc_opt_ptrscan_max_obj_sz",
+    "test_cc_sc_opt_ptrscan_max_depth",
+    "test_cc_sc_opt_ptrscan_static_areas",
+    "test_cc_sc_opt_ptrscan_preset_offsets",
+    "test_cc_sc_opt_ptrscan_smart_scan",
+    "test_cc_sc_opt_ptrscan_reset"
+};
+
+
+//C interface opt_ptrscan class tests
+inline const constexpr int test_c_opt_ptrscan_subtests_num = 9;
+inline const constexpr char * test_c_opt_ptrscan_subtests[] = {
+    "test_c_sc_opt_ptrscan",
+    "test_c_sc_opt_ptrscan_target_addr",
+    "test_c_sc_opt_ptrscan_alignment",
+    "test_c_sc_opt_ptrscan_max_obj_sz",
+    "test_c_sc_opt_ptrscan_max_depth",
+    "test_c_sc_opt_ptrscan_static_areas",
+    "test_c_sc_opt_ptrscan_preset_offsets",
+    "test_c_sc_opt_ptrscan_smart_scan",
+    "test_c_sc_opt_ptrscan_reset"
 };
 
 

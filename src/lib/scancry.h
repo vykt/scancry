@@ -112,7 +112,7 @@ class opt : public _lockable {
         opt(const opt & opts);
 
         //reset
-        void reset(); //TODO Implement this
+        [[nodiscard]] int reset();
 
         /*
          *  NOTE: Using `internal` pseudo-keyword here instead of using
@@ -195,7 +195,7 @@ class opt_ptrscan : public _opt_scan {
          *        to be a leaf node; all future pointers to this node will
          *        be rejected.
          */
-        std::optional<std::unordered_set<cm_lst_node *>> static_areas;
+        std::optional<std::unordered_set<const cm_lst_node *>> static_areas;
 
         /*
          *  NOTE: `preset_offsets` define the first n required offsets
@@ -229,7 +229,7 @@ class opt_ptrscan : public _opt_scan {
         opt_ptrscan(const opt_ptrscan & opts_ptrscan);
 
         //reset
-        void reset() override final; //TODO implement this
+        [[nodiscard]] int reset() override final;
 
         //getters & setters
         [[nodiscard]] int set_target_addr(
@@ -253,16 +253,18 @@ class opt_ptrscan : public _opt_scan {
             get_max_depth() const noexcept;
         
         [[nodiscard]] int set_static_areas(
-            const std::optional<std::vector<cm_lst_node *>> & static_areas);
-        [[nodiscard]] const std::optional<std::unordered_set<cm_lst_node *>> &
-            get_static_areas() const;
+            const std::optional<
+                std::vector<const cm_lst_node *>> & static_areas);
+        [[nodiscard]] const std::optional<
+            std::unordered_set<const cm_lst_node *>> &
+                get_static_areas() const;
         
         [[nodiscard]] int set_preset_offsets(
             const std::optional<std::vector<off_t>> & preset_offsets);
         [[nodiscard]] const std::optional<std::vector<off_t>> &
             get_preset_offsets() const;
         
-        [[nodiscard]] int set_smart_scan(bool do_smart_scan);
+        [[nodiscard]] int set_smart_scan(bool enable);
         [[nodiscard]] bool get_smart_scan() const noexcept;    
 };
 
@@ -509,6 +511,7 @@ extern "C" {
 
 //opaque types
 typedef void * sc_opt;
+typedef void * sc_opt_ptrscan;
 typedef void * sc_map_area_set;
 
 
@@ -563,9 +566,9 @@ extern int sc_opt_set_sessions(sc_opt opts, const cm_vct * sessions);
 extern int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 
 //void return
-extern void sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
+extern int sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 //return MemCry map const pointer if set, NULL if not set
-extern mc_vm_map const * sc_opt_get_map(const sc_opt opts);
+extern const mc_vm_map * sc_opt_get_map(const sc_opt opts);
 
 //void return
 extern int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);

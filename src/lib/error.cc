@@ -142,6 +142,10 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_RTTI_MSG);
             break;
 
+        case SC_ERR_TYPECAST:
+            std::fprintf(stderr, "%s, %s", prefix, SC_ERR_TYPECAST_MSG);
+            break;
+
         // 3XX - environment errors        
         case SC_ERR_MEM:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_MEM_MSG);
@@ -224,6 +228,9 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_RTTI:
             return SC_ERR_RTTI_MSG;
+
+        case SC_ERR_TYPECAST:
+            return SC_ERR_TYPECAST_MSG;
 
         // 3XX - environment errors
         case SC_ERR_MEM:

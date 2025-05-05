@@ -2,6 +2,7 @@
 #include <optional>
 #include <vector>
 #include <string>
+#include <functional>
 
 //C standard library
 #include <cstring>
@@ -18,6 +19,7 @@
 //local headers
 #include "scancry.h"
 #include "opt.hh"
+#include "c_iface.hh"
 #include "error.hh"
 #include "scancry_impl.h"
 
@@ -48,7 +50,7 @@ sc::opt::opt(const opt & opts)
    omit_objs(opts.omit_objs),
    exclusive_areas(opts.exclusive_areas),
    exclusive_objs(opts.exclusive_objs),
-   addr_range(opts.addr_range),
+   addr_ranges(opts.addr_ranges),
    access(opts.access) {}
 
 
@@ -62,7 +64,7 @@ sc::opt::opt(const opt & opts)
     this->omit_objs = std::nullopt;
     this->exclusive_areas = std::nullopt;
     this->exclusive_objs = std::nullopt;
-    this->addr_range = std::nullopt;
+    this->addr_ranges = std::nullopt;
     this->access = std::nullopt;
     _UNLOCK(-1)
 
@@ -215,21 +217,22 @@ sc::opt::opt(const opt & opts)
 }
 
 
-[[nodiscard]] int sc::opt::set_addr_range(
-    const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range) {
+[[nodiscard]] int sc::opt::set_addr_ranges(const std::optional<
+    std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range) {
 
     _LOCK(-1)
-    this->addr_range = addr_range;
+    this->addr_ranges = addr_range;
     _UNLOCK(-1)
 
     return 0;
 }
 
 
-[[nodiscard]] const std::optional<std::pair<uintptr_t, uintptr_t>>
-    sc::opt::get_addr_range() const {
+[[nodiscard]] const std::optional<
+    std::vector<std::pair<uintptr_t, uintptr_t>>>
+        sc::opt::get_addr_ranges() const {
 
-    return this->addr_range;
+    return this->addr_ranges;
 }
 
 
@@ -410,104 +413,31 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
  *  --- [INTERNAL] ---
  */
 
-//generic setter of constraints
-int _opt_c_constraint_setter(
-            sc_opt opts, const cm_vct * v,
-            int (sc::opt::*set)(
-               const std::optional<std::vector<const cm_lst_node *>> &)) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //call the setter with the STL vector
-    try {
-        if (v == nullptr) {
-            (o->*set)(std::nullopt);
-            
-        } else {
-            //create a STL vector
-            std::vector<const cm_lst_node *> rett;
-            rett.resize(v->len);
-            std::memcpy(rett.data(), v->data, v->data_sz * v->len);
-
-            //perform the set
-            (o->*set)(rett);
-        }
-        return 0;
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
-//generic getter of constraints
-int _opt_c_constraint_getter(
-            const sc_opt opts, cm_vct * v,
-            const std::optional<
-                std::vector<const cm_lst_node *>> & (sc::opt::*get)() const) {
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    //initialise the CMore vector
-    int ret = cm_new_vct(v, sizeof(cm_lst_node *));
-    if (ret == -1) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy contents of the STL vector into the CMore vector.
-    try {
-        //get the STL vector
-        const std::optional<
-            std::vector<const cm_lst_node *>> & rett = (o->*get)();
-
-        //if a STL vector is present, do the copy
-        if (rett.has_value() && !rett.value().empty()) {
-            ret = cm_vct_rsz(v, rett.value().size());
-            std::memcpy(v->data, rett.value().data(),
-                        rett.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(v);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        cm_del_vct(v);
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
 //generic setter of vectors
-template <typename T>
-int _opt_ptrscan_c_vector_setter(
-            sc_opt_ptrscan opts_ptrscan, const cm_vct * v,
-            int (sc::opt_ptrscan::*set)(
-               const std::optional<std::vector<T>> &)) {
+template <typename O, typename T>
+_SC_DBG_STATIC int _vector_setter(void * opts_X, const cm_vct * cmore_vct,
+                                  int (O::*set)(
+                                      const std::optional<std::vector<T>> &)) {
+
+    int ret;
+
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    O * o = static_cast<O *>(opts_X);
 
     //call the setter with the STL vector
     try {
-        if (v == nullptr) {
+        if (cmore_vct == nullptr) {
             (o->*set)(std::nullopt);
             
         } else {
             //create a STL vector
-            std::vector<T> rett;
-            rett.resize(v->len);
-            std::memcpy(rett.data(), v->data, v->data_sz * v->len);
+            std::vector<T> stl_vct;
+            ret = c_iface::from_cmore_vct<T>(cmore_vct, stl_vct);
+            if (ret != 0) return -1;
 
             //perform the set
-            (o->*set)(rett);
+            (o->*set)(stl_vct);
         }
         return 0;
 
@@ -519,46 +449,32 @@ int _opt_ptrscan_c_vector_setter(
 
 
 //generic getter of constraints
-template <typename T>
-_SC_DBG_STATIC
-int _opt_ptrscan_c_vector_getter(
-            const sc_opt_ptrscan opts_ptrscan, cm_vct * v,
-            const std::optional<
-                std::vector<T>> &
-                    (sc::opt_ptrscan::*get)() const) {
+template <typename O, typename T>
+_SC_DBG_STATIC int _vector_getter(void * opts_X, cm_vct * cmore_vct,
+                                  const std::optional<std::vector<T>> &
+                                      (O::*get)() const) {
+
+    int ret;
+
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
-
-    //initialise the CMore vector
-    int ret = cm_new_vct(v, sizeof(cm_lst_node *));
-    if (ret == -1) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
+    O * o = static_cast<O *>(opts_X);
 
     //copy contents of the STL vector into the CMore vector.
     try {
         //get the STL vector
-        const std::optional<
-            std::vector<T>> & rett = (o->*get)();
+        const std::optional<std::vector<T>> & stl_vct = (o->*get)();
 
-        //if a STL vector is present, do the copy
-        if (rett.has_value() && !rett.value().empty()) {
-            ret = cm_vct_rsz(v, rett.value().size());
-            std::memcpy(v->data, rett.value().data(),
-                        rett.value().size() * sizeof(T *));
-            return 0;
+        //if this constraint doesn't have a value, fail
+        if (stl_vct.has_value() == false) return -1;
 
-        } else {
-            cm_del_vct(v);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
+        //perform the copy
+        ret = c_iface::to_cmore_vct<T>(cmore_vct, stl_vct.value());
+        if (ret != 0) return -1;
+
+        return 0;
         
     } catch (const std::exception & excp) {
-        cm_del_vct(v);
-        exception_sc_errno(excp);
         return -1;
     }
 }
@@ -812,80 +728,96 @@ enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts) {
 int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas) {
 
     //call generic setter
-    return _opt_c_constraint_setter(opts, omit_areas,
-                                    &sc::opt::set_omit_areas);
+    return _vector_setter<sc::opt, const cm_lst_node *>(
+        opts, omit_areas, &sc::opt::set_omit_areas);
 }
 
 
 int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas) {
 
     //call generic getter
-    return _opt_c_constraint_getter(opts, omit_areas,
-                                    &sc::opt::get_omit_areas);
+    return _vector_getter<sc::opt, const cm_lst_node *>(
+        opts, omit_areas, &sc::opt::get_omit_areas);
 }
 
 
 int sc_opt_set_omit_objs(sc_opt opts, const cm_vct * omit_objs) {
 
     //call generic setter
-    return _opt_c_constraint_setter(opts, omit_objs,
-                                    &sc::opt::set_omit_objs);
+    return _vector_setter<sc::opt, const cm_lst_node *>(
+        opts, omit_objs, &sc::opt::set_omit_objs);
 }
 
 
 int sc_opt_get_omit_objs(const sc_opt opts, cm_vct * omit_objs) {
 
     //call generic getter
-    return _opt_c_constraint_getter(opts, omit_objs,
-                                    &sc::opt::get_omit_objs);
+    return _vector_getter<sc::opt, const cm_lst_node *>(
+        opts, omit_objs, &sc::opt::get_omit_objs);
 }
 
 
 int sc_opt_set_exclusive_areas(sc_opt opts, const cm_vct * exclusive_areas) {
 
     //call generic setter
-    return _opt_c_constraint_setter(opts, exclusive_areas,
-                                    &sc::opt::set_exclusive_areas);
+    return _vector_setter<sc::opt, const cm_lst_node *>(
+        opts, exclusive_areas, &sc::opt::set_exclusive_areas);
 }
 
 
 int sc_opt_get_exclusive_areas(const sc_opt opts, cm_vct * exclusive_areas) {
     
     //call generic getter
-    return _opt_c_constraint_getter(opts, exclusive_areas,
-                                    &sc::opt::get_exclusive_areas);
+    return _vector_getter<sc::opt, const cm_lst_node *>(
+        opts, exclusive_areas, &sc::opt::get_exclusive_areas);
 }
 
 
 int sc_opt_set_exclusive_objs(sc_opt opts, const cm_vct * exclusive_objs) {
 
     //call generic setter
-    return _opt_c_constraint_setter(opts, exclusive_objs,
-                                    &sc::opt::set_exclusive_objs);
+    return _vector_setter<sc::opt, const cm_lst_node *>(
+        opts, exclusive_objs, &sc::opt::set_exclusive_objs);
 }
 
 
 int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs) {
 
     //call generic getter
-    return _opt_c_constraint_getter(opts, exclusive_objs,
-                                    &sc::opt::get_exclusive_objs);
+    return _vector_getter<sc::opt, const cm_lst_node *>(
+        opts, exclusive_objs, &sc::opt::get_exclusive_objs);
 }
 
 
-int sc_opt_set_addr_range(sc_opt opts, const sc_addr_range * range) {
+int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * ranges) {
 
     int ret;
+    sc_addr_range range;
 
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
-        if (range == nullptr) ret = o->set_addr_range(std::nullopt);
-        else ret = o->set_addr_range(std::pair(range->min, range->max));
-        return (ret != 0) ? -1 : 0;
-        
+        //convert to a STL vector of pairs
+        std::vector<std::pair<uintptr_t, uintptr_t>> stl_vct;
+        for (int i = 0; i < ranges->len; ++i) {
+
+            ret = cm_vct_get(ranges, i, &range);
+            if (ret != 0) {
+                sc_errno = SC_ERR_CMORE;
+                return -1;
+            }
+
+            stl_vct.push_back(std::pair(range.min, range.max));
+        }
+
+        //set pairs
+        ret = o->set_addr_ranges(stl_vct);
+        if (ret != 0) return -1;
+
+        return 0;
+
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
         return -1;
@@ -893,17 +825,40 @@ int sc_opt_set_addr_range(sc_opt opts, const sc_addr_range * range) {
 }
 
 
-int sc_opt_get_addr_range(const sc_opt opts, sc_addr_range * range) {
+int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * addr_ranges) {
 
     
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
+    //initialise the CMore vector
+    int ret = cm_new_vct(addr_ranges, sizeof(sc_addr_range));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+
     //copy the address range into a sc_addr_range
     try {
         //get the address range pair
-        const std::optional<std::pair<uintptr_t, uintptr_t>> & ar
-            = o->get_addr_range();
+        const std::optional<std::vector<std::pair<uintptr_t, uintptr_t>>> & ars
+            = o->get_addr_ranges();
+
+        //if a STL vector is present, do the copy
+        if (ars.has_value() && !ars.value().empty()) {
+            ret = cm_vct_rsz(addr_ranges, ars.value().size());
+            std::memcpy(addr_ranges->data, ars.value().data(),
+                        rett.value().size() * sizeof(cm_lst_node *));
+            return 0;
+
+        } else {
+            cm_del_vct(v);
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
+
+
+
 
         //if it is set, convert it to a sc_addr_range
         if (ar.has_value()) {

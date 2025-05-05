@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 //sc_opt - external
-sc_opt new_sc_opt(const enum sc::addr_width addr_width);
+sc_opt new_sc_opt(const enum sc_addr_width addr_width);
 int del_sc_opt(sc_opt opts);
 
 int sc_opt_reset(sc_opt opts);
@@ -31,7 +31,7 @@ int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 int sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 const mc_vm_map * sc_opt_get_map(const sc_opt opts);
 
-enum sc::addr_width sc_opt_get_arch_byte_width(const sc_opt opts);
+enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts);
 
 int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas);
 int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas);

@@ -99,7 +99,7 @@ class opt : public _lockable {
         std::optional<
             std::vector<const cm_lst_node *>> exclusive_objs;
         std::optional<
-            std::pair<uintptr_t, uintptr_t>> addr_range;
+            std::vector<std::pair<uintptr_t, uintptr_t>>> addr_ranges;
         std::optional<cm_byte> access;
 
     public:
@@ -164,10 +164,11 @@ class opt : public _lockable {
         [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
             get_exclusive_objs() const;
 
-        [[nodiscard]] int set_addr_range(
-            const std::optional<std::pair<uintptr_t, uintptr_t>> & addr_range);
-        [[nodiscard]] const std::optional<std::pair<uintptr_t, uintptr_t>>
-            get_addr_range() const;
+        [[nodiscard]] int set_addr_ranges(const std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range);
+        [[nodiscard]] const std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>>
+                get_addr_ranges() const;
 
         [[nodiscard]] int set_access(
             const std::optional<cm_byte> & access) noexcept;
@@ -487,7 +488,7 @@ class serialiser : public _lockable {
 };
 
 
-}; //namespace sc
+}; //namespace `sc`
 #endif //#ifdef __cplusplus
 
 
@@ -687,6 +688,7 @@ extern __thread int sc_errno;
 #define SC_ERR_DEADLOCK       3205
 #define SC_ERR_PTR_CHAIN      3206
 #define SC_ERR_RTTI           3207
+#define SC_ERR_TYPECAST       3208
 
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
@@ -738,6 +740,8 @@ extern __thread int sc_errno;
     "Internal: Failed to create a pointer chain.\n"
 #define SC_ERR_RTTI_MSG \
     "Internal: RTTI cast error.\n"
+#define SC_ERR_TYPECAST_MSG \
+    "Internal: Typecast between C & C++ interface failed.\n"
 
 // 3XX - environment errors
 #define SC_ERR_MEM_MSG \

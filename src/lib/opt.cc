@@ -1,5 +1,6 @@
 //standard template library
 #include <optional>
+#include <sys/types.h>
 #include <vector>
 #include <string>
 #include <functional>
@@ -229,7 +230,7 @@ sc::opt::opt(const opt & opts)
 
 
 [[nodiscard]] const std::optional<
-    std::vector<std::pair<uintptr_t, uintptr_t>>>
+    std::vector<std::pair<uintptr_t, uintptr_t>>> &
         sc::opt::get_addr_ranges() const {
 
     return this->addr_ranges;
@@ -413,11 +414,12 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
  *  --- [INTERNAL] ---
  */
 
-//generic setter of vectors
-template <typename O, typename T>
-_SC_DBG_STATIC int _vector_setter(void * opts_X, const cm_vct * cmore_vct,
-                                  int (O::*set)(
-                                      const std::optional<std::vector<T>> &)) {
+//wrapper for setting a STL vector in C
+template <typename O, typename T, typename T_c>
+_SC_DBG_STATIC int _vector_setter(
+                    void * opts_X, const cm_vct * cmore_vct,
+                    int (O::*set)(const std::optional<std::vector<T>> &),
+                    std::optional<std::function<int(T *, T_c *)>> convert_cb) {
 
     int ret;
 
@@ -433,7 +435,8 @@ _SC_DBG_STATIC int _vector_setter(void * opts_X, const cm_vct * cmore_vct,
         } else {
             //create a STL vector
             std::vector<T> stl_vct;
-            ret = c_iface::from_cmore_vct<T>(cmore_vct, stl_vct);
+            ret = c_iface::vct_from_cmore_vct<T, T_c>(
+                cmore_vct, stl_vct, convert_cb);
             if (ret != 0) return -1;
 
             //perform the set
@@ -448,11 +451,12 @@ _SC_DBG_STATIC int _vector_setter(void * opts_X, const cm_vct * cmore_vct,
 }
 
 
-//generic getter of constraints
-template <typename O, typename T>
-_SC_DBG_STATIC int _vector_getter(void * opts_X, cm_vct * cmore_vct,
-                                  const std::optional<std::vector<T>> &
-                                      (O::*get)() const) {
+//wrapper for getting a STL vector in C
+template <typename O, typename T, typename T_c>
+_SC_DBG_STATIC int _vector_getter(
+                    void * opts_X, cm_vct * cmore_vct,
+                    const std::optional<std::vector<T>> & (O::*get)() const,
+                    std::optional<std::function<int(T_c *, T *)>> convert_cb) {
 
     int ret;
 
@@ -469,7 +473,43 @@ _SC_DBG_STATIC int _vector_getter(void * opts_X, cm_vct * cmore_vct,
         if (stl_vct.has_value() == false) return -1;
 
         //perform the copy
-        ret = c_iface::to_cmore_vct<T>(cmore_vct, stl_vct.value());
+        ret = c_iface::vct_to_cmore_vct<T, T_c>(
+            cmore_vct, stl_vct.value(), convert_cb);
+        if (ret != 0) return -1;
+
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        return -1;
+    }
+}
+
+
+
+//generic getter of constraints
+template <typename O, typename T, typename T_c>
+_SC_DBG_STATIC int _unordered_set_getter(
+                void * opts_X, cm_vct * cmore_vct,
+                const std::optional<std::unordered_set<T>> & (O::*get)() const,
+                std::optional<std::function<int(T_c *, T *)>> convert_cb) {
+
+    int ret;
+
+    
+    //cast opaque handle into class
+    O * o = static_cast<O *>(opts_X);
+
+    //copy contents of the STL vector into the CMore vector.
+    try {
+        //get the STL vector
+        const std::optional<std::unordered_set<T>> & stl_uset = (o->*get)();
+
+        //if this constraint doesn't have a value, fail
+        if (stl_uset.has_value() == false) return -1;
+
+        //perform the copy
+        ret = c_iface::uset_to_cmore_vct<T, T_c>(
+            cmore_vct, stl_uset.value(), convert_cb);
         if (ret != 0) return -1;
 
         return 0;
@@ -728,152 +768,100 @@ enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts) {
 int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas) {
 
     //call generic setter
-    return _vector_setter<sc::opt, const cm_lst_node *>(
-        opts, omit_areas, &sc::opt::set_omit_areas);
+    return _vector_setter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, omit_areas, &sc::opt::set_omit_areas, std::nullopt);
 }
 
 
 int sc_opt_get_omit_areas(const sc_opt opts, cm_vct * omit_areas) {
 
     //call generic getter
-    return _vector_getter<sc::opt, const cm_lst_node *>(
-        opts, omit_areas, &sc::opt::get_omit_areas);
+    return _vector_getter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, omit_areas, &sc::opt::get_omit_areas, std::nullopt);
 }
 
 
 int sc_opt_set_omit_objs(sc_opt opts, const cm_vct * omit_objs) {
 
     //call generic setter
-    return _vector_setter<sc::opt, const cm_lst_node *>(
-        opts, omit_objs, &sc::opt::set_omit_objs);
+    return _vector_setter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, omit_objs, &sc::opt::set_omit_objs, std::nullopt);
 }
 
 
 int sc_opt_get_omit_objs(const sc_opt opts, cm_vct * omit_objs) {
 
     //call generic getter
-    return _vector_getter<sc::opt, const cm_lst_node *>(
-        opts, omit_objs, &sc::opt::get_omit_objs);
+    return _vector_getter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, omit_objs, &sc::opt::get_omit_objs, std::nullopt);
 }
 
 
 int sc_opt_set_exclusive_areas(sc_opt opts, const cm_vct * exclusive_areas) {
 
     //call generic setter
-    return _vector_setter<sc::opt, const cm_lst_node *>(
-        opts, exclusive_areas, &sc::opt::set_exclusive_areas);
+    return _vector_setter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, exclusive_areas, &sc::opt::set_exclusive_areas, std::nullopt);
 }
 
 
 int sc_opt_get_exclusive_areas(const sc_opt opts, cm_vct * exclusive_areas) {
     
     //call generic getter
-    return _vector_getter<sc::opt, const cm_lst_node *>(
-        opts, exclusive_areas, &sc::opt::get_exclusive_areas);
+    return _vector_getter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, exclusive_areas, &sc::opt::get_exclusive_areas, std::nullopt);
 }
 
 
 int sc_opt_set_exclusive_objs(sc_opt opts, const cm_vct * exclusive_objs) {
 
     //call generic setter
-    return _vector_setter<sc::opt, const cm_lst_node *>(
-        opts, exclusive_objs, &sc::opt::set_exclusive_objs);
+    return _vector_setter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, exclusive_objs, &sc::opt::set_exclusive_objs, std::nullopt);
 }
 
 
 int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs) {
 
     //call generic getter
-    return _vector_getter<sc::opt, const cm_lst_node *>(
-        opts, exclusive_objs, &sc::opt::get_exclusive_objs);
+    return _vector_getter<sc::opt, const cm_lst_node *, const cm_lst_node *>(
+        opts, exclusive_objs, &sc::opt::get_exclusive_objs, std::nullopt);
 }
 
 
-int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * ranges) {
+int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * addr_ranges) {
 
-    int ret;
-    sc_addr_range range;
+    //call generic setter
+    return _vector_setter<sc::opt,
+                          std::pair<uintptr_t, uintptr_t>,
+                          sc_addr_range>(
+        opts, addr_ranges, &sc::opt::set_addr_ranges,
+            //start lambda
+            [](std::pair<uintptr_t, uintptr_t> * cc_addr_range,
+            sc_addr_range * c_addr_range) -> int {
 
-
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    try {
-        //convert to a STL vector of pairs
-        std::vector<std::pair<uintptr_t, uintptr_t>> stl_vct;
-        for (int i = 0; i < ranges->len; ++i) {
-
-            ret = cm_vct_get(ranges, i, &range);
-            if (ret != 0) {
-                sc_errno = SC_ERR_CMORE;
-                return -1;
-            }
-
-            stl_vct.push_back(std::pair(range.min, range.max));
-        }
-
-        //set pairs
-        ret = o->set_addr_ranges(stl_vct);
-        if (ret != 0) return -1;
-
-        return 0;
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+                *cc_addr_range = std::pair<uintptr_t, uintptr_t>(
+                    c_addr_range->min, c_addr_range->max);
+                return 0;
+        }); //end lambda
 }
 
 
 int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * addr_ranges) {
 
-    
-    //cast opaque handle into class
-    sc::opt * o = static_cast<sc::opt *>(opts);
+    //call generic getter
+    return _vector_getter<sc::opt,
+                          std::pair<uintptr_t, uintptr_t>,
+                          sc_addr_range>(
+        opts, addr_ranges, &sc::opt::get_addr_ranges,
+            //start lambda
+            [](sc_addr_range * c_addr_range,
+            std::pair<uintptr_t, uintptr_t> * cc_addr_range) -> int {
 
-    //initialise the CMore vector
-    int ret = cm_new_vct(addr_ranges, sizeof(sc_addr_range));
-    if (ret != 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //copy the address range into a sc_addr_range
-    try {
-        //get the address range pair
-        const std::optional<std::vector<std::pair<uintptr_t, uintptr_t>>> & ars
-            = o->get_addr_ranges();
-
-        //if a STL vector is present, do the copy
-        if (ars.has_value() && !ars.value().empty()) {
-            ret = cm_vct_rsz(addr_ranges, ars.value().size());
-            std::memcpy(addr_ranges->data, ars.value().data(),
-                        rett.value().size() * sizeof(cm_lst_node *));
-            return 0;
-
-        } else {
-            cm_del_vct(v);
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-
-
-
-
-        //if it is set, convert it to a sc_addr_range
-        if (ar.has_value()) {
-            range->min = ar.value().first;
-            range->max = ar.value().second;
-            return 0;
-            
-        } else {
-            return -1;
-        }
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+                c_addr_range->min = cc_addr_range->first;
+                c_addr_range->max = cc_addr_range->second;
+                return 0;
+        }); //end lambda
 }
 
 
@@ -1110,12 +1098,60 @@ uintptr_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
+int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+                                  const int max_depth) {
+
+    int ret;
+
+
+    //cast opaque handle into class
+    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    
+    try {
+        if (max_depth == 0) ret = o->set_max_depth(std::nullopt);
+        else ret = o->set_max_depth(max_depth);
+        return (ret != 0) ? -1 : 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
+    
+    //cast opaque handle into class
+    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+
+    //return NULL if optional is not set or there is an error
+    try {
+        const std::optional<int> & max_depth
+            = o->get_max_depth();
+
+        if (max_depth.has_value()) {
+            return max_depth.value();
+        } else {
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return 0;
+    }
+}
+
+
 int sc_opt_ptrscan_set_static_areas(sc_opt_ptrscan opts_ptrscan,
                                     const cm_vct * static_areas) {
 
     //call generic setter
-    return _opt_ptrscan_c_vector_setter<const cm_lst_node *>(
-        opts_ptrscan, static_areas, &sc::opt_ptrscan::set_static_areas);
+    return _vector_setter<sc::opt_ptrscan,
+                          const cm_lst_node *,
+                          const cm_lst_node *>(
+        opts_ptrscan, static_areas,
+        &sc::opt_ptrscan::set_static_areas, std::nullopt);
 }
 
 
@@ -1130,50 +1166,12 @@ int sc_opt_ptrscan_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
      *        makes sense to move it to a more appropriate container.
      */
 
-    int ret;
-
-
-    //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
-
-    //initialise the CMore vector
-    ret = cm_new_vct(static_areas, sizeof(cm_lst_node *));
-    if (ret == -1) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    try {
-        //fetch reference to C++ hashmap
-        std::optional<std::unordered_set<const cm_lst_node *>> static_areas_set
-            = o->get_static_areas();
-
-        //return error if no static areas are present
-        if (static_areas_set.has_value() == false) {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-
-        //for every static area
-        for (auto iter = static_areas_set.value().begin();
-             iter != static_areas_set.value().end(); ++iter) {
-
-            //append the area to the vector
-            ret = cm_vct_apd(static_areas, *iter);
-            if (ret != 0) {
-                sc_errno = SC_ERR_CMORE;
-                cm_del_vct(static_areas);
-                return -1;
-            }
-        } //end for every static area
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        cm_del_vct(static_areas);
-        return -1;
-    }
-
-    return 0;    
+    //call generic setter
+    return _unordered_set_getter<sc::opt_ptrscan,
+                                 const cm_lst_node *,
+                                 const cm_lst_node *>(
+        opts_ptrscan, static_areas,
+        &sc::opt_ptrscan::get_static_areas, std::nullopt);
 }
 
 
@@ -1181,8 +1179,9 @@ int sc_opt_ptrscan_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
                                       const cm_vct * preset_offsets) {
 
     //call generic setter
-    return _opt_ptrscan_c_vector_setter<off_t>(
-        opts_ptrscan, preset_offsets, &sc::opt_ptrscan::set_preset_offsets);
+    return _vector_setter<sc::opt_ptrscan, off_t, off_t>(
+        opts_ptrscan, preset_offsets,
+        &sc::opt_ptrscan::set_preset_offsets, std::nullopt);
 }
 
 
@@ -1190,8 +1189,9 @@ int sc_opt_ptrscan_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
                                       cm_vct * preset_offsets) {
 
     //call generic getter
-    return _opt_ptrscan_c_vector_getter<off_t>(
-        opts_ptrscan, preset_offsets, &sc::opt_ptrscan::get_preset_offsets);        
+    return _vector_getter<sc::opt_ptrscan, off_t, off_t>(
+        opts_ptrscan, preset_offsets,
+        &sc::opt_ptrscan::get_preset_offsets, std::nullopt);        
 }
 
 //set class opt->file_path_out

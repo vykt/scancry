@@ -167,7 +167,7 @@ class opt : public _lockable {
         [[nodiscard]] int set_addr_ranges(const std::optional<
             std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range);
         [[nodiscard]] const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>>
+            std::vector<std::pair<uintptr_t, uintptr_t>>> &
                 get_addr_ranges() const;
 
         [[nodiscard]] int set_access(

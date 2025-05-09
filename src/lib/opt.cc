@@ -416,7 +416,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 //wrapper for setting a STL vector in C
 template <typename O, typename T, typename T_c>
-_SC_DBG_STATIC int _vector_setter(
+[[nodiscard]] _SC_DBG_STATIC int _vector_setter(
                     void * opts_X, const cm_vct * cmore_vct,
                     int (O::*set)(const std::optional<std::vector<T>> &),
                     std::optional<std::function<int(T *, T_c *)>> convert_cb) {
@@ -480,6 +480,7 @@ _SC_DBG_STATIC int _vector_getter(
         return 0;
         
     } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
         return -1;
     }
 }
@@ -501,7 +502,7 @@ _SC_DBG_STATIC int _unordered_set_getter(
 
     //copy contents of the STL vector into the CMore vector.
     try {
-        //get the STL vector
+        //get the STL unordered set
         const std::optional<std::unordered_set<T>> & stl_uset = (o->*get)();
 
         //if this constraint doesn't have a value, fail
@@ -515,6 +516,7 @@ _SC_DBG_STATIC int _unordered_set_getter(
         return 0;
         
     } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
         return -1;
     }
 }
@@ -873,15 +875,10 @@ int sc_opt_set_access(sc_opt opts, const cm_byte access) {
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
 
-    try {
-        if (access == (cm_byte) -1) ret =  o->set_access(std::nullopt);
-        else ret = o->set_access(access);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //perform the set
+    if (access == (cm_byte) -1) ret =  o->set_access(std::nullopt);
+    else ret = o->set_access(access);
+    return (ret != 0) ? -1 : 0;
 }
 
     
@@ -891,18 +888,12 @@ cm_byte sc_opt_get_access(const sc_opt opts) {
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     //return NULL if optional is not set or there is an error
-    try {
-        std::optional<cm_byte> access = o->get_access();
-    
-        if (access.has_value()) {
-            return access.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
+    std::optional<cm_byte> access = o->get_access();
+
+    if (access.has_value()) {
+        return access.value();
+    } else {
+        sc_errno = SC_ERR_OPT_EMPTY;
         return -1;
     }
 }
@@ -944,13 +935,13 @@ int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan) {
 
 
 //reset class opt_ptrscan
-int sc_opt_ptrscan_reset(sc_opt_ptrscan opts) {
+int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan) {
 
     int ret;
 
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts);
+    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
     try {
         ret = o->reset();
@@ -971,16 +962,11 @@ int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,
 
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
-    
-    try {
-        if (target_addr == 0x0) ret = o->set_target_addr(std::nullopt);
-        else ret = o->set_target_addr(target_addr);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+
+    //perform the set
+    if (target_addr == 0x0) ret = o->set_target_addr(std::nullopt);
+    else ret = o->set_target_addr(target_addr);
+    return (ret != 0) ? -1 : 0;
 }
 
 
@@ -990,19 +976,13 @@ uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
     //return NULL if optional is not set or there is an error
-    try {
-        const std::optional<uintptr_t> & target_addr
-            = o->get_target_addr();
+    const std::optional<uintptr_t> & target_addr
+        = o->get_target_addr();
 
-        if (target_addr.has_value()) {
-            return target_addr.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return 0;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
+    if (target_addr.has_value()) {
+        return target_addr.value();
+    } else {
+        sc_errno = SC_ERR_OPT_EMPTY;
         return 0;
     }
 }
@@ -1016,39 +996,28 @@ int sc_opt_ptrscan_set_alignment(sc_opt_ptrscan opts_ptrscan,
 
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
-    
-    try {
-        if (alignment == 0x0) ret = o->set_alignment(std::nullopt);
-        else ret = o->set_alignment(alignment);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+
+    //perform the set
+    if (alignment == 0x0) ret = o->set_alignment(std::nullopt);
+    else ret = o->set_alignment(alignment);
+    return (ret != 0) ? -1 : 0;
 }
 
 
-uintptr_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
     //return NULL if optional is not set or there is an error
-    try {
-        const std::optional<off_t> & alignment
-            = o->get_alignment();
+    const std::optional<off_t> & alignment
+        = o->get_alignment();
 
-        if (alignment.has_value()) {
-            return alignment.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return 0;
+    if (alignment.has_value()) {
+        return alignment.value();
+    } else {
+        sc_errno = SC_ERR_OPT_EMPTY;
+        return -1;
     }
 }
 
@@ -1062,38 +1031,27 @@ int sc_opt_ptrscan_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
     
-    try {
-        if (max_obj_sz == 0x0) ret = o->set_max_obj_sz(std::nullopt);
-        else ret = o->set_max_obj_sz(max_obj_sz);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //perform the set
+    if (max_obj_sz == 0x0) ret = o->set_max_obj_sz(std::nullopt);
+    else ret = o->set_max_obj_sz(max_obj_sz);
+    return (ret != 0) ? -1 : 0;
 }
 
 
-uintptr_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
     //return NULL if optional is not set or there is an error
-    try {
-        const std::optional<off_t> & max_obj_sz
-            = o->get_max_obj_sz();
+    const std::optional<off_t> & max_obj_sz
+        = o->get_max_obj_sz();
 
-        if (max_obj_sz.has_value()) {
-            return max_obj_sz.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return 0;
+    if (max_obj_sz.has_value()) {
+        return max_obj_sz.value();
+    } else {
+        sc_errno = SC_ERR_OPT_EMPTY;
+        return -1;
     }
 }
 
@@ -1107,15 +1065,10 @@ int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
     
-    try {
-        if (max_depth == 0) ret = o->set_max_depth(std::nullopt);
-        else ret = o->set_max_depth(max_depth);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //perform the set
+    if (max_depth == 0) ret = o->set_max_depth(std::nullopt);
+    else ret = o->set_max_depth(max_depth);
+    return (ret != 0) ? -1 : 0;
 }
 
 
@@ -1125,20 +1078,14 @@ int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
     //return NULL if optional is not set or there is an error
-    try {
-        const std::optional<int> & max_depth
-            = o->get_max_depth();
+    const std::optional<int> & max_depth
+        = o->get_max_depth();
 
-        if (max_depth.has_value()) {
-            return max_depth.value();
-        } else {
-            sc_errno = SC_ERR_OPT_EMPTY;
-            return -1;
-        }
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return 0;
+    if (max_depth.has_value()) {
+        return max_depth.value();
+    } else {
+        sc_errno = SC_ERR_OPT_EMPTY;
+        return -1;
     }
 }
 
@@ -1166,12 +1113,26 @@ int sc_opt_ptrscan_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
      *        makes sense to move it to a more appropriate container.
      */
 
+    int ret;
+
     //call generic setter
-    return _unordered_set_getter<sc::opt_ptrscan,
-                                 const cm_lst_node *,
-                                 const cm_lst_node *>(
+    ret = _unordered_set_getter<sc::opt_ptrscan,
+                                const cm_lst_node *,
+                                const cm_lst_node *>(
         opts_ptrscan, static_areas,
         &sc::opt_ptrscan::get_static_areas, std::nullopt);
+    if (ret != 0) return -1;
+
+    //sort the returned vector
+    try {
+        c_iface::sort_area_vct(static_areas);
+    } catch (const std::exception & excp) {
+        cm_del_vct(static_areas);
+        exception_sc_errno(excp);
+        return -1;
+    }
+
+    return 0;
 }
 
 
@@ -1194,8 +1155,9 @@ int sc_opt_ptrscan_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
         &sc::opt_ptrscan::get_preset_offsets, std::nullopt);        
 }
 
-//set class opt->file_path_out
-int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan, bool enable) {
+
+int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+                                  const bool enable) {
 
     int ret;
 
@@ -1203,14 +1165,9 @@ int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan, bool enable) {
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
 
-    try {
-        ret = o->set_smart_scan(enable);
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    //perform the set
+    ret = o->set_smart_scan(enable);
+    return (ret != 0) ? -1 : 0;
 }
 
 

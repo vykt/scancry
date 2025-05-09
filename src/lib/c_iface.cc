@@ -3,8 +3,8 @@
 #include <vector>
 #include <unordered_set>
 #include <utility>
+#include <algorithm>
 #include <functional>
-#include <type_traits>
 
 //C standard library
 #include <cstring>
@@ -28,7 +28,6 @@
  *        For STL types only available in C++, they must first be converted 
  *        to C equivalents. This is done using the `convert_cb` callback.
  */
-
 
 //copy contents of a CMore vector to a STL vector
 template <typename T, typename T_c>
@@ -267,3 +266,29 @@ template int c_iface::uset_to_cmore_vct<const cm_lst_node *,
     const std::unordered_set<const cm_lst_node *> & stl_uset,
     std::optional<std::function<
         int(const cm_lst_node **, const cm_lst_node **)>>);
+
+
+
+//sort a CMore area pointer vector
+void sort_area_vct(cm_vct * cmore_vct) {
+
+    //create a STL copy of the cmore vector
+    std::vector<const cm_lst_node *> temp_vct;
+    temp_vct.resize(cmore_vct->len);
+    std::memcpy(temp_vct.data(), cmore_vct->data,
+                cmore_vct->len * cmore_vct->data_sz);
+
+    //use STL's sorting algorithm
+    std::sort(temp_vct.begin(), temp_vct.end(),
+              [](const cm_lst_node * a_node, const cm_lst_node * b_node) {
+        mc_vm_area * a = MC_GET_NODE_AREA(a_node);
+        mc_vm_area * b = MC_GET_NODE_AREA(b_node);
+        return (a->end_addr < b->end_addr); 
+    });
+
+    //copy the STL vector back into the CMore vector
+    std::memcpy(cmore_vct->data, temp_vct.data(),
+                cmore_vct->len * cmore_vct->data_sz);
+
+    return;
+}

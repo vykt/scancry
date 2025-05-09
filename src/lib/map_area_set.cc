@@ -20,6 +20,7 @@
 #include "scancry.h"
 #include "map_area_set.hh"
 #include "opt.hh"
+#include "c_iface.hh"
 #include "error.hh"
 
 
@@ -110,14 +111,26 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 
 
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-bool in_addr_range(const mc_vm_area * area,
-                   const std::pair<uintptr_t, uintptr_t> addr_range) {
+bool in_addr_ranges(const mc_vm_area * area,
+                    const std::vector<
+                        std::pair<uintptr_t, uintptr_t>> & addr_ranges) {
 
-    //if area falls outside the address range
-    if (area->start_addr < addr_range.first
-        || area->end_addr > addr_range.second) return false;
+    bool found = false;
 
-    return true;
+    //for every address range
+    for (auto iter = addr_ranges.begin(); iter != addr_ranges.end(); ++iter) {
+
+        //if area fits in this range
+        if ((area->start_addr >= iter->first)
+            && (area->end_addr <= iter->second)) {
+
+            //note it and break
+            found = true;
+            break;
+        }
+    }
+
+    return found;
 }
 
 
@@ -170,16 +183,16 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
 
     //fetch scan constraints
-    const std::optional<std::vector<const cm_lst_node *>> & omit_areas_set
-        = opts.get_omit_areas();
-    const std::optional<std::vector<const cm_lst_node *>> & omit_objs_set
-        = opts.get_omit_objs(); 
-    const std::optional<std::vector<const cm_lst_node *>> & exclusive_areas_set
-        = opts.get_exclusive_areas();
-    const std::optional<std::vector<const cm_lst_node *>> & exclusive_objs_set
-        = opts.get_exclusive_objs();
-    const std::optional<std::pair<uintptr_t, uintptr_t>> addr_range
-        = opts.get_addr_range();
+    const std::optional<std::vector<const cm_lst_node *>> &
+        omit_areas_set = opts.get_omit_areas();
+    const std::optional<std::vector<const cm_lst_node *>> &
+        omit_objs_set = opts.get_omit_objs(); 
+    const std::optional<std::vector<const cm_lst_node *>> &
+        exclusive_areas_set = opts.get_exclusive_areas();
+    const std::optional<std::vector<const cm_lst_node *>> &
+        exclusive_objs_set = opts.get_exclusive_objs();
+    const std::optional<std::vector<std::pair<uintptr_t, uintptr_t>>> &
+        addr_ranges = opts.get_addr_ranges();
     const std::optional<cm_byte> access = opts.get_access();
 
     //fetch MemCry map
@@ -271,8 +284,8 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
         }
 
         //if an address range is provided, area must be inside it
-        if (addr_range.has_value()) {
-            if (!in_addr_range(area, addr_range.value()))
+        if (addr_ranges.has_value()) {
+            if (!in_addr_ranges(area, addr_ranges.value()))
                 goto update_scan_areas_continue;
         }
 
@@ -299,7 +312,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 }
 
 
-[[nodiscard]] const std::unordered_set<cm_lst_node *> &
+[[nodiscard]] const std::unordered_set<const cm_lst_node *> &
         sc::map_area_set::get_area_nodes() const noexcept {
 
     return this->area_nodes;
@@ -366,76 +379,27 @@ int sc_update_set(sc_map_area_set s_set, const sc_opt opts) {
 
 int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes) {
 
-    cm_lst_node * min_area_node, * now_area_node;
-    mc_vm_area * min_area, * now_area;
-    std::unordered_set<cm_lst_node *>::iterator min;
+    int ret;
 
 
     //cast opaque handle into class
     sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
 
-    //initialise the CMore vector
-    int ret = cm_new_vct(area_nodes, sizeof(cm_lst_node *));
-    if (ret == -1) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-
-    //sort & copy contents of the STL hashmap into the CMore vector.
     try {
+        //get the STL unordered set
+        const std::unordered_set<const cm_lst_node *>
+        & area_set = s->get_area_nodes();
 
-        //fetch area nodes
-        const std::unordered_set<cm_lst_node *> & area_nodes_set
-            = s->get_area_nodes();
+        //convert the STL unordered set to a CMore vector
+        ret = c_iface::uset_to_cmore_vct<const cm_lst_node *,
+                                         const cm_lst_node *>(
+                            area_nodes,area_set, std::nullopt);
+        if (ret != 0) return -1;
 
-        /*
-         *  As it stands, CMore does not provide a hashmap implementation.
-         *  Instead, this getter will return a vector. This doesn't have
-         *  any implications on ScanCry as all users of `area_nodes` take
-         *  an opaque handle on `map_area_set` when the C interface is used.
-         *  This getter has a C interface equivalent mostly because UI
-         *  implementations may want to use constraints to sort MemCry maps.
-         */
-
-        //get a copy of the unordered set for selection sort
-        std::unordered_set<cm_lst_node *> temp_set = area_nodes_set;
-
-        //continue selection sort until temp_set is empty
-        while (temp_set.size() != 0) {
-
-            //treat first node as minimum to start
-            min = temp_set.begin();
-            min_area_node = *min;
-            min_area = MC_GET_NODE_AREA(min_area_node);
-        
-            //single iteration of selection sort
-            for (auto iter = ++temp_set.begin();
-                 iter != temp_set.end(); ++iter) {
-
-                //get area of current iteration
-                now_area_node = *iter;
-                now_area = MC_GET_NODE_AREA(now_area_node);
-
-                /* area addresses can't overlap */
-                if (now_area->start_addr < min_area->start_addr) {
-                    min = iter;
-                }
-            }
-
-            //append the minimum element to the CMore vector
-            ret = cm_vct_apd(area_nodes, &(*min));
-            if (ret == -1) {
-                sc_errno = SC_ERR_CMORE;
-                return -1;
-            }
-
-            //remove the minimum element from the temporary set
-            temp_set.erase(min);
-
-        } //end while
+        //sort the CMore vector
+        c_iface::sort_area_vct(area_nodes);
 
         return 0;
-
         
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);

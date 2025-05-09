@@ -12,6 +12,7 @@
 
 namespace c_iface {
 
+    //templated C++ <-> C conversion functions
     template <typename T, typename T_c>
     [[nodiscard]] int vct_from_cmore_vct(const cm_vct * cmore_vct,
                                          std::vector<T> & stl_vct,
@@ -35,6 +36,8 @@ namespace c_iface {
                                         const std::unordered_set<T> & stl_vct,
                                         std::optional<
                                             std::function<int(T_c *, T *)>>);
- 
 
+    //miscellaneous
+    void sort_area_vct(cm_vct * cmore_vct);
+ 
 } //namespace `c_iface`

@@ -102,5 +102,8 @@ inline const constexpr char * test_c_map_area_set_subtests[] = {
 void add_cc_opt(doctest::Context & context);
 void add_c_opt(doctest::Context & context);
 
+void add_cc_opt_ptrscan(doctest::Context & context);
+void add_c_opt_ptrscan(doctest::Context & context);
+
 void add_cc_map_area_set(doctest::Context & context);
 void add_c_map_area_set(doctest::Context & context);

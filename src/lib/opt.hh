@@ -14,9 +14,9 @@ extern "C" {
 #endif
 
 //sc_opt - external
-sc_opt new_sc_opt(const enum sc_addr_width addr_width);
-int del_sc_opt(sc_opt opts);
-
+sc_opt sc_new__opt(const enum sc_addr_width addr_width);
+sc_opt sc_copy_opt(const sc_opt opts);
+int sc_del__opt(sc_opt opts);
 int sc_opt_reset(sc_opt opts);
 
 int sc_opt_set_file_path_out(sc_opt opts, const char * path);
@@ -29,7 +29,7 @@ int sc_opt_set_sessions(sc_opt opts, const cm_vct * sessions);
 int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 
 int sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
-const mc_vm_map * sc_opt_get_map(const sc_opt opts);
+mc_vm_map * sc_opt_get_map(const sc_opt opts);
 
 enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts);
 
@@ -54,8 +54,8 @@ cm_byte sc_opt_get_access(const sc_opt opts);
 
 //sc_opt_ptrscan - external
 sc_opt_ptrscan sc_new_opt_ptrscan();
+sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan);
 int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan);
-
 int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan);
 
 int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,

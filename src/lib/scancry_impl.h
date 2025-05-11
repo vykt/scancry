@@ -1,8 +1,8 @@
 #ifndef SCANCRY_IMPL_H
 #define SCANCRY_IMPL_H
 
-#include <new>
 #ifdef __cplusplus
+#include <new>
 #include <optional>
 #include <memory>
 #include <vector>

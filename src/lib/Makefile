@@ -15,10 +15,11 @@
 
 
 CXXFLAGS=${_CXXFLAGS}
-CXXWARN_OPTS=${_CXXWARN_OPTS} -Wno-unused-parameter
+CXXWARN_OPTS=${_CXXWARN_OPTS} -Wno-unused-parameter -Wno-misleading-indentation\
+             -Wno-class-memaccess
 LDFLAGS=${_LDFLAGS}
 
-SOURCES_LIB=error.cc opt.cc map_area_set.cc
+SOURCES_LIB=error.cc c_iface.cc lockable.cc opt.cc map_area_set.cc
 OBJECTS_LIB=${SOURCES_LIB:%.cc=${BUILD_DIR}/%.o}
 
 SHARED=libscry.so

@@ -9,7 +9,7 @@ LD_DIR=/etc/ld.so.conf.d
 CC=gcc
 CXX=g++
 
-FLAGS=-flto -wno-sign-compare
+FLAGS=-flto -Wno-sign-compare
 FLAGS_TEST=-ggdb3 -O0
 WARN_OPTS=-Wall -Wextra
 

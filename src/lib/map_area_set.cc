@@ -160,9 +160,20 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  *       Set it to 0 to accept any permissions.
  */
 
-[[nodiscard]] int sc::map_area_set::update_set(sc::opt & opts) {
+sc::map_area_set::map_area_set() : _lockable() {}
 
-    int ret;
+
+sc::map_area_set::map_area_set(const map_area_set & ma_set)
+ : _lockable(),
+   area_nodes(ma_set.area_nodes) {}
+
+
+sc::map_area_set::map_area_set(const map_area_set && ma_set)
+ : _lockable(),
+   area_nodes(ma_set.area_nodes) {}
+
+
+[[nodiscard]] int sc::map_area_set::update_set(sc::opt & opts) {
 
     cm_lst_node * area_node;
     mc_vm_area * area;

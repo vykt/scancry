@@ -75,7 +75,7 @@ class opt : public _lockable {
         std::vector<const mc_session *> sessions;
 
         //MemCry memory map of target
-        mc_vm_map const * map;
+        mc_vm_map * map;
 
         /*
          *  NOTE: The following attributes define constraints to apply
@@ -110,6 +110,7 @@ class opt : public _lockable {
         //ctor
         opt(enum addr_width _addr_width);
         opt(const opt & opts);
+        opt(const opt && opts);
 
         //reset
         [[nodiscard]] int reset();
@@ -140,7 +141,7 @@ class opt : public _lockable {
             get_sessions() const;
 
         [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
-        [[nodiscard]] mc_vm_map const * get_map() const noexcept;
+        [[nodiscard]] mc_vm_map * get_map() const noexcept;
         
         [[nodiscard]] int set_omit_areas(
             const std::optional<std::vector<const cm_lst_node *>> & omit_areas);
@@ -171,7 +172,7 @@ class opt : public _lockable {
                 get_addr_ranges() const;
 
         [[nodiscard]] int set_access(
-            const std::optional<cm_byte> & access) noexcept;
+            const std::optional<cm_byte> access) noexcept;
         [[nodiscard]] std::optional<cm_byte> get_access() const noexcept;
 };
 
@@ -228,29 +229,30 @@ class opt_ptrscan : public _opt_scan {
         //ctor
         opt_ptrscan();
         opt_ptrscan(const opt_ptrscan & opts_ptrscan);
+        opt_ptrscan(const opt_ptrscan && opts_ptrscan);
 
         //reset
         [[nodiscard]] int reset() override final;
 
         //getters & setters
         [[nodiscard]] int set_target_addr(
-            const std::optional<uintptr_t> & target_addr);
+            const std::optional<uintptr_t> target_addr) noexcept;
         [[nodiscard]] std::optional<uintptr_t>
             get_target_addr() const noexcept;
         
         [[nodiscard]] int set_alignment(
-            const std::optional<off_t> & alignment);
+            const std::optional<off_t> alignment) noexcept;
         [[nodiscard]] std::optional<off_t>
             get_alignment() const noexcept;
         
         [[nodiscard]] int set_max_obj_sz(
-            const std::optional<off_t> & max_obj_sz);
+            const std::optional<off_t> max_obj_sz) noexcept;
         [[nodiscard]] std::optional<off_t>
             get_max_obj_sz() const noexcept;
         
         [[nodiscard]] int set_max_depth(
-            const std::optional<off_t> & max_depth);
-        [[nodiscard]] std::optional<off_t>
+            const std::optional<int> max_depth) noexcept;
+        [[nodiscard]] std::optional<int>
             get_max_depth() const noexcept;
         
         [[nodiscard]] int set_static_areas(
@@ -265,7 +267,7 @@ class opt_ptrscan : public _opt_scan {
         [[nodiscard]] const std::optional<std::vector<off_t>> &
             get_preset_offsets() const;
         
-        [[nodiscard]] int set_smart_scan(bool enable);
+        [[nodiscard]] int set_smart_scan(const bool enable) noexcept;
         [[nodiscard]] bool get_smart_scan() const noexcept;    
 };
 
@@ -282,6 +284,13 @@ class map_area_set : public _lockable {
 
     public:
         //[methods]
+
+        //ctors
+        map_area_set();
+        map_area_set(const map_area_set & ma_set);
+        map_area_set(const map_area_set && ma_set);
+
+        //populate
         [[nodiscard]] int update_set(opt & opts);
 
         //getters & setters
@@ -344,6 +353,8 @@ class worker_pool : public _lockable {
         
         //ctor & dtor
         worker_pool();
+        worker_pool(const worker_pool & wp) = delete;
+        worker_pool(const worker_pool && wp) = delete;
         ~worker_pool();
 
         //control workers
@@ -375,7 +386,7 @@ struct ptrscan_chain {
         const std::optional<std::string> pathname;
         const std::vector<off_t> offsets;
 
-    //ctor
+    //ctors
     ptrscan_chain(const cm_lst_node * obj_node,
                   const uint32_t _obj_idx,
                   const std::vector<off_t> & offsets);
@@ -443,8 +454,11 @@ class ptrscan : public _scan {
                     const std::vector<cm_byte> & buf,
                     off_t hdr_off) override final;
 
-        //ctor
+        //ctors
         ptrscan();
+        ptrscan(const ptrscan & ptr_s) = delete;
+        ptrscan(const ptrscan && ptr_s) = delete;
+        
         [[nodiscard]] int reset() override final;
 
         //perform a scan
@@ -476,7 +490,7 @@ class serialiser : public _lockable {
             is_header_valid(sc::_scancry_file_hdr & hdr) const;
 
     public:
-        //[methods]
+        //file operations
         [[nodiscard]] int save_scan(
             sc::_scan & scan, const sc::opt & opts);
         [[nodiscard]] int load_scan(
@@ -572,7 +586,7 @@ extern int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
 //void return
 extern int sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
 //returns MemCry map const pointer if set, NULL if not set
-extern const mc_vm_map * sc_opt_get_map(const sc_opt opts);
+extern mc_vm_map * sc_opt_get_map(const sc_opt opts);
 
 //void return
 extern int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
@@ -614,9 +628,9 @@ extern int sc_opt_get_exclusive_objs(
                 const sc_opt opts, cm_vct * exclusive_objs);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_addr_range(sc_opt opts, const sc_addr_range * range);
+extern int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * ranges);
 //return: sc_addr_range, both fields zero if unset
-extern int sc_opt_get_addr_range(const sc_opt opts, sc_addr_range * range);
+extern int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * ranges);
 
 //return: 0 on success, -1 on error
 extern int sc_opt_set_access(sc_opt opts, const cm_byte access);

@@ -19,34 +19,46 @@ void _add_filters(const char * const filters[],
 }
 
 
-//add C++ interface opt class tests
+//add C++ interface `opt` class tests
 void add_cc_opt(doctest::Context & context) {
-
     _add_filters(test_cc_opt_subtests, test_cc_opt_subtests_num, context);
     return;
 }
 
 
-//add C interface opt class tests
+//add C interface `opt` class tests
 void add_c_opt(doctest::Context & context) {
-
     _add_filters(test_c_opt_subtests, test_c_opt_subtests_num, context);
     return;
 }
 
 
-//add C++ interface map_area_set tests
-void add_cc_map_area_set(doctest::Context & context) {
+//add C++ interface `opt_ptrscan` class tests
+void add_cc_opt_ptrscan(doctest::Context & context) {
+    _add_filters(test_cc_opt_ptrscan_subtests,
+                 test_cc_opt_ptrscan_subtests_num, context);
+    return;
+}
 
+
+//add C interface `opt_ptrscan` class tests
+void add_c_opt_ptrscan(doctest::Context & context) {
+    _add_filters(test_c_opt_ptrscan_subtests,
+                 test_c_opt_ptrscan_subtests_num, context);
+    return;
+}
+
+
+//add C++ interface `map_area_set` tests
+void add_cc_map_area_set(doctest::Context & context) {
     _add_filters(test_cc_map_area_set_subtests,
                  test_cc_map_area_set_subtests_num, context);
     return;
 }
 
 
-//add C interface map_area_set tests
+//add C interface `map_area_set` tests
 void add_c_map_area_set(doctest::Context & context) {
-
     _add_filters(test_c_map_area_set_subtests,
                  test_c_map_area_set_subtests_num, context);
     return;

@@ -42,7 +42,6 @@ sc::opt::opt(enum addr_width _addr_width)
 
 sc::opt::opt(const opt & opts)
  : _lockable(),
-   addr_width(opts.addr_width),
    file_path_out(opts.file_path_out),
    file_path_in(opts.file_path_in),
    sessions(opts.sessions),
@@ -52,7 +51,23 @@ sc::opt::opt(const opt & opts)
    exclusive_areas(opts.exclusive_areas),
    exclusive_objs(opts.exclusive_objs),
    addr_ranges(opts.addr_ranges),
-   access(opts.access) {}
+   access(opts.access),
+   addr_width(opts.addr_width) {}
+
+
+sc::opt::opt(const opt && opts)
+ : _lockable(),
+   file_path_out(opts.file_path_out),
+   file_path_in(opts.file_path_in),
+   sessions(opts.sessions),
+   map(opts.map),
+   omit_areas(opts.omit_areas),
+   omit_objs(opts.omit_objs),
+   exclusive_areas(opts.exclusive_areas),
+   exclusive_objs(opts.exclusive_objs),
+   addr_ranges(opts.addr_ranges),
+   access(opts.access),
+   addr_width(opts.addr_width) {}
 
 
 [[nodiscard]] int sc::opt::reset() {
@@ -128,19 +143,17 @@ sc::opt::opt(const opt & opts)
 }
 
 
-[[nodiscard]] int sc::opt::set_map(
-    const mc_vm_map * map) noexcept {
+[[nodiscard]] int sc::opt::set_map(const mc_vm_map * map) noexcept {
 
     _LOCK(-1)
-    this->map = map;
+    this->map = (mc_vm_map *) map;
     _UNLOCK(-1)
 
     return 0;
 }
 
 
-[[nodiscard]] mc_vm_map const *
-    sc::opt::get_map() const noexcept {
+[[nodiscard]] mc_vm_map * sc::opt::get_map() const noexcept {
 
     return this->map;
 }
@@ -238,7 +251,7 @@ sc::opt::opt(const opt & opts)
 
 
 [[nodiscard]] int sc::opt::set_access(
-    const std::optional<cm_byte> & access) noexcept {
+    const std::optional<cm_byte> access) noexcept {
 
     _LOCK(-1)
     this->access = access;
@@ -248,7 +261,8 @@ sc::opt::opt(const opt & opts)
 }
 
 
-[[nodiscard]] std::optional<cm_byte> sc::opt::get_access() const noexcept {
+[[nodiscard]] std::optional<cm_byte>
+    sc::opt::get_access() const noexcept {
 
     return this->access;
 }
@@ -265,6 +279,17 @@ sc::opt_ptrscan::opt_ptrscan()
 
 
 sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
+ : _opt_scan(),
+   target_addr(opts_ptrscan.target_addr),
+   alignment(opts_ptrscan.alignment),
+   max_obj_sz(opts_ptrscan.max_obj_sz),
+   max_depth(opts_ptrscan.max_depth),
+   static_areas(opts_ptrscan.static_areas),
+   preset_offsets(opts_ptrscan.preset_offsets),
+   smart_scan(opts_ptrscan.smart_scan) {}
+
+
+sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
  : _opt_scan(),
    target_addr(opts_ptrscan.target_addr),
    alignment(opts_ptrscan.alignment),
@@ -293,7 +318,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 //getters & setters
 [[nodiscard]] int sc::opt_ptrscan::set_target_addr(
-    const std::optional<uintptr_t> & target_addr) {
+    const std::optional<uintptr_t> target_addr) noexcept {
 
     _LOCK(-1)
     this->target_addr = target_addr;
@@ -311,7 +336,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 
 [[nodiscard]] int sc::opt_ptrscan::set_alignment(
-    const std::optional<off_t> & alignment) {
+    const std::optional<off_t> alignment) noexcept {
 
     _LOCK(-1)
     this->alignment = alignment;
@@ -329,7 +354,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 
 [[nodiscard]] int sc::opt_ptrscan::set_max_obj_sz(
-    const std::optional<off_t> & max_obj_sz) {
+    const std::optional<off_t> max_obj_sz) noexcept {
 
     _LOCK(-1)
     this->max_obj_sz = max_obj_sz;
@@ -347,7 +372,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 
 
 [[nodiscard]] int sc::opt_ptrscan::set_max_depth(
-    const std::optional<off_t> & max_depth) {
+    const std::optional<int> max_depth) noexcept {
 
     _LOCK(-1)
     this->max_depth = max_depth;
@@ -357,7 +382,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
 }
 
 
-[[nodiscard]] std::optional<off_t>
+[[nodiscard]] std::optional<int>
     sc::opt_ptrscan::get_max_depth() const noexcept {
 
     return this->max_depth;
@@ -402,6 +427,24 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
     & sc::opt_ptrscan::get_preset_offsets() const {
 
     return this->preset_offsets;
+}
+
+
+[[nodiscard]] int
+    sc::opt_ptrscan::set_smart_scan(const bool enable) noexcept {
+
+    _LOCK(-1)
+    this->smart_scan = enable;
+    _UNLOCK(-1)
+
+    return 0;
+}
+
+
+[[nodiscard]] bool
+    sc::opt_ptrscan::get_smart_scan() const noexcept {
+
+    return this->smart_scan;        
 }
 
 
@@ -541,6 +584,21 @@ sc_opt sc_new_opt(const enum sc_addr_width addr_width) {
         return nullptr;
     }
 };
+
+
+sc_opt sc_copy_opt(const sc_opt opts) {
+
+    //cast opaque handle into class
+    sc::opt * o = static_cast<sc::opt *>(opts);
+
+    try {
+        return new sc::opt(*o);
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
 
 
 //delete class opt
@@ -743,7 +801,7 @@ int sc_opt_set_map(sc_opt opts, const mc_vm_map * map) {
 }
 
 
-const mc_vm_map * sc_opt_get_map(const sc_opt opts) {
+mc_vm_map * sc_opt_get_map(const sc_opt opts) {
 
     //cast opaque handle into class
     sc::opt * o = static_cast<sc::opt *>(opts);
@@ -915,6 +973,21 @@ sc_opt_ptrscan sc_new_opt_ptrscan() {
         return nullptr;
     }
 };
+
+
+sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan) {
+
+    //cast opaque handle into class
+    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+
+    try {
+        return new sc::opt_ptrscan(*o);
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
 
 
 //delete class opt

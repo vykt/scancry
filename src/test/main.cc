@@ -25,8 +25,10 @@
 //tests bitmask
 const constexpr uint16_t cc_opt_test      = 0x1;
 const constexpr uint16_t c_opt_test       = 0x2;
-const constexpr uint16_t cc_map_area_set_test = 0x4;
-const constexpr uint16_t c_map_area_set_test  = 0x8;
+const constexpr uint16_t cc_opt_ptrscan_test =0x4;
+const constexpr uint16_t c_opt_ptrscan_test  =0x8;
+const constexpr uint16_t cc_map_area_set_test = 0x16;
+const constexpr uint16_t c_map_area_set_test  = 0x32;
 
 
 
@@ -37,6 +39,8 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
         {"all", no_argument, NULL, 'a'},
         {"cc-opt", no_argument, NULL, 'o'},
         {"c-opt", no_argument, NULL, 'O'},
+        {"cc-opt_ptrscan", no_argument, NULL, 'p'},
+        {"c-opt_ptrscan", no_argument, NULL, 'P'},
         {"cc-map_area_set", no_argument, NULL, 's'},
         {"c-map_area_set", no_argument, NULL, 'S'},
         {0,0,0,0}
@@ -46,7 +50,7 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
     uint16_t test_mask = 0;
 
     
-    while((opt = getopt_long(argc, argv, "aoOsS", long_opts, NULL)) != -1 
+    while((opt = getopt_long(argc, argv, "aoOpPsS", long_opts, NULL)) != -1 
           && opt != 0) {
 
         //determine parsed argument
@@ -62,6 +66,14 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
                 
             case 'O':
                 test_mask |= c_opt_test;
+                break;
+
+            case 'p':
+                test_mask |= cc_opt_ptrscan_test;
+                break;
+                
+            case 'P':
+                test_mask |= c_opt_ptrscan_test;
                 break;
 
             case 's':
@@ -86,8 +98,10 @@ static void _run_unit_tests(cm_byte test_mask) {
 
 
     //add selected filters
-    if (test_mask & cc_opt_test)      add_cc_opt(context); 
-    if (test_mask & c_opt_test)       add_c_opt(context); 
+    if (test_mask & cc_opt_test) add_cc_opt(context); 
+    if (test_mask & c_opt_test)  add_c_opt(context);
+    if (test_mask & cc_opt_ptrscan_test) add_cc_opt_ptrscan(context); 
+    if (test_mask & c_opt_ptrscan_test)  add_c_opt_ptrscan(context);
     if (test_mask & cc_map_area_set_test) add_cc_map_area_set(context); 
     if (test_mask & c_map_area_set_test)  add_c_map_area_set(context); 
 

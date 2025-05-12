@@ -42,7 +42,7 @@ static void _sigusr1_handler(int signal) {
 
 
 //helpers
-std::optional<int> clean_targets() {
+int clean_targets() {
 
     int ret;
 
@@ -53,14 +53,12 @@ std::optional<int> clean_targets() {
 
     //use system() to kill all existing targets
     ret = system(command_ss.str().c_str());
-    if (ret == -1) return std::nullopt;
+    if (ret == -1) return -1;
 
     return 0;
 }
 
 
-//TODO DEBUG FIXME REMOVE
-#include <iostream>
 pid_t start_target() {
 
     int ret;
@@ -96,7 +94,6 @@ pid_t start_target() {
 
     //parent waits for child to complete initialisation
     } else {
-        std::cout << "Waiting for target...\n";
         while (target_state == old_state) {}
     }
     

@@ -3,8 +3,11 @@
 #include <vector>
 #include <unordered_set>
 #include <iostream>
+#include <iomanip>
 #include <ios>
-#include <cstdio>
+
+//C standard library
+#include <cstring>
 
 //external libraries
 #include <cmore.h>
@@ -34,34 +37,35 @@
  */
 
 //convert a hashmap into a sorted vector for easier debugging
-static std::vector<cm_lst_node *> _hashmap_to_sorted_vector(
-           const std::unordered_set<cm_lst_node *> & area_nodes) {
+static std::vector<const cm_lst_node *> _hashmap_to_sorted_vector(
+           const std::unordered_set<const cm_lst_node *> & area_nodes) {
 
-    cm_lst_node * min_area_node, * now_area_node;
-    mc_vm_area * min_area, * now_area;
+    const cm_lst_node * min_area_node, * now_area_node;
+    const mc_vm_area * min_area, * now_area;
     
-    std::vector<cm_lst_node *> ret_v;
-    std::unordered_set<cm_lst_node *>::iterator min;
+    std::vector<const cm_lst_node *> ret_vct;
 
     
     //get a mutable copy of the hashmap
-    std::unordered_set<cm_lst_node *> temp_set = area_nodes;
+    std::unordered_set<const cm_lst_node *> temp_set = area_nodes;
 
     while (temp_set.size() != 0) {
 
         //treat first node as minimum to start
-        min = temp_set.begin();
+        auto min = temp_set.cbegin();
         min_area_node = *min;
         min_area = MC_GET_NODE_AREA(min_area_node);
 
         //single iteration of selection sort
-        for (auto iter = ++temp_set.begin(); iter != temp_set.end(); ++iter) {
+        for (auto iter = ++temp_set.cbegin(); iter != temp_set.cend(); ++iter) {
 
             //get area of current iteration
             now_area_node = *iter;
             now_area = MC_GET_NODE_AREA(now_area_node);
 
-            /* area addresses can't overlap */
+            /*
+             *  Area addresses can't overlap.
+             */
             if (now_area->start_addr < min_area->start_addr) {
                 min = iter;
                 min_area_node = *min;
@@ -70,15 +74,49 @@ static std::vector<cm_lst_node *> _hashmap_to_sorted_vector(
         }
 
         //append the minimum element to the CMore vector
-        ret_v.push_back(*min);
+        ret_vct.push_back(*min);
 
         //remove the minimum element from the temporary set
         temp_set.erase(min);
         
     } //end while
 
-    return ret_v;
+    return ret_vct;
 }
+
+
+//take a sorted vector of areas and print it
+static void _cc_print_set(
+    const std::string & heading,
+    const std::vector<const cm_lst_node *> & sorted_area_nodes) {
+
+    mc_vm_area * area;
+
+
+    std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
+
+    //for every area
+    for (auto iter = sorted_area_nodes.cbegin();
+         iter != sorted_area_nodes.cend(); ++iter) {
+
+        area = MC_GET_NODE_AREA((*iter));
+
+        /*
+         *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
+         */
+        std::cout << std::hex;
+        std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
+        std::cout << " | " << (int) area->access;
+        std::cout << " | " << std::left << std::setw(10);
+        std::cout << std::string(area->basename).substr(0, 12) << std::endl; 
+
+    } //end for every area
+
+    std::cout << std::dec;
+
+    return;
+}
+
 
 
 /*
@@ -86,23 +124,22 @@ static std::vector<cm_lst_node *> _hashmap_to_sorted_vector(
  */
 
 /*
- *  TODO: It is possible to automate the assertion of the returned
- *        map area set, however it is incredibly tedious and prone
- *        to breaking from changes in the environment. For now, just
- *        use a debugger to check the returned set is correct. Good
- *        tooling to do this exists in the provided gdb scripts.
+ *  NOTE: Due to differences in environment, we do not assert each area
+ *        in the returned map area set; we only assert the size of the
+ *        returned set.
  */
 
 TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     int ret;
-    std::optional<int> rett;
-    pid_t pid;
+    std::optional<int> ret_opt;
 
+    pid_t pid;
     mc_session session;
     mc_vm_map map;
 
-    std::vector<cm_lst_node *> sorted_area_nodes;
+    sc::map_area_set ma_set;
+    std::vector<const cm_lst_node *> sorted_area_nodes;
 
 
     /*
@@ -110,8 +147,8 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
      */
 
     //clean up old targets & spawn a new target
-    rett = clean_targets();
-    REQUIRE_EQ(rett.has_value(), true);
+    ret = clean_targets();
+    REQUIRE_EQ(ret, 0);
     pid = start_target();
     REQUIRE_NE(pid, -1);
 
@@ -125,23 +162,30 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //create a option class
     sc::opt opts = sc::opt(test_cc_addr_width);
-    opts.set_map(&map);
+    ret = opts.set_map(&map);
+    REQUIRE_EQ(ret, 0);
 
 
     //test 1: simple, select the entire map
     SUBCASE(test_cc_map_area_set_subtests[1]) {
 
-        sc::map_area_set ma_set;
-
-
         //only test: apply no constaints
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes = ma_set.get_area_nodes();
+
+        /*
+         *  Here it should be sufficient to check the size of the set is 
+         *  the same as the number of areas in the MemCry map. I'm well
+         *  aware this check can mistakenly pass in creative ways, but it
+         *  is still a good heuristic.
+         */
+        CHECK_EQ(area_nodes.size(), map.vm_areas.len);
         
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes);
+        _cc_print_set("map_area_set: no constraints", sorted_area_nodes);
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
     }
@@ -150,47 +194,50 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     //test 2: apply an access permission constraint
     SUBCASE(test_cc_map_area_set_subtests[2]) {
 
-        sc::map_area_set ma_set;
-
-
         //first test: apply `rw-` access constraint
-        opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
-
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        ret = opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
+        
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes_1 = ma_set.get_area_nodes();
         CHECK_EQ(area_nodes_1.size(), 8);
         
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_1);
+        _cc_print_set("map_area_set: rw- permissions", sorted_area_nodes);
 
         
         //second test: apply `--x` access constraint
-        opts.set_access(MC_ACCESS_EXEC);
+        ret = opts.set_access(MC_ACCESS_EXEC);
+        CHECK_EQ(ret, 0);
 
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes_2 = ma_set.get_area_nodes();
         CHECK_EQ(area_nodes_2.size(), 4);
         
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_2);
+        _cc_print_set("map_area_set: --x permissions", sorted_area_nodes);
 
 
         //third test: apply `---s` access constraint (empty set)
-        opts.set_access(MC_ACCESS_SHARED);
+        ret = opts.set_access(MC_ACCESS_SHARED);
+        CHECK_EQ(ret, 0);
 
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), false);
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, -1);
         CHECK_EQ(sc_errno, SC_ERR_SCAN_EMPTY);
 
         auto area_nodes_3 = ma_set.get_area_nodes();
         CHECK_EQ(area_nodes_3.size(), 0);
         
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_3);
+        _cc_print_set(
+            "map_area_set: ---s permissions (empty set)", sorted_area_nodes);
         
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
     }
@@ -200,21 +247,51 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     SUBCASE(test_cc_map_area_set_subtests[3]) {
 
         sc::map_area_set ma_set;
-        mc_vm_obj * obj;
+
+        cm_lst_node * main_node, * stack_node;
+        mc_vm_obj * main_obj, * stack_obj;
+        mc_vm_area * main_area, * stack_area;
+
+
+        //setup
+        main_node = mc_get_obj_by_basename(&map, target_name);
+        CHECK_NE(main_node, nullptr);
+        stack_node = mc_get_obj_by_basename(&map, "[stack]");
+        CHECK_NE(stack_node, nullptr);
+        
+        main_obj = MC_GET_NODE_OBJ(main_node);
+        stack_obj = MC_GET_NODE_OBJ(stack_node);
 
 
         //only test: scan only the main executable
-        obj = MC_GET_NODE_OBJ(map.vm_objs.head->next);
-        opts.set_addr_range(std::pair(obj->start_addr, obj->end_addr));
+        std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
+            {main_obj->start_addr, main_obj->end_addr},
+            {stack_obj->start_addr, main_obj->end_addr}
+        };
 
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        ret = opts.set_addr_ranges(ranges);
+        CHECK_EQ(ret, 0);
 
-        auto area_nodes_1 = ma_set.get_area_nodes();
-        CHECK_EQ(area_nodes_1.size(), 5);
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
+
+        auto area_nodes = ma_set.get_area_nodes();
+        CHECK_EQ(area_nodes.size(), 6);
         
-        //a debugger will appreciate seeing a sorted area set
-        sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_1);
+        //convert hashmap to a sorted vector
+        sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes);
+        
+        main_area = MC_GET_NODE_AREA(sorted_area_nodes[0]);
+        stack_area = MC_GET_NODE_AREA(
+                         sorted_area_nodes[sorted_area_nodes.size() - 1]);
+
+        CHECK_EQ(std::strncmp(main_area->basename,
+                              main_obj->basename, NAME_MAX), 0);
+        CHECK_EQ(std::strncmp(stack_area->basename,
+                              stack_obj->basename, NAME_MAX), 0);
+        
+        _cc_print_set(
+            "map_area_set: main & heap address range", sorted_area_nodes);
        
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
     }
@@ -224,73 +301,109 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     SUBCASE(test_cc_map_area_set_subtests[4]) {
 
         sc::map_area_set ma_set;
-        mc_vm_obj * obj;
-        mc_vm_area * area;
+
+        cm_lst_node * main_node, * stack_obj_node, * stack_area_node, * tmp_node;
+        mc_vm_obj * main_obj, * stack_obj;
+        mc_vm_area * stack_area, * tmp_area;
 
 
-        //first test: omit objs & omit areas
-        /* Omitting unit_target, ldlinux.so, & vm_area after [heap] */
-        opts.set_omit_objs(std::vector({map.vm_objs.head->next,
-                                        map.vm_objs.head->next->next->next->next/*->next->next*/}));
-        opts.set_omit_areas(std::vector({map.vm_areas.head
-                                         ->next->next->next->next->next->next}));
+        //setup
+        main_node = mc_get_obj_by_basename(&map, target_name);
+        CHECK_NE(main_node, nullptr);
+        stack_obj_node = mc_get_obj_by_basename(&map, "[stack]");
+        CHECK_NE(stack_obj_node, nullptr);
 
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        main_obj = MC_GET_NODE_OBJ(main_node);
+        stack_obj = MC_GET_NODE_OBJ(stack_obj_node);
+        stack_area_node = MC_GET_NODE_PTR(stack_obj->vm_area_node_ps.head);
+        stack_area = MC_GET_NODE_AREA(stack_area_node);
+
+
+        //first test: omit objs & omit areas        
+        ret = opts.set_omit_objs(
+            std::vector<const cm_lst_node *>({main_node}));
+        CHECK_EQ(ret, 0);
+        ret = opts.set_omit_areas(
+            std::vector<const cm_lst_node *>({stack_area_node}));
+        CHECK_EQ(ret, 0);
+
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes_1 = ma_set.get_area_nodes();
-        std::cout << "area_nodes_1.size(): " << area_nodes_1.size() << std::endl;
-        CHECK_EQ(area_nodes_1.size(), 11);
+        CHECK_EQ(area_nodes_1.size(), map.vm_areas.len - 6);
         
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_1);
+        _cc_print_set(
+            "map_area_set: omit main & [heap]", sorted_area_nodes);
 
-        opts.set_omit_objs(std::nullopt);
-        opts.set_omit_areas(std::nullopt);
+        ret = opts.set_omit_objs(std::nullopt);
+        CHECK_EQ(ret, 0);
+        ret = opts.set_omit_areas(std::nullopt);
+        CHECK_EQ(ret, 0);
 
 
         //second test: exclusive objs & exclusive areas
-        /* Exlusively unit_target, ldlinux.so, & vm_area after [heap] */
-        opts.set_exclusive_objs(std::vector({map.vm_objs.head->next,
-                                             map.vm_objs.head->next->next->next->next/*->next->next*/}));
-        opts.set_exclusive_areas(std::vector({map.vm_areas.head
-                                              ->next->next->next->next->next->next}));
+        ret = opts.set_exclusive_objs(
+            std::vector<const cm_lst_node *>({main_node}));
+        CHECK_EQ(ret, 0);
+        ret = opts.set_exclusive_areas(
+            std::vector<const cm_lst_node *>({stack_area_node}));
+        CHECK_EQ(ret, 0);
 
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes_2 = ma_set.get_area_nodes();
-        std::cout << "area_nodes_2.size(): " << area_nodes_2.size() << std::endl;
-        CHECK_EQ(area_nodes_2.size(), 11);
+        CHECK_EQ(area_nodes_2.size(), 6);
 
-        //a debugger will appreciate seeing a sorted area set
+        //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_2);
+        _cc_print_set(
+            "map_area_set: exclusive main & [heap]", sorted_area_nodes);
 
-        opts.set_exclusive_objs(std::nullopt);
-        opts.set_exclusive_areas(std::nullopt);
+        ret = opts.set_exclusive_objs(std::nullopt);
+        CHECK_EQ(ret, 0);
+        ret = opts.set_exclusive_areas(std::nullopt);
+        CHECK_EQ(ret, 0);
 
 
         //third test: everything
-        /* Exlusively unit_target */
-        opts.set_exclusive_objs(std::vector({map.vm_objs.head->next}));
-        /* Omit the first vm_area of unit_target */
-        opts.set_omit_areas(std::vector({map.vm_areas.head}));
-        /* Only target `rw-` areas */
-        opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
-        /* Exclude the second vm_area of unit_target by address */
-        area = MC_GET_NODE_AREA(map.vm_areas.head->next->next);
-        obj = MC_GET_NODE_OBJ(map.vm_objs.head->next);
-        opts.set_addr_range(std::pair(area->start_addr, obj->end_addr));
+
+        //exclusively scan main
+        ret = opts.set_exclusive_objs(
+            std::vector<const cm_lst_node *>({map.vm_objs.head->next}));
+        CHECK_EQ(ret, 0);
+
+        //omit the first area of main
+        ret = opts.set_omit_areas(
+            std::vector<const cm_lst_node *>({map.vm_areas.head}));
+        CHECK_EQ(ret, 0);
         
-        rett = ma_set.update_set(opts);
-        CHECK_EQ(rett.has_value(), true);
+        //only target `rw-` segments
+        ret = opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
+        CHECK_EQ(ret, 0);
+
+        //exclude second area of main by address
+        tmp_node = map.vm_areas.head->next->next;
+        tmp_area = MC_GET_NODE_AREA(tmp_node);
+        std::vector<std::pair<uintptr_t, uintptr_t>> ar_vct = {
+            {tmp_area->start_addr, tmp_area->end_addr}
+        };
+        ret = opts.set_addr_ranges(ar_vct);
+        CHECK_EQ(ret, 0);
+
+        ret = ma_set.update_set(opts);
+        CHECK_EQ(ret, 0);
 
         auto area_nodes_3 = ma_set.get_area_nodes();
-        std::cout << "area_nodes_3.size(): " << area_nodes_3.size() << std::endl;
         CHECK_EQ(area_nodes_3.size(), 1);
         
-        //a debugger will appreciate seeing a sorted area set
-        sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_2);
+        //convert hashmap to a sorted vector
+        sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_3);
+        _cc_print_set(
+            "map_area_set: all constraints (expect 1 area)", sorted_area_nodes);
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
     }
@@ -314,13 +427,55 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
        * =================== */
 
 /*
+ *  --- [HELPERS] ---
+ */
+
+//take a sorted vector of areas and print it
+static void _c_print_set(
+    const std::string & heading,
+    const cm_vct * sorted_area_nodes) {
+
+    int ret;
+
+    cm_lst_node * area_node;
+    mc_vm_area * area;
+
+
+    std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
+
+    //for every area
+    for (int i = 0; i < sorted_area_nodes->len; ++i) {
+
+        ret = cm_vct_get(sorted_area_nodes, i, &area_node);
+        CHECK_EQ(ret, 0);
+        area = MC_GET_NODE_AREA(area_node);
+
+        /*
+         *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
+         */
+        std::cout << std::hex;
+        std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
+        std::cout << " | " << (int) area->access;
+        std::cout << " | " << std::left << std::setw(10);
+        std::cout << std::string(area->basename).substr(0, 12) << std::endl; 
+
+    } //end for every area
+
+    std::cout << std::dec;
+    
+    return;
+}
+
+
+
+/*
  *  --- [TESTS] ---
  */
 
 TEST_CASE(test_c_map_area_set_subtests[0]) {
 
     int ret;
-    std::optional<int> rett;
+    std::optional<int> ret_opt;
     pid_t pid;
 
     mc_session session;
@@ -334,8 +489,8 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
      */
 
     //clean up old targets & spawn a new target
-    rett = clean_targets();
-    REQUIRE_EQ(rett.has_value(), true);
+    ret = clean_targets();
+    REQUIRE_EQ(ret, 0);
     pid = start_target();
     REQUIRE_NE(pid, -1);
 
@@ -350,18 +505,18 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
 
     //create a option class
     sc_opt opts = sc_new_opt(test_c_addr_width);
-    sc_opt_set_map(opts, &map);
+    REQUIRE_NE(opts, SC_BAD_OBJ);
+
+    ret = sc_opt_set_map(opts, &map);
+    REQUIRE_EQ(ret, 0);
 
 
     //test C wrappers work correctly
     SUBCASE(test_c_map_area_set_subtests[1]) {
 
         mc_vm_obj * obj;
-
         sc_map_area_set ma_set;
-        sc_addr_range addr_range;
-
-        cm_vct v;
+        cm_vct set_vct;
     
 
         //create new sc_map_area_set
@@ -370,12 +525,7 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
         
 
         //only test: executable-only scan, check update & getter 
-
-        //exlusively scan unit_target by applying an address range constraint
-        obj = MC_GET_NODE_OBJ(map.vm_objs.head->next);
-        addr_range.min = obj->start_addr;
-        addr_range.max = obj->end_addr;
-        ret = sc_opt_set_addr_range(opts, &addr_range);
+        ret = sc_opt_set_access(opts, MC_ACCESS_EXEC);
         CHECK_EQ(ret, 0);
 
         //update the map area set that fufills constraints
@@ -383,12 +533,14 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
         CHECK_EQ(ret, 0);
 
         //get the updated set
-        ret = sc_get_set(ma_set, &v);
-        CHECK_EQ(v.len, 5);
+        ret = sc_get_set(ma_set, &set_vct);
+        CHECK_EQ(ret, 0);
 
+        _c_print_set(
+            "map_area_set: C wrapper --x", &set_vct);
 
         //cleanup
-        cm_del_vct(&v);
+        cm_del_vct(&set_vct);
 
         ret = sc_del_map_area_set(ma_set);
         CHECK_EQ(ret, 0);

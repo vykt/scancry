@@ -529,6 +529,7 @@ typedef void * sc_opt;
 typedef void * sc_opt_ptrscan;
 typedef void * sc_map_area_set;
 
+#define SC_BAD_OBJ nullptr
 
 //address range for sc_opt
 typedef struct {

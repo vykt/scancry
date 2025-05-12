@@ -1,8 +1,5 @@
 #pragma once
 
-//standard template library
-#include <optional>
-
 //system headers
 #include <unistd.h>
 
@@ -29,6 +26,6 @@ const constexpr char * target_name = "unit_target";
 
 
 //target helpers
-std::optional<int> clean_targets();
+int clean_targets();
 pid_t start_target();
 void end_target(pid_t pid);

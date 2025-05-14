@@ -42,15 +42,13 @@ namespace sc {
 #define _LOCK(badret)                                         \
     { int _lock_ret = this->_lock();                          \
         if (_lock_ret != 0) {                                 \
-            if (_lock_ret == EBUSY) sc_errno = SC_ERR_IN_USE; \
-            else sc_errno = SC_ERR_PTHREAD;                   \
             return badret;                                    \
         }                                                     \
     }                                                         \
 
-#define _UNLOCK(badret)                                             \
-    { int _lock_ret = this->_unlock();                              \
-    if (_lock_ret != 0) sc_errno = SC_ERR_PTHREAD; return badret; } \
+#define _UNLOCK(badret)                                                 \
+    { int _lock_ret = this->_unlock();                                  \
+    if (_lock_ret != 0) return badret; } \
 
 
 //allows a class to be locked (prevent modification)
@@ -115,10 +113,10 @@ class _opt_scan : public _lockable {
     public:
         //ctor
         _opt_scan() : _lockable() {}
-        virtual ~_opt_scan();
+        virtual ~_opt_scan() = 0;
 
         //reset
-        [[nodiscard]] virtual int reset();
+        [[nodiscard]] virtual int reset() = 0;
 };
 
 

@@ -270,7 +270,7 @@ template int c_iface::uset_to_cmore_vct<const cm_lst_node *,
 
 
 //sort a CMore area pointer vector
-void sort_area_vct(cm_vct * cmore_vct) {
+void c_iface::sort_area_vct(cm_vct * cmore_vct) {
 
     //create a STL copy of the cmore vector
     std::vector<const cm_lst_node *> temp_vct;

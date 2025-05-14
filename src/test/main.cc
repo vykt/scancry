@@ -27,8 +27,8 @@ const constexpr uint16_t cc_opt_test      = 0x1;
 const constexpr uint16_t c_opt_test       = 0x2;
 const constexpr uint16_t cc_opt_ptrscan_test =0x4;
 const constexpr uint16_t c_opt_ptrscan_test  =0x8;
-const constexpr uint16_t cc_map_area_set_test = 0x16;
-const constexpr uint16_t c_map_area_set_test  = 0x32;
+const constexpr uint16_t cc_map_area_set_test = 0x10;
+const constexpr uint16_t c_map_area_set_test  = 0x20;
 
 
 

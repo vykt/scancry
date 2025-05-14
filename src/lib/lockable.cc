@@ -30,7 +30,7 @@ _SC_DBG_INLINE int sc::_lockable::_lock() noexcept {
     }
 
     if (in_use == true) {
-        sc_errno = SC_ERR_PTHREAD;
+        sc_errno = SC_ERR_IN_USE;
         ret_val = -1;
     } else {
         in_use = true;
@@ -49,21 +49,13 @@ _SC_DBG_INLINE int sc::_lockable::_lock() noexcept {
 
 _SC_DBG_INLINE int sc::_lockable::_unlock() noexcept {
 
-    int ret;
-    ret = pthread_mutex_trylock(&this->in_use_lock);
-    if (ret != 0) {
-        if (ret == EBUSY) return 1;
-        sc_errno = SC_ERR_PTHREAD;
-        return -1;
-    }
+    /*
+     *  NOTE: Not necessary to acquire the mutex; the only possible
+     *        race condition is another thread still reading `true`
+     *        after the lock is released.
+     */
 
-    in_use = false;
-    
-    ret = pthread_mutex_unlock(&this->in_use_lock);
-    if (ret != 0) {
-        sc_errno = SC_ERR_PTHREAD;
-        return -1;
-    }
+    this->in_use = false;
 
     return 0;
 }

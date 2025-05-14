@@ -22,7 +22,19 @@
 #include "opt.hh"
 #include "c_iface.hh"
 #include "error.hh"
-#include "scancry_impl.h"
+
+
+
+/*
+ *  --- [_OPT_SCAN | INTERNAL] ---
+ */
+
+/*
+ *  NOTE: We must provide an explicit body for the abstract destructor
+ *        of `_opt_scan` so the linker can produce a valid chain of
+ *        destructors to call.
+ */
+sc::_opt_scan::~_opt_scan() {}
 
 
 
@@ -513,7 +525,10 @@ _SC_DBG_STATIC int _vector_getter(
         const std::optional<std::vector<T>> & stl_vct = (o->*get)();
 
         //if this constraint doesn't have a value, fail
-        if (stl_vct.has_value() == false) return -1;
+        if (stl_vct.has_value() == false) {
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
 
         //perform the copy
         ret = c_iface::vct_to_cmore_vct<T, T_c>(
@@ -549,7 +564,10 @@ _SC_DBG_STATIC int _unordered_set_getter(
         const std::optional<std::unordered_set<T>> & stl_uset = (o->*get)();
 
         //if this constraint doesn't have a value, fail
-        if (stl_uset.has_value() == false) return -1;
+        if (stl_uset.has_value() == false) {
+            sc_errno = SC_ERR_OPT_EMPTY;
+            return -1;
+        }
 
         //perform the copy
         ret = c_iface::uset_to_cmore_vct<T, T_c>(

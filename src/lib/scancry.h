@@ -181,7 +181,7 @@ class opt : public _lockable {
 /*
  *  Configuration options only applicable to pointer scans.
  */
-class opt_ptrscan : public _opt_scan {
+class opt_ptrscan final : public _opt_scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
@@ -230,6 +230,7 @@ class opt_ptrscan : public _opt_scan {
         opt_ptrscan();
         opt_ptrscan(const opt_ptrscan & opts_ptrscan);
         opt_ptrscan(const opt_ptrscan && opts_ptrscan);
+        ~opt_ptrscan() override final {};
 
         //reset
         [[nodiscard]] int reset() override final;

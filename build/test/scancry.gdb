@@ -1,7 +1,3 @@
-# source memcry functions
-source memcry.gdb
-
-
 # print sc_opt
 define popt
 	if $argc != 1
@@ -19,9 +15,3 @@ define pxopt
 		p/x *((sc::opt *) $arg0)
 	end
 end
-
-
-# session dependent (modify from here onwards)
-tb main
-run
-layout src

@@ -32,6 +32,10 @@
  *        the class is itself part of the template definition.
  */
 
+/*
+ *  FIXME: Copy & move constructor tests are very poor.
+ */
+
 
       /* ===================== * 
  ===== *  C++ INTERFACE TESTS  * =====
@@ -190,8 +194,14 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     //call copy & move constructors
     sc::opt o_copy(o);
     CHECK_EQ(o_copy._get_lock(), false);
-    sc::opt o_move(std::move(o));
+    ret = o_copy.set_map((const mc_vm_map *) 0x1337);
+    CHECK_EQ(ret, 0);
+    sc::opt o_move(std::move(o_copy));
     CHECK_EQ(o_move._get_lock(), false);
+
+    //reset lock
+    ret = o._unlock();
+    CHECK_EQ(ret, 0);
 
 
     //test 1: set & get `file_path_out`
@@ -251,7 +261,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         mc_vm_map const * ret_map;
 
         ret_map = o.get_map();
-        CHECK_EQ(ret, nullptr);
+        CHECK_EQ(ret_map, nullptr);
 
         ret = o.set_map((mc_vm_map const *) 0x1337);
         CHECK_EQ(ret, 0);
@@ -385,6 +395,10 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
     CHECK_EQ(o_copy._get_lock(), false);
     sc::opt_ptrscan o_move(std::move(o));
     CHECK_EQ(o_move._get_lock(), false);
+
+    //reset lock
+    ret = o._unlock();
+    CHECK_EQ(ret, 0);
 
 
     //test 1: set & get `target_addr`
@@ -605,7 +619,7 @@ static void _c_opt_test(void * o, T v, T v_nullopt,
     if (compare_fn.has_value() == true) {
         compare_fn.value()(ret_opt, v_nullopt);
     } else {
-        CHECK(ret_opt == v);
+        CHECK(ret_opt == v_nullopt);
     }
     CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
@@ -721,8 +735,9 @@ TEST_CASE(test_c_opt_subtests[0]) {
                             sc_opt_set_file_path_out,
                             sc_opt_get_file_path_out,
                             [](const char * s_1, const char * s_2) -> bool {
-                                std::string stl_s_1(s_1);
-                                std::string stl_s_2(s_2);
+                                
+                                std::string stl_s_1(s_1 == nullptr ? "" : s_1);
+                                std::string stl_s_2(s_2 == nullptr ? "" : s_2);
                                 return stl_s_1 == stl_s_2;
                             });
     } //end test
@@ -738,8 +753,8 @@ TEST_CASE(test_c_opt_subtests[0]) {
                             sc_opt_set_file_path_in,
                             sc_opt_get_file_path_in,
                             [](const char * s_1, const char * s_2) -> bool {
-                                std::string stl_s_1(s_1);
-                                std::string stl_s_2(s_2);
+                                std::string stl_s_1(s_1 == nullptr ? "" : s_1);
+                                std::string stl_s_2(s_2 == nullptr ? "" : s_2);
                                 return stl_s_1 == stl_s_2;
                             });
     } //end test
@@ -792,7 +807,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         //check each element from the returned CMore vector is correct
         for (int i = 0; i < 3; ++i) {
         
-            ret = cm_vct_get(&vct_1, i, &s);
+            ret = cm_vct_get(&vct_2, i, &s);
             CHECK_EQ(ret, 0);
             CHECK_EQ(s, a[i]);
         }
@@ -857,7 +872,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 6: set & get omit_areas
+    //test 6: set & get `omit_areas`
     SUBCASE(test_c_opt_subtests[6]) {
 
         const cm_lst_node * a[3] = {
@@ -873,7 +888,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 7: set & get omit_objs
+    //test 7: set & get `omit_objs`
     SUBCASE(test_c_opt_subtests[7]) {
 
         const cm_lst_node * a[3] = {
@@ -889,7 +904,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 8: set & get exclusive_areas
+    //test 8: set & get `exclusive_areas`
     SUBCASE(test_c_opt_subtests[8]) {
 
         const cm_lst_node * a[3] = {
@@ -905,7 +920,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 9: set & get exclusive_objs
+    //test 9: set & get `exclusive_objs`
     SUBCASE(test_c_opt_subtests[9]) {
 
         const cm_lst_node * a[3] = {
@@ -931,7 +946,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         };
 
         _c_vector_test<sc_opt, sc_addr_range>(
-            o, a, 3, sc_opt_set_exclusive_objs, sc_opt_get_exclusive_objs,
+            o, a, 3, sc_opt_set_addr_ranges, sc_opt_get_addr_ranges,
             [](sc_addr_range ar_1, sc_addr_range ar_2) -> bool {
                 return (ar_1.min == ar_2.min) && (ar_1.max == ar_2.max);
             });

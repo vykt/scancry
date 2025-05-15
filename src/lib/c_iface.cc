@@ -221,6 +221,7 @@ template <typename T,typename T_c>
 
             //if both containers store the same type
             if (convert_cb.has_value() == false) {
+                ent_c = ent_cc;
                 ret = cm_vct_apd(cmore_vct, &ent_c);
                 if (ret != 0) {
                     cm_del_vct(cmore_vct);

@@ -405,7 +405,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
     const std::optional<std::vector<const cm_lst_node *>> & static_areas) {
 
     _LOCK(-1)
-    if (this->static_areas.has_value()) {
+    if (static_areas.has_value()) {
         this->static_areas = std::unordered_set<const cm_lst_node *>(
             static_areas->begin(), static_areas->end());
     } else {
@@ -1074,7 +1074,7 @@ uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
         return target_addr.value();
     } else {
         sc_errno = SC_ERR_OPT_EMPTY;
-        return 0;
+        return 0x0;
     }
 }
 
@@ -1108,7 +1108,7 @@ off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
         return alignment.value();
     } else {
         sc_errno = SC_ERR_OPT_EMPTY;
-        return -1;
+        return 0x0;
     }
 }
 
@@ -1142,7 +1142,7 @@ off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
         return max_obj_sz.value();
     } else {
         sc_errno = SC_ERR_OPT_EMPTY;
-        return -1;
+        return 0x0;
     }
 }
 
@@ -1157,7 +1157,7 @@ int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
     
     //perform the set
-    if (max_depth == 0) ret = o->set_max_depth(std::nullopt);
+    if (max_depth == 0x0) ret = o->set_max_depth(std::nullopt);
     else ret = o->set_max_depth(max_depth);
     return (ret != 0) ? -1 : 0;
 }
@@ -1176,7 +1176,7 @@ int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
         return max_depth.value();
     } else {
         sc_errno = SC_ERR_OPT_EMPTY;
-        return -1;
+        return 0x0;
     }
 }
 

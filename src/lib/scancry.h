@@ -655,25 +655,25 @@ int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan);
 //return: 0 on success, -1 on error
 int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,
                                    const uintptr_t target_addr);
-//return: target address if set, 0 if unset 
+//return: target address if set, 0x0 if unset 
 uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
 int sc_opt_ptrscan_set_alignment(sc_opt_ptrscan opts_ptrscan,
                                  const off_t alignment);
-//return: scan alignment if set, -1 if not set
+//return: scan alignment if set, 0x0 if not set
 off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
 int sc_opt_ptrscan_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
                                   const off_t max_obj_sz);
-//return: max object size if set, -1 if not set
+//return: max object size if set, 0x0 if not set
 off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
 int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
                                  const int max_depth);
-//return: max scan depth if set, -1 if not set
+//return: max scan depth if set, 0x0 if not set
 int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
 
 

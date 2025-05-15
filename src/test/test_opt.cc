@@ -462,15 +462,15 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
 
         //check optional vector starts out empty
-        ret_opt = (o.get_static_areas)();
+        ret_opt = o.get_static_areas();
         CHECK_EQ(ret_opt.has_value(), false);
 
         //set the optional vector
-        ret = (o.set_static_areas)(static_areas);
+        ret = o.set_static_areas(static_areas);
         CHECK_EQ(ret, 0);
 
         //check the optional vector is set
-        ret_opt = (o.get_static_areas)();
+        ret_opt = o.get_static_areas();
         CHECK_EQ(ret_opt.has_value(), true);
         CHECK_EQ(ret_opt->size(), 3);
 
@@ -481,11 +481,11 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
         }
 
         //reset the optional vector
-        ret = (o.set_static_areas)(std::nullopt);
+        ret = o.set_static_areas(std::nullopt);
         CHECK_EQ(ret, 0);
 
         //check the optional vector was reset
-        ret_opt = (o.get_static_areas)();
+        ret_opt = o.get_static_areas();
         CHECK_EQ(ret_opt.has_value(), false);
  
     } //end test
@@ -581,7 +581,7 @@ static void _c_opt_test(void * o, T v, T v_nullopt,
                         T (* get)(const O o),
                         std::optional<
                             std::function<bool(T v_1, T v_2)>> compare_fn) {
-                            
+  
     int ret;
     T ret_opt;
 
@@ -616,11 +616,7 @@ static void _c_opt_test(void * o, T v, T v_nullopt,
 
     //try to get the attribute to check it's been set to nullopt correctly
     ret_opt = (*get)(o);
-    if (compare_fn.has_value() == true) {
-        compare_fn.value()(ret_opt, v_nullopt);
-    } else {
-        CHECK(ret_opt == v_nullopt);
-    }
+    CHECK_EQ(ret_opt, v_nullopt);
     CHECK_EQ(sc_errno, SC_ERR_OPT_EMPTY);
 
     return;
@@ -757,6 +753,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
                                 std::string stl_s_2(s_2 == nullptr ? "" : s_2);
                                 return stl_s_1 == stl_s_2;
                             });
+
     } //end test
 
 
@@ -852,7 +849,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
         _c_val_test<sc_opt, mc_vm_map *>(o, (mc_vm_map *) 0x1337,
             set_cast, sc_opt_get_map, std::nullopt);
-        
+    
     } //end test
 
 
@@ -868,7 +865,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         //call the getter for this const attribute
         ret_aw = sc_opt_get_addr_width(o);
         CHECK_EQ(ret_aw, test_c_addr_width);
-        
+
     } //end test
 
 
@@ -960,7 +957,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
         _c_opt_test<sc_opt, cm_byte>(
                             o, MC_ACCESS_READ | MC_ACCESS_WRITE, -1,
                             sc_opt_set_access, sc_opt_get_access, std::nullopt);
-       
+      
     } //end test
 
 
@@ -1051,16 +1048,35 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
          *  NOTE: The C interface converts the STL hashmap into an
          *        ordered CMore vector. This means the templated vector
          *        test perfectly applicable here.
+         *
+         *        For the unordered set to be correctly sorted, it must
+         *        be able to sort nodes based on start & end addresses
+         *        of their underlying areas. For this to take place, the
+         *        below stubs are defined.
          */
 
-        const cm_lst_node * areas_arr[3] = {
-            (const cm_lst_node *) 0x40404040,
-            (const cm_lst_node *) 0x50505050,
-            (const cm_lst_node *) 0x60606060
-        };
+        cm_lst_node * area_node_ptrs_arr[3] = {};
+        cm_lst_node area_nodes_arr[3] = {};
+        mc_vm_area areas_arr[3] = {};
+
+        //populate MemCry area stubs
+        areas_arr[0].start_addr = 0x1000; areas_arr[0].end_addr = 0x2000;
+        areas_arr[1].start_addr = 0x3000; areas_arr[1].end_addr = 0x4000;
+        areas_arr[2].start_addr = 0x5000; areas_arr[2].end_addr = 0x6000;
+
+        //populate node stubs
+        area_nodes_arr[0].data = &areas_arr[0];
+        area_nodes_arr[1].data = &areas_arr[1];
+        area_nodes_arr[2].data = &areas_arr[2];
+
+        //populate node pointers
+        area_node_ptrs_arr[0] = &area_nodes_arr[0];
+        area_node_ptrs_arr[1] = &area_nodes_arr[1];
+        area_node_ptrs_arr[2] = &area_nodes_arr[2];
 
         _c_vector_test<sc_opt_ptrscan, const cm_lst_node *>(
-            o, areas_arr, 3, sc_opt_ptrscan_set_static_areas,
+            o, (const cm_lst_node **) area_node_ptrs_arr,
+            3, sc_opt_ptrscan_set_static_areas,
             sc_opt_ptrscan_get_static_areas, std::nullopt);
 
     } //end test

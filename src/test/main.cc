@@ -23,12 +23,12 @@
 
 
 //tests bitmask
-const constexpr uint16_t cc_opt_test      = 0x1;
-const constexpr uint16_t c_opt_test       = 0x2;
-const constexpr uint16_t cc_opt_ptrscan_test =0x4;
-const constexpr uint16_t c_opt_ptrscan_test  =0x8;
-const constexpr uint16_t cc_map_area_set_test = 0x10;
-const constexpr uint16_t c_map_area_set_test  = 0x20;
+const constexpr uint16_t cc_opt_test      = 1 << 0;
+const constexpr uint16_t c_opt_test       = 1 << 1;
+const constexpr uint16_t cc_opt_ptrscan_test = 1 << 2;
+const constexpr uint16_t c_opt_ptrscan_test  = 1 << 3;
+const constexpr uint16_t cc_map_area_set_test = 1 << 4;
+const constexpr uint16_t c_map_area_set_test  = 1 << 5;
 
 
 

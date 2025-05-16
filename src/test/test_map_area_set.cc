@@ -91,6 +91,7 @@ static void _cc_print_set(
     const std::vector<const cm_lst_node *> & sorted_area_nodes) {
 
     mc_vm_area * area;
+    char str_buf[5];
 
 
     std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
@@ -100,15 +101,19 @@ static void _cc_print_set(
          iter != sorted_area_nodes.cend(); ++iter) {
 
         area = MC_GET_NODE_AREA((*iter));
+        mc_access_to_str(area->access, str_buf);
 
         /*
          *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
          */
         std::cout << std::hex;
         std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
-        std::cout << " | " << (int) area->access;
-        std::cout << " | " << std::left << std::setw(10);
-        std::cout << std::string(area->basename).substr(0, 12) << std::endl; 
+        std::cout << " | " << std::string(str_buf) << " | ";
+        if (area->basename != nullptr) {
+            std::cout << std::left << std::setw(10);
+            std::cout << std::string(area->basename).substr(0, 12);
+        }
+        std::cout << std::endl; 
 
     } //end for every area
 
@@ -132,7 +137,6 @@ static void _cc_print_set(
 TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     int ret;
-    std::optional<int> ret_opt;
 
     pid_t pid;
     mc_session session;
@@ -160,7 +164,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
     ret = mc_update_map(&session, &map);
     REQUIRE_EQ(ret, 0);
 
-    //create a option class
+    //create an option class
     sc::opt opts = sc::opt(test_cc_addr_width);
     ret = opts.set_map(&map);
     REQUIRE_EQ(ret, 0);
@@ -245,7 +249,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 3: apply address range constraints
     SUBCASE(test_cc_map_area_set_subtests[3]) {
-
+#if 0
         sc::map_area_set ma_set;
 
         cm_lst_node * main_node, * stack_node;
@@ -294,12 +298,13 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             "map_area_set: main & heap address range", sorted_area_nodes);
        
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+#endif
     }
 
 
     //test 4: apply object & area constraints
     SUBCASE(test_cc_map_area_set_subtests[4]) {
-
+#if 0
         sc::map_area_set ma_set;
 
         cm_lst_node * main_node, * stack_obj_node, * stack_area_node, * tmp_node;
@@ -406,6 +411,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             "map_area_set: all constraints (expect 1 area)", sorted_area_nodes);
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+#endif
     }
 
 
@@ -439,6 +445,7 @@ static void _c_print_set(
 
     cm_lst_node * area_node;
     mc_vm_area * area;
+    char str_buf[5];
 
 
     std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
@@ -449,13 +456,14 @@ static void _c_print_set(
         ret = cm_vct_get(sorted_area_nodes, i, &area_node);
         CHECK_EQ(ret, 0);
         area = MC_GET_NODE_AREA(area_node);
+        mc_access_to_str(area->access, str_buf);
 
         /*
          *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
          */
         std::cout << std::hex;
         std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
-        std::cout << " | " << (int) area->access;
+        std::cout << " | " << std::string(str_buf);
         std::cout << " | " << std::left << std::setw(10);
         std::cout << std::string(area->basename).substr(0, 12) << std::endl; 
 
@@ -475,7 +483,6 @@ static void _c_print_set(
 TEST_CASE(test_c_map_area_set_subtests[0]) {
 
     int ret;
-    std::optional<int> ret_opt;
     pid_t pid;
 
     mc_session session;

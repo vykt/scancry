@@ -4,6 +4,6 @@ source scancry.gdb
 
 # place your gdb commands here
 #tb main
-tb test_opt.cc:1046
+tb test_map_area_set.cc:133
 run
 layout src

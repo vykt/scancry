@@ -1,2 +1,2 @@
 #!/bin/sh
-gdb -x user.gdb --args ./test -P "$@"
+gdb -x user.gdb --args ./test -s "$@"

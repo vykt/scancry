@@ -49,6 +49,22 @@ void * _bootstrap_worker(void * arg) {
 }
 
 
+
+/*
+ *  --- [_SA_SORT_ENTRY | PUBLIC] ---
+ */
+
+size_t sc::_sa_sort_entry::get_size() const noexcept {
+    return this->size;    
+}
+
+
+const cm_lst_node * sc::_sa_sort_entry::get_area_node() const noexcept {
+    return this->area_node;
+}
+
+
+
 /*
  *  --- [WORKER | PRIVATE] ---
  */
@@ -223,6 +239,11 @@ void sc::_worker::exit() noexcept {
 }
 
 
+
+      /* =============== * 
+ ===== *  C++ INTERFACE  * =====
+       * =============== */
+
 /*
  *  --- [WORKER | PUBLIC] ---
  */
@@ -235,12 +256,12 @@ sc::_worker::_worker(opt ** const opts,
                      const int scan_area_index,
                      const mc_session * session,
                      struct _worker_concurrency & concur)
- : opts(opts),
-   opts_scan(opts_scan),
-   scan(scan),
-   scan_area_sets(scan_area_sets),
+ : scan_area_sets(scan_area_sets),
    scan_area_index(scan_area_index),
    session(session),
+   opts(opts),
+   opts_scan(opts_scan),
+   scan(scan),
    concur(concur) {
 
     //allocate the read buffer
@@ -273,11 +294,8 @@ void sc::_worker::main() {
 
 
         //for every area in this worker's scan set
-        for (auto area_iter
-                = this->scan_area_sets[this->scan_area_index].begin();
-             area_iter
-                != this->scan_area_sets[this->scan_area_index].end();
-             ++area_iter) {
+        for (auto area_iter = scan_set.begin();
+             area_iter != scan_set.end(); ++area_iter) {
 
             //if the exit bit is set, kill this worker
             if ((this->concur.flags | _worker_flag_exit) == true)
@@ -465,7 +483,7 @@ void sc::_worker::main() {
 
 
     //fetch the scan areas set
-    const std::unordered_set<cm_lst_node *> scan_area_nodes
+    const std::unordered_set<const cm_lst_node *> scan_area_nodes
         = ma_set.get_area_nodes();
 
     //if scan areas set is empty, return an error
@@ -498,7 +516,7 @@ void sc::_worker::main() {
              sorted_iter != this->sorted_entries.end(); ++sorted_iter) {
 
             //add the new sorted entry at this position
-            if (iter_entry.size >= sorted_iter->size) {
+            if (iter_entry.get_size() >= sorted_iter->get_size()) {
                 this->sorted_entries.insert(sorted_iter, iter_entry);
                 inserted = true;
                 break;
@@ -507,7 +525,7 @@ void sc::_worker::main() {
         } //end for every existing sorted entry
 
         //if the new entry has not yet been inserted, it must be the smallest
-        this->sorted_entries.push_back(iter_entry);
+        if (inserted == false) this->sorted_entries.push_back(iter_entry);
 
     } //end for every area in the scan areas hashmap
 
@@ -552,8 +570,8 @@ sc::worker_pool::update_scan_area_set(const map_area_set & ma_set) {
         int min_index = std::distance(greedy_size_sum.begin(), min_iter);
 
         //add this entry to the smallest size sum
-        *min_iter += entry_iter->size;
-        this->scan_area_sets[min_index].push_back(entry_iter->area_node);
+        *min_iter += entry_iter->get_size();
+        this->scan_area_sets[min_index].push_back(entry_iter->get_area_node());
 
     } //end for every serted entry
 
@@ -706,4 +724,63 @@ sc::worker_pool::~worker_pool() {
     if (ret == -1) return -1;
 
     return 0;
+}
+
+
+
+      /* ============= * 
+ ===== *  C INTERFACE  * =====
+       * ============= */
+
+
+/*
+ *  --- [WORKER_POOL | EXTERNAL] ---
+ */
+
+//new class worker_pool
+sc_worker_pool sc_new_worker_pool() {
+
+    try {
+        return new sc::worker_pool();
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
+
+
+//delete class worker_pool
+int sc_del_worker_pool(sc_worker_pool w_pool) {
+
+    //cast opaque handle into class
+    sc::worker_pool * w = static_cast<sc::worker_pool *>(w_pool);
+    
+    try {
+        delete w;
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+//free worker threads
+int sc_wp_free_workers(sc_worker_pool w_pool) {
+
+    int ret;
+    
+    //cast opaque handle into class
+    sc::worker_pool * w = static_cast<sc::worker_pool *>(w_pool);
+    
+    try {
+        ret = w->free_workers();
+        return ret != 0 ? -1 : 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
 }

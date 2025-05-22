@@ -346,11 +346,12 @@ class worker_pool : public _lockable {
         /* internal */ [[nodiscard]] int _single_run();
         
         //setup ahead of a scan
-        /* internal */ [[nodiscard]] int setup(sc::opt & opts,
-                                               sc::_opt_scan & opts_scan,
-                                               sc::_scan & scan,
-                                               const sc::map_area_set & ma_set,
-                                               const cm_byte flags);
+        /* internal */ [[nodiscard]] int setup(
+                                        sc::opt & opts,
+                                        sc::_opt_scan & opts_scan,
+                                        sc::_scan & scan,
+                                        const sc::map_area_set & ma_set,
+                                        const cm_byte flags);
         
         //ctor & dtor
         worker_pool();
@@ -373,27 +374,33 @@ class _ptrscan_tree;
 
 
 //pointer scanner flattened tree
-struct ptrscan_chain {
+class ptrscan_chain {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        uint32_t obj_idx;
+        std::optional<const cm_lst_node *> obj_node;
+        std::optional<std::string> pathname;
+        std::vector<off_t> offsets;
 
     public:
-        /* internal */ const uint32_t _obj_idx;
-
-        /*
-         *  NOTE: Not using a std::variant here instead of two 
-         *        std::optionals to simplify the C interface.
-         */
+        //[methods]
+        /* internal */ uint32_t _get_obj_idx() const noexcept;
     
-        const std::optional<cm_lst_node *> obj_node;
-        const std::optional<std::string> pathname;
-        const std::vector<off_t> offsets;
+        //ctors
+        ptrscan_chain(const cm_lst_node * obj_node,
+                      const uint32_t _obj_idx,
+                      const std::vector<off_t> & offsets);
+        ptrscan_chain(const std::string pathname,
+                      const uint32_t _obj_idx,
+                      const std::vector<off_t> & offsets);
+        
+        //getters & setters
+        std::optional<const cm_lst_node *> get_obj_node() const noexcept;
+        const std::optional<std::string> &
+            get_pathname() const noexcept;
+        const std::vector<off_t> & get_offsets() const noexcept;
 
-    //ctors
-    ptrscan_chain(const cm_lst_node * obj_node,
-                  const uint32_t _obj_idx,
-                  const std::vector<off_t> & offsets);
-    ptrscan_chain(const std::string pathname,
-                  const uint32_t _obj_idx,
-                  const std::vector<off_t> & offsets);
 };
  
 
@@ -527,8 +534,13 @@ extern "C" {
 
 //opaque types
 typedef void * sc_opt;
+typedef /* base */ void * sc_opt_scan;
 typedef void * sc_opt_ptrscan;
+
 typedef void * sc_map_area_set;
+typedef void * sc_worker_pool;
+
+typedef /* base */ void * sc_scan;
 
 #define SC_BAD_OBJ nullptr
 
@@ -558,10 +570,9 @@ enum sc_addr_width {
 
 //return: an opaque handle to a `opt` object, or NULL on error
 extern sc_opt sc_new_opt(const enum sc_addr_width addr_width);
+extern sc_opt sc_copy_opt(const sc_opt opts);
 //returns 0 on success, -1 on error
 extern int sc_del_opt(sc_opt opts);
-
-//return: 0 on success, -1 on error
 extern int sc_opt_reset(sc_opt opts);
 
 //return: 0 on success, -1 on error
@@ -646,35 +657,34 @@ extern cm_byte sc_opt_get_access(const sc_opt opts);
 
 //return: an opaque handle to a `opt_ptrscan` object, or NULL on error
 sc_opt_ptrscan sc_new_opt_ptrscan();
+sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan);
 //returns 0 on success, -1 on error
 int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan);
+int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan);
-
-//return: 0 on success, -1 on error
-int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
                                    const uintptr_t target_addr);
 //return: target address if set, 0x0 if unset 
-uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
+uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptrscan_set_alignment(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
                                  const off_t alignment);
 //return: scan alignment if set, 0x0 if not set
-off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan);
+off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptrscan_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
                                   const off_t max_obj_sz);
 //return: max object size if set, 0x0 if not set
-off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
+off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
                                  const int max_depth);
 //return: max scan depth if set, 0x0 if not set
-int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
+int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
 
 
 /*
@@ -685,22 +695,22 @@ int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
  */
 
 //all return 0 on success, -1 on error
-int sc_opt_ptrscan_set_static_areas(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
                                     const cm_vct * static_areas);
-int sc_opt_ptrscan_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
                                     cm_vct * static_areas);
 
 //all return 0 on success, -1 on error
-int sc_opt_ptrscan_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
                                       const cm_vct * preset_offsets);
-int sc_opt_ptrscan_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
                                       cm_vct * preset_offsets);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
                                   const bool enable);
 //return: whether smart scan is enabled
-bool sc_opt_ptrscan_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
+bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
 
 
 /*
@@ -724,6 +734,20 @@ extern int sc_update_set(sc_map_area_set s_set, const sc_opt opts);
 
 //return: 0 on success, -1 on failure
 extern int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes);
+
+
+/*
+ *  --- [WORKER_POOL] ---
+ */
+
+//return: opaque handle to `worker_pool` object, or NULL on error
+extern sc_worker_pool sc_new_worker_pool();
+//return: 0 on success, -1 on error
+extern int sc_del_worker_pool(sc_worker_pool w_pool);
+
+//return: 0 on success, -1 on error
+extern int sc_wp_free_workers(sc_worker_pool w_pool);
+
 
 
 #ifdef __cplusplus

@@ -13,14 +13,13 @@
 //local headers
 #include "scancry.h"
 #include "fbuf_util.hh"
+#include "scancry_impl.h"
 
 
 
-
-
-#define _CHECK_BUF(sz, err_ret) if ((buf_left - sz) < 0) {          \
-                                    sc_errno = SC_ERR_INVALID_FILE; \
-                                    return err_ret;                 \
+#define _CHECK_BUF(sz, err_ret) if ((buf_left - (ssize_t) sz) < 0) { \
+                                    sc_errno = SC_ERR_INVALID_FILE;  \
+                                    return err_ret;                  \
                                 }
 #define _UPDATE(sz) buf_off += sz; buf_left -= sz; cur_byte += sz;
 
@@ -63,6 +62,21 @@ int fbuf_util::pack_type(
     return 0;
 }
 
+//explicit instantiation - `sc::_ptrscan_file_hdr`
+template int fbuf_util::pack_type<sc::_ptrscan_file_hdr>(
+    const std::vector<cm_byte> & buf,
+    off_t & buf_off, const sc::_ptrscan_file_hdr & type);
+
+//explicit instantiation - `uint32_t`
+template int fbuf_util::pack_type<uint32_t>(
+    const std::vector<cm_byte> & buf,
+    off_t & buf_off, const uint32_t & type);
+
+//explicit instantiation - `cm_byte`
+template int fbuf_util::pack_type<cm_byte>(
+    const std::vector<cm_byte> & buf,
+    off_t & buf_off, const cm_byte & type);
+
 
 //write an arbitrary length array of some type to a file buffer
 template <typename T>
@@ -96,6 +110,16 @@ int fbuf_util::pack_type_array(
     return 0;
 }
 
+//explicit instantiation - `uint32_t`
+template int fbuf_util::pack_type_array<uint32_t>(
+    const std::vector<cm_byte> & buf,
+    off_t & buf_off, const std::vector<uint32_t> & type_arr);
+
+//explicit instantiation - `cm_byte`
+template int fbuf_util::pack_type_array<cm_byte>(
+    const std::vector<cm_byte> & buf,
+    off_t & buf_off, const std::vector<cm_byte> & type_arr);
+
 
 //read an arbitrary length string from a file buffer
 std::optional<std::string> fbuf_util::unpack_string(
@@ -119,9 +143,11 @@ std::optional<std::string> fbuf_util::unpack_string(
         _UPDATE(sizeof(cm_byte));
     }
 
-    return (end == true) ? std::optional<std::string>()
+    return (end == true) ? std::nullopt
                          : std::optional<std::string>(str);
 }
+
+
 
 
 //read an arbitrary type from a file buffer
@@ -143,11 +169,27 @@ _SC_DBG_INLINE std::optional<T> fbuf_util::unpack_type(
 
         //read an instance of type T
         type = *((T *) cur_byte);
+        end = false;
         _UPDATE(sizeof(T));
     }
 
-    return 0;
+    return (end == true) ? std::nullopt : std::optional<T>(type);
 }
+
+//explicit instantiation - `sc::_ptrscan_file_hdr`
+template std::optional<sc::_ptrscan_file_hdr>
+    fbuf_util::unpack_type<sc::_ptrscan_file_hdr>(
+    const std::vector<cm_byte> & buf, off_t & buf_off);
+
+//explicit instantiation - `sc::_ptrscan_file_hdr`
+template std::optional<uint32_t>
+    fbuf_util::unpack_type<uint32_t>(
+    const std::vector<cm_byte> & buf, off_t & buf_off);
+
+//explicit instantiation - `sc::_ptrscan_file_hdr`
+template std::optional<cm_byte>
+    fbuf_util::unpack_type<cm_byte>(
+    const std::vector<cm_byte> & buf, off_t & buf_off);
 
 
 //read an arbitrary length array of some type from a file buffer
@@ -189,5 +231,11 @@ _SC_DBG_INLINE std::optional<std::vector<T>> fbuf_util::unpack_type_array(
         return std::nullopt;
     }
 
-    return (end == true) ? std::nullopt : type_arr;
+    return (end == true) ? std::nullopt
+                         : std::optional<std::vector<T>>(type_arr);
 }
+
+//explicit instantiation - `uint32_t`
+template std::optional<std::vector<uint32_t>>
+    fbuf_util::unpack_type_array<uint32_t>(
+        const std::vector<cm_byte> & buf, off_t & buf_off);

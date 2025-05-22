@@ -839,8 +839,8 @@ enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts) {
 
 
 /*
- * In these setter functions, the C++ setter is passed a STL vector
- * constructed from a CMore vector
+ *  NOTE: In these setter functions, the C++ setter is passed a STL vector
+ *        constructed from a CMore vector
  */
 
 int sc_opt_set_omit_areas(sc_opt opts, const cm_vct * omit_areas) {
@@ -1026,7 +1026,7 @@ int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan) {
 
 
 //reset class opt_ptrscan
-int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan) {
+int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan) {
 
     int ret;
 
@@ -1045,7 +1045,7 @@ int sc_opt_ptrscan_reset(sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
                                    const uintptr_t target_addr) {
 
     int ret;
@@ -1061,7 +1061,7 @@ int sc_opt_ptrscan_set_target_addr(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
+uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
@@ -1079,7 +1079,7 @@ uintptr_t sc_opt_ptrscan_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptrscan_set_alignment(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
                                  const off_t alignment) {
 
     int ret;
@@ -1095,7 +1095,7 @@ int sc_opt_ptrscan_set_alignment(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
@@ -1113,7 +1113,7 @@ off_t sc_opt_ptrscan_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptrscan_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
                                   const off_t max_obj_sz) {
 
     int ret;
@@ -1129,7 +1129,7 @@ int sc_opt_ptrscan_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
@@ -1147,7 +1147,7 @@ off_t sc_opt_ptrscan_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
                                   const int max_depth) {
 
     int ret;
@@ -1163,7 +1163,7 @@ int sc_opt_ptrscan_set_max_depth(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
+int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
     
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
@@ -1181,7 +1181,7 @@ int sc_opt_ptrscan_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptrscan_set_static_areas(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
                                     const cm_vct * static_areas) {
 
     //call generic setter
@@ -1193,7 +1193,7 @@ int sc_opt_ptrscan_set_static_areas(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptrscan_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
                                     cm_vct * static_areas) {
 
     /*
@@ -1227,7 +1227,7 @@ int sc_opt_ptrscan_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptrscan_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
                                       const cm_vct * preset_offsets) {
 
     //call generic setter
@@ -1237,7 +1237,7 @@ int sc_opt_ptrscan_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptrscan_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
                                       cm_vct * preset_offsets) {
 
     //call generic getter
@@ -1247,7 +1247,7 @@ int sc_opt_ptrscan_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
                                   const bool enable) {
 
     int ret;
@@ -1262,7 +1262,7 @@ int sc_opt_ptrscan_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-bool sc_opt_ptrscan_get_smart_scan(const sc_opt_ptrscan opts_ptrscan) {
+bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan) {
 
     //cast opaque handle into class
     sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);

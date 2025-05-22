@@ -131,9 +131,6 @@ class _scan : public _lockable {
                 _process_addr(
                     const struct _scan_arg arg, const opt * const opts,
                     const _opt_scan * const opts_scan) = 0;
-        /* internal */ [[nodiscard]] virtual int _manage_scan(
-                worker_pool & w_pool, const opt * const opts,
-                const _opt_scan * const opts_scan) = 0;
 
         /*
          *  NOTE: _generate_body() is responsible for including the 
@@ -148,7 +145,6 @@ class _scan : public _lockable {
         /* internal */ [[nodiscard]] virtual int _read_body(
                 const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
 
-        //universal interface
         [[nodiscard]] virtual int reset() = 0;
 };
 
@@ -247,14 +243,22 @@ class _worker {
 
 
 //used to sort a `map_area_set` hashmap into a vector by size
-struct _sa_sort_entry {
+class _sa_sort_entry {
 
-    const size_t size;
-    const cm_lst_node * area_node;
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        size_t size;
+        /* const */ cm_lst_node * area_node;
 
-    _sa_sort_entry(const size_t size, const cm_lst_node * area_node)
-     : size(size),
-       area_node(area_node) {}
+    public:
+         //[methods]
+        _sa_sort_entry(const size_t size, const cm_lst_node * area_node)
+         : size(size),
+           area_node((cm_lst_node *) area_node) {}
+    
+        //setters & getters
+        size_t get_size() const noexcept;
+        const cm_lst_node * get_area_node() const noexcept;
 };
 
 
@@ -266,6 +270,10 @@ struct _ptrscan_cache {
 
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> * depth_level_vct;
     std::vector<cm_byte> serial_buf;
+
+    _ptrscan_cache()
+     : depth_level_vct(nullptr),
+       serial_buf({}) {}
 };
 
 

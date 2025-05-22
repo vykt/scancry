@@ -145,16 +145,45 @@ void sc::_ptrscan_tree::reset() {
 sc::ptrscan_chain::ptrscan_chain(const cm_lst_node * obj_node,
                                  const uint32_t _obj_idx,
                                  const std::vector<off_t> & offsets)
-                                  : obj_node((cm_lst_node *) obj_node),
-                                    _obj_idx(_obj_idx),
+                                  : obj_idx(_obj_idx),
+                                    obj_node((cm_lst_node *) obj_node),
+                                    pathname(std::nullopt),
                                     offsets(offsets) {}
 
 sc::ptrscan_chain::ptrscan_chain(const std::string pathname,
                                  const uint32_t _obj_idx,
                                  const std::vector<off_t> & offsets)
-                                  : pathname(pathname),
-                                    _obj_idx(_obj_idx),
+                                  : obj_idx(_obj_idx),
+                                    obj_node(std::nullopt),
+                                    pathname(pathname),
                                     offsets(offsets) {}
+
+
+uint32_t sc::ptrscan_chain::_get_obj_idx() const noexcept {
+    return this->obj_idx;
+}
+
+
+std::optional<const cm_lst_node *>
+    sc::ptrscan_chain::get_obj_node() const noexcept {
+
+    return this->obj_node;
+}
+
+
+const std::optional<std::string> &
+    sc::ptrscan_chain::get_pathname() const noexcept{
+
+    return this->pathname;
+}
+
+
+const std::vector<off_t> &
+    sc::ptrscan_chain::get_offsets() const noexcept {
+
+    return this->offsets;
+}
+
 
 
 /*
@@ -236,7 +265,7 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
         chains_sz += 4;
 
         //offsets & continue/end bytes
-        chains_sz += iter->offsets.size() * 5;
+        chains_sz += iter->get_offsets().size() * 5;
     }
 
     //end of each chain contains a continue/end byte
@@ -369,29 +398,27 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
  *        read (e.g.: trying to read unmapped memory).
  */
 
-[[nodiscard]] bool is_chain_valid(const uintptr_t target_addr,
-                                  const struct sc::ptrscan_chain & chain,
-                                  mc_session & session) {
+[[nodiscard]] bool sc::ptrscan::is_chain_valid(
+                                    const uintptr_t target_addr,
+                                    const struct sc::ptrscan_chain & chain,
+                                    mc_session & session) const {
 
     int ret;
     uintptr_t addr;
-    
-    cm_lst_node * obj_node;
-    mc_vm_obj * obj;
 
 
     //return false if chain is malformed
-    if ((chain.obj_node.has_value() == false)
-        || (chain.obj_node.value() == nullptr)) return false;
+    if ((chain.get_obj_node().has_value() == false)
+        || (chain.get_obj_node().value() == nullptr)) return false;
 
     //get relevant object & bootstrap iteration
-    obj_node = chain.obj_node.value();
-    obj = MC_GET_NODE_OBJ(obj_node);
+    const cm_lst_node * obj_node = chain.get_obj_node().value();
+    const mc_vm_obj * obj = MC_GET_NODE_OBJ(obj_node);
     addr = obj->start_addr;
 
     //for every offset
-    for (auto iter = chain.offsets.begin();
-         iter != chain.offsets.end(); ++iter) {
+    for (auto iter = chain.get_offsets().begin();
+         iter != chain.get_offsets().end(); ++iter) {
 
         //read next address
         addr += *iter;
@@ -465,9 +492,12 @@ struct _potential_node {
      *        It's safe to cast directly.
      */
 
-    //fetch ptrscan options
+    //fetch ptrscan options & suppress warnings
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wignored-qualifiers"
     const opt_ptrscan * const opts_ptrscan
         = (const opt_ptrscan * const) opts_scan;
+    #pragma GCC diagnostic pop
 
     //if not on an alignment boundary, return
     if ((arg.area_off % opts_ptrscan->get_alignment().value()) != 0) return 0;
@@ -600,8 +630,6 @@ struct _potential_node {
     struct _ptrscan_file_hdr local_hdr;
 
     cm_byte ctrl_byte;
-    uint32_t off32;
-
     off_t buf_off = 0;
     std::pair<size_t, size_t> ptrscan_data_szs;
 
@@ -656,11 +684,20 @@ struct _potential_node {
          iter != this->chains.end(); ++iter) {
 
         //store pathname index
-        ret = fbuf_util::pack_type(buf, buf_off, iter->_obj_idx);
+        ret = fbuf_util::pack_type(buf, buf_off, iter->_get_obj_idx());
         if (ret.has_value() == false) goto _read_body_fail;
 
-        //store every offset
-        ret = fbuf_util::pack_type_array(buf, buf_off, iter->offsets);
+        //store every offset & downcast to 32bit offsets
+        std::vector<uint32_t> offsets_32bit;
+        std::transform(iter->get_offsets().cbegin(),
+                       iter->get_offsets().cend(),
+                       offsets_32bit.begin(),
+                       [](off_t offset) {
+            return (uint32_t) offset;
+        });
+
+        ret = fbuf_util::pack_type_array<uint32_t>(
+            buf, buf_off, offsets_32bit);
         if (ret.has_value() == false) goto _read_body_fail;
     }
 
@@ -795,7 +832,7 @@ struct _potential_node {
 sc::ptrscan::ptrscan()
  : _scan(),
    cur_depth_level(0),
-   cache({0}) {}
+   cache() {}
 
 
 [[nodiscard]] int sc::ptrscan::reset() {
@@ -907,7 +944,6 @@ sc::ptrscan::ptrscan()
         sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan) {
 
     bool valid;
-    mc_session * session;
 
 
     //lock scanner
@@ -932,7 +968,7 @@ sc::ptrscan::ptrscan()
     }
 
     //check chains were processed if read from disk
-    if (this->chains[0].obj_node.has_value() == false) {
+    if (this->chains[0].get_obj_node().has_value() == false) {
         sc_errno = SC_ERR_SHALLOW_RESULT;
         goto _verify_fail;
     }
@@ -963,3 +999,37 @@ sc::ptrscan::ptrscan()
 const std::vector<struct sc::ptrscan_chain> & sc::ptrscan::get_chains() const {
     return this->chains;    
 }
+
+
+
+      /* ============= * 
+ ===== *  C INTERFACE  * =====
+       * ============= */
+
+
+/*
+ *  --- [PTRSCAN | EXTERNAL] ---
+ */
+
+#if 0
+sc_worker_pool sc_new_worker_pool(sc_opt opts,
+                                  sc_opt_scan opts_scan,
+                                  sc_scan scan,
+                                  const sc_map_area_set ma_set,
+                                  const cm_byte flags) {
+    
+    //cast opaque handles into classes
+    sc::opt * o = static_cast<sc::opt *>(opts);
+    sc::_opt_scan * o_scan = static_cast<sc::_opt_scan *>(opts_scan);
+    sc::_scan * r = static_cast<sc::_scan *>(scan);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
+
+    try {
+        return new sc::worker_pool(*o, *o_scan, *r, *s, flags);
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
+#endif

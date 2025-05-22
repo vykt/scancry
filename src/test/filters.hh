@@ -49,14 +49,14 @@ inline const constexpr char * test_c_opt_subtests[] = {
 inline const constexpr int test_cc_opt_ptrscan_subtests_num = 9;
 inline const constexpr char * test_cc_opt_ptrscan_subtests[] = {
     "test_cc_sc_opt_ptrscan",
-    "test_cc_sc_opt_ptrscan_target_addr",
-    "test_cc_sc_opt_ptrscan_alignment",
-    "test_cc_sc_opt_ptrscan_max_obj_sz",
-    "test_cc_sc_opt_ptrscan_max_depth",
-    "test_cc_sc_opt_ptrscan_static_areas",
-    "test_cc_sc_opt_ptrscan_preset_offsets",
-    "test_cc_sc_opt_ptrscan_smart_scan",
-    "test_cc_sc_opt_ptrscan_reset"
+    "test_cc_sc_opt_ptr_target_addr",
+    "test_cc_sc_opt_ptr_alignment",
+    "test_cc_sc_opt_ptr_max_obj_sz",
+    "test_cc_sc_opt_ptr_max_depth",
+    "test_cc_sc_opt_ptr_static_areas",
+    "test_cc_sc_opt_ptr_preset_offsets",
+    "test_cc_sc_opt_ptr_smart_scan",
+    "test_cc_sc_opt_ptr_reset"
 };
 
 
@@ -64,14 +64,14 @@ inline const constexpr char * test_cc_opt_ptrscan_subtests[] = {
 inline const constexpr int test_c_opt_ptrscan_subtests_num = 9;
 inline const constexpr char * test_c_opt_ptrscan_subtests[] = {
     "test_c_sc_opt_ptrscan",
-    "test_c_sc_opt_ptrscan_target_addr",
-    "test_c_sc_opt_ptrscan_alignment",
-    "test_c_sc_opt_ptrscan_max_obj_sz",
-    "test_c_sc_opt_ptrscan_max_depth",
-    "test_c_sc_opt_ptrscan_static_areas",
-    "test_c_sc_opt_ptrscan_preset_offsets",
-    "test_c_sc_opt_ptrscan_smart_scan",
-    "test_c_sc_opt_ptrscan_reset"
+    "test_c_sc_opt_ptr_target_addr",
+    "test_c_sc_opt_ptr_alignment",
+    "test_c_sc_opt_ptr_max_obj_sz",
+    "test_c_sc_opt_ptr_max_depth",
+    "test_c_sc_opt_ptr_static_areas",
+    "test_c_sc_opt_ptr_preset_offsets",
+    "test_c_sc_opt_ptr_smart_scan",
+    "test_c_sc_opt_ptr_reset"
 };
 
 
@@ -92,6 +92,19 @@ inline const constexpr char * test_c_map_area_set_subtests[] = {
     "test_c_sc_map_area_set",
     "test_c_sc_map_area_set_wrapper"
 };
+
+
+//C++ interface worker_pool tests
+inline const constexpr int test_cc_worker_pool_subtests_num = 4;
+inline const constexpr char * test_cc_worker_pool_subtests[] = {
+    "test_cc_worker_pool",
+    "test_cc_setup_free_workers",
+    "test_scan",
+    "test_multithread_scan"
+};
+
+
+//C interface worker_pool tests
 
 
 

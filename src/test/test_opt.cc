@@ -999,8 +999,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
         _c_opt_test<sc_opt_ptrscan, uintptr_t>(
                             o, 0x1000, 0,
-                            sc_opt_ptrscan_set_target_addr,
-                            sc_opt_ptrscan_get_target_addr,
+                            sc_opt_ptr_set_target_addr,
+                            sc_opt_ptr_get_target_addr,
                             std::nullopt);
 
     } //end test
@@ -1011,8 +1011,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
         _c_opt_test<sc_opt_ptrscan, off_t>(
                             o, 0x4, 0,
-                            sc_opt_ptrscan_set_alignment,
-                            sc_opt_ptrscan_get_alignment,
+                            sc_opt_ptr_set_alignment,
+                            sc_opt_ptr_get_alignment,
                             std::nullopt);
 
     } //end test
@@ -1023,8 +1023,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
         _c_opt_test<sc_opt_ptrscan, off_t>(
                             o, 0x4, 0,
-                            sc_opt_ptrscan_set_max_obj_sz,
-                            sc_opt_ptrscan_get_max_obj_sz,
+                            sc_opt_ptr_set_max_obj_sz,
+                            sc_opt_ptr_get_max_obj_sz,
                             std::nullopt);
 
     } //end test
@@ -1035,8 +1035,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
         _c_opt_test<sc_opt_ptrscan, int>(
                             o, 0x4, 0,
-                            sc_opt_ptrscan_set_max_depth,
-                            sc_opt_ptrscan_get_max_depth,
+                            sc_opt_ptr_set_max_depth,
+                            sc_opt_ptr_get_max_depth,
                             std::nullopt);
 
     } //end test
@@ -1076,8 +1076,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
         _c_vector_test<sc_opt_ptrscan, const cm_lst_node *>(
             o, (const cm_lst_node **) area_node_ptrs_arr,
-            3, sc_opt_ptrscan_set_static_areas,
-            sc_opt_ptrscan_get_static_areas, std::nullopt);
+            3, sc_opt_ptr_set_static_areas,
+            sc_opt_ptr_get_static_areas, std::nullopt);
 
     } //end test
 
@@ -1092,8 +1092,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
         };
 
         _c_vector_test<sc_opt_ptrscan, off_t>(
-            o, offset_arr, 3, sc_opt_ptrscan_set_preset_offsets,
-            sc_opt_ptrscan_get_preset_offsets, std::nullopt);
+            o, offset_arr, 3, sc_opt_ptr_set_preset_offsets,
+            sc_opt_ptr_get_preset_offsets, std::nullopt);
 
     } //end test
 
@@ -1102,8 +1102,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
     SUBCASE(test_c_opt_ptrscan_subtests[7]) {
 
         _c_val_test<sc_opt_ptrscan, bool>(
-            o, true, sc_opt_ptrscan_set_smart_scan,
-            sc_opt_ptrscan_get_smart_scan, std::nullopt);
+            o, true, sc_opt_ptr_set_smart_scan,
+            sc_opt_ptr_get_smart_scan, std::nullopt);
 
     } //end test
 

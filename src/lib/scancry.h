@@ -142,7 +142,7 @@ class opt : public _lockable {
 
         [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
         [[nodiscard]] mc_vm_map * get_map() const noexcept;
-        
+
         [[nodiscard]] int set_omit_areas(
             const std::optional<std::vector<const cm_lst_node *>> & omit_areas);
         [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
@@ -290,6 +290,9 @@ class map_area_set : public _lockable {
         map_area_set();
         map_area_set(const map_area_set & ma_set);
         map_area_set(const map_area_set && ma_set);
+
+        //reset
+        [[nodiscard]] int reset();
 
         //populate
         [[nodiscard]] int update_set(opt & opts);
@@ -656,35 +659,35 @@ extern cm_byte sc_opt_get_access(const sc_opt opts);
  */
 
 //return: an opaque handle to a `opt_ptrscan` object, or NULL on error
-sc_opt_ptrscan sc_new_opt_ptrscan();
-sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan);
+extern sc_opt_ptrscan sc_new_opt_ptrscan();
+extern sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan);
 //returns 0 on success, -1 on error
-int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan);
-int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan);
+extern int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan);
+extern int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
-                                   const uintptr_t target_addr);
+extern int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
+                                      const uintptr_t target_addr);
 //return: target address if set, 0x0 if unset 
-uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
+extern uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
                                  const off_t alignment);
 //return: scan alignment if set, 0x0 if not set
-off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan);
+extern off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
-                                  const off_t max_obj_sz);
+extern int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
+                                     const off_t max_obj_sz);
 //return: max object size if set, 0x0 if not set
-off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
+extern off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
-                                 const int max_depth);
+extern int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+                                    const int max_depth);
 //return: max scan depth if set, 0x0 if not set
-int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
+extern int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
 
 
 /*
@@ -695,22 +698,22 @@ int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
  */
 
 //all return 0 on success, -1 on error
-int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
-                                    const cm_vct * static_areas);
-int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
-                                    cm_vct * static_areas);
+extern int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
+                                       const cm_vct * static_areas);
+extern int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
+                                       cm_vct * static_areas);
 
 //all return 0 on success, -1 on error
-int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
-                                      const cm_vct * preset_offsets);
-int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
-                                      cm_vct * preset_offsets);
+extern int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
+                                         const cm_vct * preset_offsets);
+extern int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
+                                         cm_vct * preset_offsets);
 
 //return: 0 on success, -1 on error
-int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
-                                  const bool enable);
+extern int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+                                     const bool enable);
 //return: whether smart scan is enabled
-bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
+extern bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
 
 
 /*
@@ -720,7 +723,8 @@ bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
 //return: opaque handle to `map_area_set` object, or NULL on error
 extern sc_map_area_set sc_new_map_area_set();
 //return: 0 on success, -1 on error
-extern int sc_del_map_area_set(sc_map_area_set s_set);
+extern int sc_del_map_area_set(sc_map_area_set ma_set);
+extern int sc_reset_set(sc_map_area_set ma_set);
 
 //return: 0 on success, -1 on failure
 extern int sc_update_set(sc_map_area_set s_set, const sc_opt opts);

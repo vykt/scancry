@@ -21,7 +21,7 @@
 
 
 //globals
-static enum target_map_state target_state;
+static enum _target_helper::target_map_state target_state;
 
 
 //signal handlers
@@ -34,7 +34,7 @@ static void _sigusr1_handler(int signal) {
      */
 
     //update target state to set
-    target_state = INIT;
+    target_state = _target_helper::INIT;
 
     //std::cerr << "<!> received signal from unit_target.\n";
     return;
@@ -42,13 +42,13 @@ static void _sigusr1_handler(int signal) {
 
 
 //helpers
-int clean_targets() {
+int _target_helper::clean_targets() {
 
     int ret;
 
     //build the kill command    
     std::stringstream command_ss;
-    command_ss << "kill $(pidof " << target_name
+    command_ss << "kill $(pidof " << _target_helper::target_name
                << ") > /dev/null 2> /dev/null";
 
     //use system() to kill all existing targets
@@ -59,7 +59,7 @@ int clean_targets() {
 }
 
 
-pid_t start_target() {
+pid_t _target_helper::start_target() {
 
     int ret;
     __sighandler_t ret_s;
@@ -67,12 +67,12 @@ pid_t start_target() {
     pid_t target_pid, parent_pid;
     char pid_buf[8];
     
-    char * argv[3] = {(char *) target_name, 0, 0};
-    enum target_map_state old_state;
+    char * argv[3] = {(char *) _target_helper::target_name, 0, 0};
+    enum _target_helper::target_map_state old_state;
 
 
     //setup initial state
-    target_state = old_state = UNINIT;
+    target_state = old_state = _target_helper::UNINIT;
 
     //get current pid to pass to target
     parent_pid = getpid();
@@ -89,7 +89,7 @@ pid_t start_target() {
 
     //change image to target in child
     if (target_pid == 0) {
-        ret = execve(target_name, argv, NULL);
+        ret = execve(_target_helper::target_name, argv, NULL);
         CHECK_NE(ret, -1);
 
     //parent waits for child to complete initialisation
@@ -101,7 +101,7 @@ pid_t start_target() {
 }
 
 
-void end_target(pid_t pid) {
+void _target_helper::end_target(pid_t pid) {
 
     int ret;
     __sighandler_t ret_s;

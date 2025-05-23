@@ -173,6 +173,16 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
    area_nodes(ma_set.area_nodes) {}
 
 
+[[nodiscard]] int sc::map_area_set::reset() {
+
+    _LOCK(-1)
+    this->area_nodes.clear();
+    _UNLOCK(-1)
+
+    return 0;
+}
+
+
 [[nodiscard]] int sc::map_area_set::update_set(sc::opt & opts) {
 
     cm_lst_node * area_node;
@@ -351,10 +361,10 @@ sc_map_area_set sc_new_map_area_set() {
 }
 
 
-int sc_del_map_area_set(sc_map_area_set s_set) {
+int sc_del_map_area_set(sc_map_area_set ma_set) {
     
     //cast opaque handle into class
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
 
     try {
         delete s;
@@ -367,11 +377,29 @@ int sc_del_map_area_set(sc_map_area_set s_set) {
 }
 
 
+int sc_reset_set(sc_map_area_set ma_set) {
 
-int sc_update_set(sc_map_area_set s_set, const sc_opt opts) {
+    int ret;
+
+
+    //cast opaque handle into class
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
+
+    try {
+        ret = s->reset();
+        return (ret != 0) ? -1 : 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_update_set(sc_map_area_set ma_set, const sc_opt opts) {
 
     //cast opaque handles into classes
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
     sc::opt * o = static_cast<sc::opt *>(opts);
 
     try {
@@ -388,13 +416,13 @@ int sc_update_set(sc_map_area_set s_set, const sc_opt opts) {
 }
 
 
-int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes) {
+int sc_get_set(const sc_map_area_set ma_set, cm_vct * area_nodes) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(s_set);
+    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
 
     try {
         //get the STL unordered set

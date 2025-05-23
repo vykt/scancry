@@ -76,21 +76,23 @@ inline const constexpr char * test_c_opt_ptrscan_subtests[] = {
 
 
 //C++ interface map_area_set class tests
-inline const constexpr int test_cc_map_area_set_subtests_num = 5;
+inline const constexpr int test_cc_map_area_set_subtests_num = 6;
 inline const constexpr char * test_cc_map_area_set_subtests[] = {
-    "test_cc_map_area_set",
-    "test_cc_map_area_set_simple",
-    "test_cc_map_area_set_access",
-    "test_cc_map_area_set_addr_range",
-    "test_cc_map_area_set_constraints"
+    "test_cc_sc_map_area_set",
+    "test_cc_sc_map_area_set_simple",
+    "test_cc_sc_map_area_set_access",
+    "test_cc_sc_map_area_set_addr_range",
+    "test_cc_sc_map_area_set_constraints",
+    "test_cc_sc_map_area_set_reset"
 };
 
 
 //C interface opt class tests
-inline const constexpr int test_c_map_area_set_subtests_num = 2;
+inline const constexpr int test_c_map_area_set_subtests_num = 3;
 inline const constexpr char * test_c_map_area_set_subtests[] = {
     "test_c_sc_map_area_set",
-    "test_c_sc_map_area_set_wrapper"
+    "test_c_sc_map_area_set_wrapper",
+    "test_c_sc_map_area_set_reset"
 };
 
 
@@ -98,9 +100,9 @@ inline const constexpr char * test_c_map_area_set_subtests[] = {
 inline const constexpr int test_cc_worker_pool_subtests_num = 4;
 inline const constexpr char * test_cc_worker_pool_subtests[] = {
     "test_cc_worker_pool",
-    "test_cc_setup_free_workers",
-    "test_scan",
-    "test_multithread_scan"
+    "test_cc_worker_pool_setup_free_workers",
+    "test_cc_worker_pool_scan",
+    "test_cc_worker_pool_concurrency"
 };
 
 

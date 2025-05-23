@@ -21,11 +21,11 @@
 #include "filters.hh"
 #include "common.hh"
 #include "target_helper.hh"
+#include "util_helper.hh"
 
 //test target headers
 #include "../lib/scancry.h"
 #include "../lib/map_area_set.hh"
-
 
 
       /* ===================== * 
@@ -103,17 +103,7 @@ static void _cc_print_set(
         area = MC_GET_NODE_AREA((*iter));
         mc_access_to_str(area->access, str_buf);
 
-        /*
-         *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
-         */
-        std::cout << std::hex;
-        std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
-        std::cout << " | " << std::string(str_buf) << " | ";
-        if (area->basename != nullptr) {
-            std::cout << std::left << std::setw(10);
-            std::cout << std::string(area->basename).substr(0, 12);
-        }
-        std::cout << std::endl; 
+        _util_helper::print_area(area);
 
     } //end for every area
 
@@ -151,9 +141,9 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
      */
 
     //clean up old targets & spawn a new target
-    ret = clean_targets();
+    ret = _target_helper::clean_targets();
     REQUIRE_EQ(ret, 0);
-    pid = start_target();
+    pid = _target_helper::start_target();
     REQUIRE_NE(pid, -1);
 
     //setup a MemCry session & map for the target.
@@ -192,7 +182,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         _cc_print_set("map_area_set: no constraints", sorted_area_nodes);
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-    }
+    } //end test
 
 
     //test 2: apply an access permission constraint
@@ -244,7 +234,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             "map_area_set: ---s permissions (empty set)", sorted_area_nodes);
         
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-    }
+    } //end test
 
 
     //test 3: apply address range constraints
@@ -299,7 +289,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
        
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
 #endif
-    }
+    } //end test
 
 
     //test 4: apply object & area constraints
@@ -412,7 +402,17 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
 #endif
-    }
+    } //end test
+
+
+    //test 4: apply object & area constraints
+    SUBCASE(test_cc_map_area_set_subtests[4]) {
+
+        /*
+         *  TODO: Implement.
+         */       
+        
+    } //end test
 
 
     //cleanup
@@ -496,9 +496,9 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
      */
 
     //clean up old targets & spawn a new target
-    ret = clean_targets();
+    ret = _target_helper::clean_targets();
     REQUIRE_EQ(ret, 0);
-    pid = start_target();
+    pid = _target_helper::start_target();
     REQUIRE_NE(pid, -1);
 
     //setup a MemCry session & map for the target.

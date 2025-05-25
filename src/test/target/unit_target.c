@@ -2,13 +2,18 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <fcntl.h>
 #include <signal.h>
 
 //system includes
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 
 
+#define PATTERN_1 "pattern1.bin"
+#define PATTERN_2 "pattern2.bin"
 #define P_LEN 4
 
 
@@ -108,6 +113,17 @@ void sigusr1_handler() {
 }
 
 
+//memory map pattern files as read-only & discard handles
+void map_pattern_files() {
+
+    int fd_1 = open(PATTERN_1, O_RDONLY);
+    int fd_2 = open(PATTERN_2, O_RDONLY);
+
+    void * discard_hdl_1 = mmap(NULL, 0x2000, PROT_READ, MAP_SHARED, fd_1, 0);
+    void * discard_hdl_2 = mmap(NULL, 0x2000, PROT_READ, MAP_SHARED, fd_2, 0);
+}
+
+
 //main
 int main(int argc, char ** argv) {
 
@@ -122,6 +138,9 @@ int main(int argc, char ** argv) {
 
     //register unit test handler
     signal(SIGUSR1, sigusr1_handler);
+
+    //memory map pattern files
+    map_pattern_files();
 
     //signal parent that initialisation is finished
     kill(parent_pid, SIGUSR1);

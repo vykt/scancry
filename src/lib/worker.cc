@@ -624,11 +624,11 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 }
 
 
-[[nodiscard]] int sc::worker_pool::setup(sc::opt & opts,
-                                         sc::_opt_scan & opts_scan,
-                                         sc::_scan & scan,
-                                         const sc::map_area_set & ma_set,
-                                         const cm_byte flags) {
+[[nodiscard]] int sc::worker_pool::_setup(sc::opt & opts,
+                                          sc::_opt_scan & opts_scan,
+                                          sc::_scan & scan,
+                                          const sc::map_area_set & ma_set,
+                                          const cm_byte flags) {
 
     int ret;
     bool same_set_num = true;

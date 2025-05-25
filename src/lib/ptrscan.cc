@@ -902,7 +902,7 @@ sc::ptrscan::ptrscan()
     }
 
     //setup the worker pool
-    ret = w_pool.setup(opts, opts_ptrscan, *this, ma_set, flags);
+    ret = w_pool._setup(opts, opts_ptrscan, *this, ma_set, flags);
     if (ret != 0) goto _scan_unlock_all;
 
 

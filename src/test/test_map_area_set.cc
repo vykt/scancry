@@ -21,11 +21,12 @@
 #include "filters.hh"
 #include "common.hh"
 #include "target_helper.hh"
-#include "util_helper.hh"
+#include "memcry_helper.hh"
 
 //test target headers
 #include "../lib/scancry.h"
 #include "../lib/map_area_set.hh"
+
 
 
       /* ===================== * 
@@ -103,7 +104,7 @@ static void _cc_print_set(
         area = MC_GET_NODE_AREA((*iter));
         mc_access_to_str(area->access, str_buf);
 
-        _util_helper::print_area(area);
+        _memcry_helper::print_area(area);
 
     } //end for every area
 

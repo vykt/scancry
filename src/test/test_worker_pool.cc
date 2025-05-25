@@ -7,6 +7,7 @@
 
 //C standard library
 #include <cstdlib>
+#include <cstring>
     
 //external libraries
 #include <cmore.h>
@@ -17,7 +18,8 @@
 #include "filters.hh"
 #include "common.hh"
 #include "target_helper.hh"
-#include "util_helper.hh"
+#include "memcry_helper.hh"
+#include "opt_helper.hh"
 
 //test target headers
 #include "../lib/scancry.h"
@@ -25,15 +27,34 @@
 
 
 
+      /* ===================== * 
+ ===== *  C++ INTERFACE TESTS  * =====
+       * ===================== */
+
+/*
+ *  --- [HELPERS] ---
+ */
+
+//worker thread fixture scan options class
+class _fixture_opts : public sc::_opt_scan {
+
+    public:
+        //[methods]
+        ~_fixture_opts() {}
+        [[nodiscard]] virtual int reset() { return 0; }
+};
+
+
 //worker thread fixture scan class
 class _fixture_scan : public sc::_scan {
 
-    public:        
+    private:
         //[attributes]
         cm_byte expected_byte;
         off_t read_off;
         int mod;
 
+    public:
         //[methods]
         /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE int
             _process_addr(
@@ -48,26 +69,17 @@ class _fixture_scan : public sc::_scan {
         /* internal */ [[nodiscard]] virtual int _read_body(
                 const std::vector<cm_byte> & buf, off_t hdr_off) { return 0; }
 
-        _fixture_scan(int mod) : expected_byte(0), read_off(0), mod(mod) {}
+        _fixture_scan() : expected_byte(0), read_off(0), mod(1) {}
+        void set_mod(int mod) { this->mod = mod; }
 
         [[nodiscard]] int scan(
                     sc::opt & opts,
-                    sc::opt_ptrscan & opts_ptrscan,
+                    _fixture_opts & opts_ptrscan,
                     sc::map_area_set & ma_set,
                     sc::worker_pool & w_pool,
                     cm_byte flags);
 
-        [[nodiscard]] virtual int reset() { return 0; };
-};
-
-
-//worker thread fixture scan options class
-class _fixture_opts : public sc::_opt_scan {
-
-    public:
-        //[methods]
-        ~_fixture_opts() {}
-        [[nodiscard]] virtual int reset() { return 0; }
+        [[nodiscard]] virtual int reset();
 };
 
 
@@ -102,117 +114,18 @@ class _fixture_opts : public sc::_opt_scan {
 }
 
 
+[[nodiscard]] int _fixture_scan::reset() {
 
-struct _setup_params {
+    this->expected_byte = 0;
+    this->read_off      = 0;
+    this->mod           = 0;
 
-    //ScanCry parameters
-    sc::opt opts;
-    _fixture_opts t_opts;
-    _fixture_scan t_scan;
-    sc::map_area_set ma_set;
-
-    //MemCry parameters
-    mc_session ses[8]; //test up to 8 workers
-    mc_vm_map map;
-
-
-    _setup_params(int mod)
-     : opts(test_cc_addr_width),
-       t_scan(_fixture_scan(mod)) {}
-};
-
-
-static pid_t _setup_memcry(_setup_params & p, int thread_num) {
-
-    int ret;
-    pid_t pid;
-
-
-    //spawn target
-    _target_helper::clean_targets();
-    pid = _target_helper::start_target();
-    REQUIRE_NE(pid, -1);
-
-    //start MemCry sessions on the target
-    for (int i = 0; i < thread_num; ++i) {
-        ret = mc_open(&p.ses[i], PROCFS, pid);
-        REQUIRE_EQ(ret, 0);
-    }
-
-    //initialise a MemCry map of the target
-    ret = mc_update_map(&p.ses[0], &p.map);
-    REQUIRE_EQ(ret, 0);
-
-    return pid;   
+    return 0;
 }
 
 
-static void _setup_scancry(_setup_params & p, int thread_num) {
-
-    int ret;
-
-    //assign the map to the options
-    ret = p.opts.set_map(&p.map);
-    REQUIRE_EQ(ret, 0);
-
-    //create a map area set
-    ret = p.ma_set.update_set(p.opts);
-    REQUIRE_EQ(ret, 0);
-
-    return;
-}
-
-
-static void _teardown_memcry(_setup_params & p, int thread_num) {
-
-    int ret;
-    
-
-    //close MemCry sessions
-    for (int i = 0; i < thread_num; ++i) {
-
-        ret = mc_close(&p.ses[i]);
-        CHECK_EQ(ret, 0);
-    }
-
-    //destroy the MemCry map
-    ret = mc_del_vm_map(&p.map);
-    CHECK_EQ(ret ,0);
-
-    //kill the target
-    _target_helper::clean_targets();
-
-    return;
-}
-
-
-static void _teardown_worker_pool(_setup_params & p) {
-
-    int ret;
-
-
-    //reset options
-    ret = p.opts.reset();
-    CHECK_EQ(ret, 0);
-
-    //reset the fixture scan's options
-    ret = p.t_opts.reset();
-    CHECK_EQ(ret, 0);
-
-    //reset the fixture scan
-    ret = p.t_scan.reset();
-    CHECK_EQ(ret, 0);
-
-    //reset the map area set
-    ret = p.ma_set.reset();
-
-    return;
-}
-
-
-#ifdef DEBUG
 static void _print_scan_area_sets(sc::worker_pool & wp) {
-
+#ifdef DEBUG
     int ret, count;
     mc_vm_area * area;
 
@@ -223,33 +136,66 @@ static void _print_scan_area_sets(sc::worker_pool & wp) {
          iter != wp.scan_area_sets.cend(); ++iter) {
 
         //print the header for this set
-        std::cout << " --- [" << "Scan area set: " << count << "] --- " << std::endl;
+        std::cout << " --- [" << "Scan area set: " << count << "] --- "
+                  << std::endl;
 
         //for every entry in a scan area set
         for (auto inner_iter = iter->cbegin();
              inner_iter != iter->cend(); ++iter) {
 
             area = MC_GET_NODE_AREA((*inner_iter));
-            _util_helper::print_area(area);
+            _memcry_helper::print_area(area);
                  
         } //end for each member of a scan area set
              
     } //end for each scan area set
-}
+#else
+    std::cout << "< Only available in debug builds. >" << std::endl;
 #endif
+    return;
+}
+
+
+static void _assert_worker_count(sc::worker_pool & wp, int worker_count) {
+#ifdef DEBUG
+    CHECK_EQ(wp.workers.size(), worker_count);
+    CHECK_EQ(wp.worker_ids.size(), worker_count);
+#endif
+    return;
+}
+
+
+static void _assert_worker_concurrency(
+    sc::worker_pool & wp, int release_count, int alive_count) {
+#ifdef DEBUG
+    CHECK_EQ(wp.concur.release_count, release_count);
+    CHECK_EQ(wp.concur.alive_count, alive_count);
+#endif
+    return;
+}
+
 
 
 /*
- *  --- [TESTS - WORKER_POOL] ---
+ *  --- [TESTS] ---
  */
 
 TEST_CASE(test_cc_opt_subtests[0]) {
 
     int ret;
+    cm_lst_node * node;
+
     pid_t pid;
+    _memcry_helper::args mcry_args;
+    _opt_helper::args opt_args(sc::AW64);
     
-    cm_byte flags;
-    cm_lst_node * obj_node_1, * obj_node_2;
+    _fixture_opts fixt_opts;
+    _fixture_scan fixt_scan;
+
+
+    //launch target
+    pid = _target_helper::start_target();
+    CHECK_EQ(pid, 0);
 
 
     //test 0: construct worker pools
@@ -261,104 +207,409 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     //test 1 - setup & free workers
     SUBCASE(test_cc_worker_pool_subtests[1]) {
 
-        //first test - one worker thread
+        //first test - entire target
 
-        //setup MemCry
-        _setup_params params(1);
-        pid = _setup_memcry(params, 1);
-        CHECK_NE(pid, 0);
-
-        //setup ScanCry
-        _setup_scancry(params, 1);
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 1);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
 
         //setup the worker pool
-        ret = wp.setup(params.opts, params.t_opts,
-                       params.t_scan, params.ma_set, 0x0);
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
         CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 1);
+        _assert_worker_concurrency(wp, 0, 1);
 
-        #ifdef DEBUG
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - ALL - 1 WORKER:" << std::endl;
-        _print_scan_area_sets(wp);
-        #endif
-
-        //free workers while keeping scan area sets
-        ret = wp.free_workers();
-        CHECK_EQ(ret, 0);
-
-        //setup the worker pool again
-        ret = wp.setup(params.opts, params.t_opts, params.t_scan,
-                       params.ma_set, sc::WORKER_POOL_KEEP_SCAN_SET);
-        CHECK_EQ(ret, 0);
-
-        #ifdef DEBUG
-        //display scan area sets
-        std::cout << "\nSCAN AREA SETS - 1 - WORKER_POOL_KEEP_SCAN_SET:"
+        std::cout << "\nSCAN AREA SETS - EVERYTHING - 1 WORKER:"
                   << std::endl;
         _print_scan_area_sets(wp);
-        #endif
 
-        //teardown
+        //reset the worker pool
         ret = wp.free_workers();
         CHECK_EQ(ret, 0);
-        _teardown_worker_pool(params);
-        _teardown_memcry(params, 1);
-        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-        
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
 
-        //second test - three worker threads
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
 
-        //setup memcry
-        pid = _setup_memcry(params, 3);
-        CHECK_NE(pid, 0);
 
-        //setup ScanCry
-        _setup_scancry(params, 3);
+        //second test - only scan the main executable
 
-        //setup the worker pool
-        ret = wp.setup(params.opts, params.t_opts,
-                       params.t_scan, params.ma_set, 0x0);
+        //re-do setup
+        _memcry_helper::setup(mcry_args, pid, 1);
+        _opt_helper::setup(opt_args, mcry_args, [&]{
+
+            //fetch target's object
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::target_name);
+            CHECK_NE(node, nullptr);
+
+            std::vector<const cm_lst_node *> exclusive_objs = { node };
+
+            ret = opt_args.opts.set_exclusive_objs(exclusive_objs);
+            CHECK_EQ(ret, 0);
+        });
+
+        //setup worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
         CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 1);
+        _assert_worker_concurrency(wp, 0, 1);
 
-        #ifdef DEBUG
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - ALL - 3 WORKERS:" << std::endl;
+        std::cout << "\nSCAN AREA SETS - MAIN EXECUTABLE ONLY - 1 WORKER:"
+                  << std::endl;
         _print_scan_area_sets(wp);
-        #endif
 
-
-        //add new constraints constraints, find nodes of patterned mmap'ed files
-        obj_node_1 = mc_get_obj_by_basename(
-                        &params.map, _target_helper::pattern_1_basename);
-        obj_node_2 = mc_get_obj_by_basename(
-                        &params.map, _target_helper::pattern_2_basename);
-
-        //exclusively scan the fetched patterned mmap'ed objects
-        std::vector<const cm_lst_node *> exclusive_objs
-            = {obj_node_1, obj_node_2 };
-        ret = params.opts.set_exclusive_objs(exclusive_objs);
-        REQUIRE_EQ(ret, 0);
-        
-
-        //setup the worker pool
-        ret = wp.setup(params.opts, params.t_opts, params.t_scan,
-                       params.ma_set, sc::WORKER_POOL_KEEP_WORKERS);
-        CHECK_EQ(ret, 0);
-
-        #ifdef DEBUG
-        //display scan area sets
-        std::cout << "\nSCAN AREA SETS - MMAP PATTERNS - 3 WORKERS"
-                  << " - WORKER_POOL_KEEP_WORKERS:" << std::endl;
-        _print_scan_area_sets(wp);
-        #endif
-        
-        //teardown
+        //reset the worker pool
         ret = wp.free_workers();
         CHECK_EQ(ret, 0);
-        _teardown_worker_pool(params);
-        _teardown_memcry(params, 1);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+
+    } //end test
     
+    
+    //test 2 - setup & free workers (multithreaded)
+    SUBCASE(test_cc_worker_pool_subtests[2]) {
+
+        //first test - entire target - 8 threads
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 8);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 8);
+        _assert_worker_concurrency(wp, 0, 8);
+
+        //display scan area sets
+        std::cout << "\nSCAN AREA SETS - EVERYTHING - 8 WORKERS:"
+                  << std::endl;
+        _print_scan_area_sets(wp);
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+
+        //second test - only scan the main executable
+
+        //re-do setup
+        _memcry_helper::setup(mcry_args, pid, 8);
+        _opt_helper::setup(opt_args, mcry_args, [&]{
+
+            //fetch target's object
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::target_name);
+            CHECK_NE(node, nullptr);
+
+            std::vector<const cm_lst_node *> exclusive_objs = { node };
+
+            ret = opt_args.opts.set_exclusive_objs(exclusive_objs);
+            CHECK_EQ(ret, 0);
+        });
+
+        //setup worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 8);
+        _assert_worker_concurrency(wp, 0, 8);
+
+        //display scan area sets
+        std::cout << "\nSCAN AREA SETS - MAIN EXECUTABLE ONLY - 8 WORKERS:"
+                  << std::endl;
+        _print_scan_area_sets(wp);
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+
     } //end test
 
-}
+
+    //test 3 - flag tests
+    SUBCASE(test_cc_worker_pool_subtests[3]) {
+
+        //only test - keep workers & keep the scan set
+
+        /*
+         *  NOTE: The underlying type of pthread_t varies across
+         *        implementations. For this test, it's assumed
+         *        a `memcmp()` is sufficient to prove the two IDs
+         *        are identical.
+         */
+
+        //store for old pthread IDs
+        pthread_t old_pthread_ids[2] = {0};
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 2);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 2);
+        _assert_worker_concurrency(wp, 0, 2);
+
+        #ifdef DEBUG
+        //copy old pthread IDs
+        std::memcpy(&old_pthread_ids[0],
+                    &wp.worker_ids[0], sizeof(old_pthread_ids[0]));
+        std::memcpy(&old_pthread_ids[1],
+                    &wp.worker_ids[1], sizeof(old_pthread_ids[1]));
+        #endif
+
+        //change map area set
+        _opt_helper::teardown(opt_args);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+
+        //re-initialise the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set,
+                        sc::WORKER_POOL_KEEP_WORKERS
+                        & sc::WORKER_POOL_KEEP_SCAN_SET);
+        CHECK_EQ(ret, 0);
+
+        #ifdef DEBUG
+        //check pthread IDs are the same
+        std::memcmp(&old_pthread_ids[0],
+                    &wp.worker_ids[0], sizeof(old_pthread_ids[0]));
+        std::memcmp(&old_pthread_ids[1],
+                    &wp.worker_ids[1], sizeof(old_pthread_ids[1]));
+        #endif
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+        
+    } //end test
+
+
+    //test 4 - worker scan test
+    SUBCASE(test_cc_worker_pool_subtests[4]) {
+
+        //only test - read patterned memory from mmap'ed file
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 1);
+        _opt_helper::setup(opt_args, mcry_args, [&]{
+            std::vector<const cm_lst_node *> exclusive_objs;
+            
+            //fetch pattern objects
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_1_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_2_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            ret = opt_args.opts.set_exclusive_objs(exclusive_objs);
+            CHECK_EQ(ret, 0);
+        });
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 1);
+        _assert_worker_concurrency(wp, 0, 1);
+
+        //run the scan
+        ret = wp._single_run();
+        CHECK_EQ(ret, 0);        
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+        
+    } //end test
+
+
+    //test 5 - worker scan test (multithreaded)
+    SUBCASE(test_cc_worker_pool_subtests[5]) {
+
+        //only test - read patterned memory from mmap'ed file
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 2);
+        _opt_helper::setup(opt_args, mcry_args, [&]{
+            std::vector<const cm_lst_node *> exclusive_objs;
+            
+            //fetch pattern objects
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_1_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_2_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            ret = opt_args.opts.set_exclusive_objs(exclusive_objs);
+            CHECK_EQ(ret, 0);
+        });
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 2);
+        _assert_worker_concurrency(wp, 0, 2);
+
+        //run the scan
+        ret = wp._single_run();
+        CHECK_EQ(ret, 0);        
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+        
+    } //end test
+
+
+    //destroy the target
+    _target_helper::end_target(pid);
+
+    return;
+
+} //end TEST_CASE
+
+
+      /* =================== * 
+ ===== *  C INTERFACE TESTS  * =====
+       * =================== */
+
+/*
+ *  --- [TESTS] ---
+ */
+
+TEST_CASE(test_c_worker_pool_subtests[0]) {
+
+    int ret;
+    cm_lst_node * node;
+
+    pid_t pid;
+    _memcry_helper::args mcry_args;
+    _opt_helper::args opt_args(sc::AW64);
+    
+    _fixture_opts fixt_opts;
+    _fixture_scan fixt_scan;
+
+
+    //launch target
+    pid = _target_helper::start_target();
+    CHECK_EQ(pid, 0);
+
+
+    //test 0: construct worker pools
+
+    //create a C worker pool
+    sc_worker_pool wp = sc_new_worker_pool();
+    REQUIRE_NE(wp, nullptr);
+    sc::worker_pool * wp_cc = (sc::worker_pool *) wp;
+
+
+    //test 1 - setup & free workers
+    SUBCASE(test_cc_worker_pool_subtests[1]) {
+
+        //only test - entire target
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 1);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+
+        //setup the worker pool
+        ret = wp_cc->_setup(opt_args.opts, fixt_opts,
+                            fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(*wp_cc, 1);
+        _assert_worker_concurrency(*wp_cc, 0, 1);
+
+        //reset the worker pool
+        ret = sc_wp_free_workers(wp);
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(*wp_cc, 0);
+        _assert_worker_concurrency(*wp_cc, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+
+    } //end test
+
+    ///delete the C worker pool
+    ret = sc_del_worker_pool(wp);
+    CHECK_EQ(ret, 0);
+
+    //destroy the target
+    _target_helper::end_target(pid);
+
+    return;
+    
+} //end TEST_CASE

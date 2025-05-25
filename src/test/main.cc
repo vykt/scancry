@@ -29,7 +29,8 @@ const constexpr uint16_t cc_opt_ptrscan_test = 1 << 2;
 const constexpr uint16_t c_opt_ptrscan_test  = 1 << 3;
 const constexpr uint16_t cc_map_area_set_test = 1 << 4;
 const constexpr uint16_t c_map_area_set_test  = 1 << 5;
-
+const constexpr uint16_t cc_worker_pool_test = 1 << 6;
+const constexpr uint16_t c_worker_pool_test = 1 << 7;
 
 
 //determine which tests to run
@@ -43,6 +44,8 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
         {"c-opt_ptrscan", no_argument, NULL, 'P'},
         {"cc-map_area_set", no_argument, NULL, 's'},
         {"c-map_area_set", no_argument, NULL, 'S'},
+        {"cc-worker_pool", no_argument, NULL, 'w'},
+        {"c-worker_pool", no_argument, NULL, 'W'},
         {0,0,0,0}
     };
 
@@ -50,7 +53,7 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
     uint16_t test_mask = 0;
 
     
-    while((opt = getopt_long(argc, argv, "aoOpPsS", long_opts, NULL)) != -1 
+    while((opt = getopt_long(argc, argv, "aoOpPsSwW", long_opts, NULL)) != -1 
           && opt != 0) {
 
         //determine parsed argument
@@ -83,6 +86,14 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
             case 'S':
                 test_mask |= c_map_area_set_test;
                 break;
+
+            case 'w':
+                test_mask |= cc_worker_pool_test;
+                break;
+
+            case 'W':
+                test_mask |= c_worker_pool_test;
+                break;
         }
     }
 
@@ -104,6 +115,8 @@ static void _run_unit_tests(cm_byte test_mask) {
     if (test_mask & c_opt_ptrscan_test)  add_c_opt_ptrscan(context);
     if (test_mask & cc_map_area_set_test) add_cc_map_area_set(context); 
     if (test_mask & c_map_area_set_test)  add_c_map_area_set(context); 
+    if (test_mask & cc_worker_pool_test) add_cc_worker_pool(context);
+    if (test_mask & c_worker_pool_test) add_c_worker_pool(context);
 
     //run selected tests
     ret = context.run();

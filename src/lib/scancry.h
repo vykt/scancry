@@ -349,7 +349,7 @@ class worker_pool : public _lockable {
         /* internal */ [[nodiscard]] int _single_run();
         
         //setup ahead of a scan
-        /* internal */ [[nodiscard]] int setup(
+        /* internal */ [[nodiscard]] int _setup(
                                         sc::opt & opts,
                                         sc::_opt_scan & opts_scan,
                                         sc::_scan & scan,

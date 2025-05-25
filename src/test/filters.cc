@@ -63,3 +63,19 @@ void add_c_map_area_set(doctest::Context & context) {
                  test_c_map_area_set_subtests_num, context);
     return;
 }
+
+
+//add C++ interface `worker_pool` tests
+void add_cc_worker_pool(doctest::Context & context) {
+    _add_filters(test_cc_worker_pool_subtests,
+                 test_cc_worker_pool_subtests_num, context);
+    return;
+}
+
+
+//add C interface `map_area_set` tests
+void add_c_worker_pool(doctest::Context & context) {
+    _add_filters(test_c_worker_pool_subtests,
+                 test_c_worker_pool_subtests_num, context);
+    return;
+}

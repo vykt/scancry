@@ -17,7 +17,7 @@
 CFLAGS=${_CFLAGS} -fsanitize=address -fsanitize-recover=address
 WARN_OPTS+=${_WARN_OPTS} -Wno-unused-variable -Wno-unused-but-set-variable
 LDFLAGS=-L${LIB_BIN_DIR} \
-        -Wl,-rpath=${LIB_BIN_DIR} -lscry -lmcry -lcmore -static-libasan
+        -Wl,-rpath=${LIB_BIN_DIR} -lscry -lmcry -lcmore -lpthread -static-libasan
 
 
 #[build constants]

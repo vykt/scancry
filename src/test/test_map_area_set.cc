@@ -92,7 +92,6 @@ static void _cc_print_set(
     const std::vector<const cm_lst_node *> & sorted_area_nodes) {
 
     mc_vm_area * area;
-    char str_buf[5];
 
 
     std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
@@ -102,8 +101,6 @@ static void _cc_print_set(
          iter != sorted_area_nodes.cend(); ++iter) {
 
         area = MC_GET_NODE_AREA((*iter));
-        mc_access_to_str(area->access, str_buf);
-
         _memcry_helper::print_area(area);
 
     } //end for every area
@@ -240,7 +237,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 3: apply address range constraints
     SUBCASE(test_cc_map_area_set_subtests[3]) {
-#if 0
+        
         sc::map_area_set ma_set;
 
         cm_lst_node * main_node, * stack_node;
@@ -249,7 +246,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
 
         //setup
-        main_node = mc_get_obj_by_basename(&map, target_name);
+        main_node = mc_get_obj_by_basename(&map, _target_helper::target_name);
         CHECK_NE(main_node, nullptr);
         stack_node = mc_get_obj_by_basename(&map, "[stack]");
         CHECK_NE(stack_node, nullptr);
@@ -261,7 +258,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         //only test: scan only the main executable
         std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
             {main_obj->start_addr, main_obj->end_addr},
-            {stack_obj->start_addr, main_obj->end_addr}
+            {stack_obj->start_addr, stack_obj->end_addr}
         };
 
         ret = opts.set_addr_ranges(ranges);
@@ -289,13 +286,13 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             "map_area_set: main & heap address range", sorted_area_nodes);
        
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif
+        
     } //end test
 
 
     //test 4: apply object & area constraints
     SUBCASE(test_cc_map_area_set_subtests[4]) {
-#if 0
+
         sc::map_area_set ma_set;
 
         cm_lst_node * main_node, * stack_obj_node, * stack_area_node, * tmp_node;
@@ -304,7 +301,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
 
         //setup
-        main_node = mc_get_obj_by_basename(&map, target_name);
+        main_node = mc_get_obj_by_basename(&map, _target_helper::target_name);
         CHECK_NE(main_node, nullptr);
         stack_obj_node = mc_get_obj_by_basename(&map, "[stack]");
         CHECK_NE(stack_obj_node, nullptr);
@@ -316,6 +313,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
 
         //first test: omit objs & omit areas        
+
         ret = opts.set_omit_objs(
             std::vector<const cm_lst_node *>({main_node}));
         CHECK_EQ(ret, 0);
@@ -341,6 +339,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
 
         //second test: exclusive objs & exclusive areas
+
         ret = opts.set_exclusive_objs(
             std::vector<const cm_lst_node *>({main_node}));
         CHECK_EQ(ret, 0);
@@ -377,8 +376,8 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             std::vector<const cm_lst_node *>({map.vm_areas.head}));
         CHECK_EQ(ret, 0);
         
-        //only target `rw-` segments
-        ret = opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
+        //only target `r--` segments
+        ret = opts.set_access(MC_ACCESS_READ);
         CHECK_EQ(ret, 0);
 
         //exclude second area of main by address
@@ -402,11 +401,11 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             "map_area_set: all constraints (expect 1 area)", sorted_area_nodes);
 
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif
+
     } //end test
 
 
-    //test 4: apply object & area constraints
+    //test 5: reset
     SUBCASE(test_cc_map_area_set_subtests[4]) {
 
         /*

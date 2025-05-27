@@ -27,6 +27,9 @@ void _memcry_helper::setup(_memcry_helper::args & mcry_args, pid_t pid, int sess
     }
 
     //initialise a MemCry map of the target
+    mc_new_vm_map(&mcry_args.map);
+
+    //populate the MemCry map
     ret = mc_update_map(&mcry_args.sessions[0], &mcry_args.map);
     REQUIRE_EQ(ret, 0);
 
@@ -58,6 +61,10 @@ void _memcry_helper::teardown(_memcry_helper::args & mcry_args) {
 void _memcry_helper::print_area(mc_vm_area * area) {
 
     char str_buf[5];
+
+
+    //convert access to a string
+    mc_access_to_str(area->access, str_buf);
 
     /*
      *  NOTE: Format: <start_addr> - <end_addr> - <perms> - <basename:12>

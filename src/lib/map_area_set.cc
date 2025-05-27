@@ -252,12 +252,16 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
             if (exclusive_objs_set.has_value()) {
                 if(!is_included(obj_node, exclusive_objs_set.value())) {
 
-                    //skip to last area of this object before continuing
-                    area_node = get_last_obj_area(obj);
-
-                    goto update_scan_areas_continue;
+                    //can skip to the end of this object 
+                    if(exclusive_areas_set.has_value() == false) {
+                        
+                        //skip to last area of this object before continuing
+                        area_node = get_last_obj_area(obj);
+                        goto update_scan_areas_continue;
+                    }
+                } else {
+                    exclusive_included = true;
                 }
-                exclusive_included = true;
             }
 
             //if an omit object set is used, object must not be in it
@@ -281,6 +285,13 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
                 goto update_scan_areas_continue;
             }
 
+        } else if ((exclusive_objs_set.has_value() == true)
+                   && (exclusive_areas_set.has_value() == false)) {
+
+            //if only an exclusive object set is used, and this area does
+            //not belong to an object
+            goto update_scan_areas_continue;
+            
         } //end object related checks
 
 

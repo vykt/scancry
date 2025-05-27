@@ -102,8 +102,9 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
         buf_real_sz = this->session->page_size - (*this->opts)->addr_width;
 
         //copy the end of the buffer to the beginning
-        std::memcpy(this->buf,
-                    this->buf + buf_real_sz, (*this->opts)->addr_width);
+        std::memcpy(this->buf.data(),
+                    this->buf.data() + buf_real_sz, 
+                    (*this->opts)->addr_width);
 
         //clamp read size between some minimum and the real buffer size
         read_sz = std::clamp(left_sz, buf_min_sz, buf_real_sz);
@@ -111,7 +112,8 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     }
 
     //perform the read
-    ret = mc_read(this->session, arg.addr, this->buf + buf_off, read_sz);
+    ret = mc_read(this->session, arg.addr,
+                  this->buf.data() + buf_off, read_sz);
     if (ret != 0) {
         sc_errno = SC_ERR_MEMCRY;
         return -1;
@@ -119,7 +121,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
     //reset `_scan_arg` state related to the read buffer
     arg.buf_left = this->session->page_size;
-    arg.cur_byte = this->buf;
+    arg.cur_byte = this->buf.data();
 
     return 0;
 }
@@ -158,14 +160,19 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
                             &this->concur.release_count_lock);
     if (ret != 0) RET_PTHREAD_ERR
 
+    //decrease release count & unlock
+    this->concur.release_count -= 1;
+    ret = pthread_mutex_unlock(&this->concur.release_count_lock);
+    if (ret != 0) RET_PTHREAD_ERR
+
     return 0;
 }
 
 
-void sc::_worker::exit() noexcept {
+void sc::_worker::exit() {
 
     int ret;
-
+    
 
     //lock the alive count    
     ret = pthread_mutex_lock(&this->concur.alive_count_lock);
@@ -206,7 +213,6 @@ void sc::_worker::exit() noexcept {
             print_critical(
                 "Worker failed to release the flags lock on exit, expect a deadlock.");
         }
-        pthread_exit(0);
     }
 
     //unlock the waiting count
@@ -215,16 +221,6 @@ void sc::_worker::exit() noexcept {
         print_critical(
             "Worker failed to release the waiting count lock on exit, expect a deadlock.");
         pthread_exit(0);
-    }
-
-    //send a signal to the manager if the live count is now zero
-    if (this->concur.alive_count == 0) {
-        ret = pthread_cond_broadcast(&this->concur.alive_count_cond);
-        if (ret != 0) {
-            print_critical(
-                "Worker failed to signal the manager on exit, expect a deadlock.");
-            pthread_exit(0);
-        }
     }
     
     //unlock alive count
@@ -265,21 +261,21 @@ sc::_worker::_worker(opt ** const opts,
    concur(concur) {
 
     //allocate the read buffer
-    this->buf = new cm_byte[this->session->page_size];
-} 
-
-
-sc::_worker::~_worker() {
-
-    //deallocate the read buffer
-    delete this->buf;
+    this->buf.resize(this->session->page_size);
 }
 
 
 void sc::_worker::main() {
 
     int ret;
+    
 
+    //increment alive count
+    ret = pthread_mutex_lock(&this->concur.alive_count_lock);
+    if (ret != 0) this->exit();
+    this->concur.alive_count += 1;
+    ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
+    if (ret != 0) this->exit();
 
     //repeatedly perform requested scans
     while (true) {
@@ -292,17 +288,16 @@ void sc::_worker::main() {
         const std::vector<const cm_lst_node *> & scan_set
             = this->scan_area_sets[this->scan_area_index];
 
-
         //for every area in this worker's scan set
         for (auto area_iter = scan_set.begin();
              area_iter != scan_set.end(); ++area_iter) {
 
             //if the exit bit is set, kill this worker
-            if ((this->concur.flags | _worker_flag_exit) == true)
+            if ((this->concur.flags & _worker_flag_exit) != 0b0)
                 this->exit();
 
             //if the cancel bit is set, reset
-            if ((this->concur.flags | _worker_flag_cancel) == true)
+            if ((this->concur.flags & _worker_flag_cancel) != 0b0)
                 continue;
 
             //fetch this scan area
@@ -310,7 +305,8 @@ void sc::_worker::main() {
 
             //create a new `_scan_arg`
             struct _scan_arg scan_arg =
-                _scan_arg(area->start_addr, 0, 0, this->buf, *area_iter);
+                _scan_arg(area->start_addr, 0, 0,
+                          this->buf.data(), *area_iter);
 
 
             //process every address
@@ -394,7 +390,7 @@ void sc::_worker::main() {
 
     int ret;
     bool join_good = true;
-    std::timespec time;
+    //std::timespec time;
 
     //just return if there are no workers
     if (this->workers.size() == 0) return 0;
@@ -428,20 +424,8 @@ void sc::_worker::main() {
             ret = pthread_cond_broadcast(&this->concur.release_count_cond);
         } while (ret != 0);
 
-        //get absolute time for the timed wait call to expire
-        ret = clock_gettime(CLOCK_MONOTONIC, &time);
-        if (ret == -1) {
-            sc_errno = SC_ERR_TIMESPEC;
-            return -1;
-        }
-        time.tv_nsec += 500000;
-
-        //performe a timed wait
-        do {
-            ret = pthread_cond_timedwait(&this->concur.alive_count_cond,
-                                         &this->concur.alive_count_lock,
-                                         &time);
-        } while (ret != 0);
+        //release control until next broadcast period
+        usleep(_release_broadcast_wait);
 
     } //end while
 
@@ -500,7 +484,7 @@ void sc::_worker::main() {
     this->sorted_entries.push_back(first_entry);
 
     //for every area in the scan areas hashmap
-    for (auto sa_set_iter = scan_area_nodes.begin()++;
+    for (auto sa_set_iter = ++scan_area_nodes.begin();
          sa_set_iter != scan_area_nodes.end(); ++sa_set_iter) {
 
         inserted = false;
@@ -546,6 +530,7 @@ sc::worker_pool::update_scan_area_set(const map_area_set & ma_set) {
 
 
     //reset existing scan_area_sets
+    this->sorted_entries.clear();
     this->scan_area_sets.clear();
 
     //get a sorted version of the scan areas hashmap
@@ -559,6 +544,7 @@ sc::worker_pool::update_scan_area_set(const map_area_set & ma_set) {
 
     //workers can't be empty
     std::vector<size_t> greedy_size_sum(this->workers.size(), 0);
+    this->scan_area_sets.resize(this->workers.size());
 
     //for every sorted entry
     for (auto entry_iter = this->sorted_entries.begin();

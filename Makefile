@@ -19,7 +19,7 @@ CFLAGS_TEST=
 CXXFLAGS_TEST=
 CWARN_OPTS=
 CXXWARN_OPTS=
-LDFLAGS=-lpthread -lmcry -lcmore
+LDFLAGS=-pthread -lmcry -lcmore
 
 
 #[build constants]
@@ -39,9 +39,9 @@ HEADER=scancry.h
 ifeq ($(build),debug)
 	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG
 	FLAGS_TEST += -DDEBUG
-	LDFLAGS    += -static-libasan
+ 	LDFLAGS    += -static-libasan
 else
-	CFLAGS += -O3
+	CFLAGS += -O2
 endif
 
 

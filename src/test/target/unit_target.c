@@ -119,8 +119,8 @@ void map_pattern_files() {
     int fd_1 = open(PATTERN_1, O_RDONLY);
     int fd_2 = open(PATTERN_2, O_RDONLY);
 
-    void * discard_hdl_1 = mmap(NULL, 0x2000, PROT_READ, MAP_SHARED, fd_1, 0);
-    void * discard_hdl_2 = mmap(NULL, 0x2000, PROT_READ, MAP_SHARED, fd_2, 0);
+    void * discard_hdl_1 = mmap(NULL, 0x2000, PROT_READ, MAP_PRIVATE, fd_1, 0);
+    void * discard_hdl_2 = mmap(NULL, 0x2000, PROT_READ, MAP_PRIVATE, fd_2, 0);
 }
 
 

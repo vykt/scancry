@@ -4,6 +4,11 @@ source scancry.gdb
 
 # place your gdb commands here
 #tb main
-tb test_map_area_set.cc:133
+tb test_worker_pool.cc:303
 run
+continue
+continue
+#b _bootstrap_worker
+directory /home/vykt/ext-repos/debian/glibc-2.36
+#set scheduler-locking step
 layout src

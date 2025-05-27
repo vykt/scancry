@@ -1,12 +1,16 @@
 #ifndef SCANCRY_IMPL_H
 #define SCANCRY_IMPL_H
 
+//standard template library
 #ifdef __cplusplus
 #include <new>
 #include <optional>
 #include <memory>
 #include <vector>
 #endif
+
+//system headers
+#include <unistd.h>
 
 //external libraries
 #include <cmore.h>
@@ -154,22 +158,25 @@ const constexpr cm_byte _worker_flag_release_ready = 0x1;
 const constexpr cm_byte _worker_flag_exit          = 0x2;
 const constexpr cm_byte _worker_flag_cancel        = 0x4;
 
+//worker misc.
+const constexpr useconds_t _release_broadcast_wait = 50000;
+
 //concurrent variables shared by a worker manager and its workers
 struct _worker_concurrency {
 
     //release adaptive barrier
     pthread_cond_t release_count_cond;
     pthread_mutex_t release_count_lock;
-    int release_count;
+    volatile int release_count;
 
     //number of alive threads
     pthread_cond_t alive_count_cond;
     pthread_mutex_t alive_count_lock;
-    int alive_count;
+    volatile int alive_count;
 
     //control flags
     pthread_mutex_t flags_lock;
-    cm_byte flags;
+    volatile cm_byte flags;
 
     _worker_concurrency()
      : release_count_cond(PTHREAD_COND_INITIALIZER),
@@ -215,7 +222,7 @@ class _worker {
         struct _worker_concurrency & concur;
 
         //read buffer
-        cm_byte * buf;
+        std::vector<cm_byte> buf;
 
         //[methods]
         [[nodiscard]] int read_buffer_smart(struct _scan_arg & arg) noexcept;
@@ -223,7 +230,7 @@ class _worker {
         //synchronisation
         [[nodiscard]] int release_wait() noexcept;
         [[nodiscard]] int layer_wait() noexcept;
-        void exit() noexcept;
+        void exit();
 
     public:
         //[methods]
@@ -236,7 +243,6 @@ class _worker {
                 const int scan_area_index,
                 const mc_session * session,
                 struct sc::_worker_concurrency & concur);
-        ~_worker();
 
         void main();
 };

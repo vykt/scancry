@@ -28,6 +28,8 @@
 #include "../lib/scancry.h"
 #include "../lib/worker.hh"
 
+//DEBUG
+#include <cstdio>
 
 
       /* ===================== * 
@@ -105,6 +107,11 @@ class _fixture_scan : public sc::_scan {
     //if checks are enabled
     if (do_checks) {
 
+        //DEBUG
+        std::printf("exp vs. cur: %x vs %x\n", this->expected_byte, *arg.cur_byte);
+        if (this->expected_byte != *arg.cur_byte) sleep(1);
+        //END DEBUG
+
         //check byte pattern is correct
         CHECK_EQ(this->expected_byte, *arg.cur_byte);
 
@@ -147,9 +154,18 @@ static void _print_scan_area_sets(sc::worker_pool & wp) {
     for (auto iter = wp.scan_area_sets.cbegin();
          iter != wp.scan_area_sets.cend(); ++iter) {
 
+        //calculate the size of this scan area set
+        size_t sz = 0;
+        for (auto inner_iter = iter->cbegin();
+             inner_iter != iter->cend(); ++inner_iter) {
+
+            area = MC_GET_NODE_AREA((*inner_iter));
+            sz += (area->end_addr - area->start_addr);
+        }
+
         //print the header for this set
-        std::cout << " --- [" << "Scan area set: " << count << "] --- "
-                  << std::endl;
+        std::cout << " --- [" << "Scan area set: " << count << ", sz: 0x"
+                  << std::hex << sz << std::dec << "] --- " << std::endl;
 
         //for every entry in a scan area set
         for (auto inner_iter = iter->cbegin();
@@ -313,7 +329,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
         _assert_worker_count(wp, 8);
-        _assert_worker_concurrency(wp, 0, 8);
+        _assert_worker_concurrency(wp, 8, 8);
 
         //display scan area sets
         std::cout << "\nSCAN AREA SETS - EVERYTHING - 8 WORKERS:"
@@ -355,7 +371,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
         _assert_worker_count(wp, 8);
-        _assert_worker_concurrency(wp, 0, 8);
+        _assert_worker_concurrency(wp, 8, 8);
 
         //display scan area sets
         std::cout << "\nSCAN AREA SETS - MAIN EXECUTABLE ONLY - 8 WORKERS:"
@@ -380,7 +396,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
     //test 3 - flag tests
     SUBCASE(test_cc_worker_pool_subtests[3]) {
-#if 0
+
         //only test - keep workers & keep the scan set
 
         /*
@@ -403,7 +419,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
         _assert_worker_count(wp, 2);
-        _assert_worker_concurrency(wp, 0, 2);
+        _assert_worker_concurrency(wp, 2, 2);
 
         #ifdef DEBUG
         //copy old pthread IDs
@@ -421,16 +437,16 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         ret = wp._setup(opt_args.opts, fixt_opts,
                         fixt_scan, opt_args.ma_set,
                         sc::WORKER_POOL_KEEP_WORKERS
-                        & sc::WORKER_POOL_KEEP_SCAN_SET);
+                        | sc::WORKER_POOL_KEEP_SCAN_SET);
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
 
         #ifdef DEBUG
         //check pthread IDs are the same
-        std::memcmp(&old_pthread_ids[0],
-                    &wp.worker_ids[0], sizeof(old_pthread_ids[0]));
-        std::memcmp(&old_pthread_ids[1],
-                    &wp.worker_ids[1], sizeof(old_pthread_ids[1]));
+        CHECK_EQ(std::memcmp(&old_pthread_ids[0],
+                 &wp.worker_ids[0], sizeof(old_pthread_ids[0])), 0);
+        CHECK_EQ(std::memcmp(&old_pthread_ids[1],
+                 &wp.worker_ids[1], sizeof(old_pthread_ids[1])), 0);
         #endif
 
         //reset the worker pool
@@ -445,13 +461,13 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
         DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif        
+
     } //end test
 
 
     //test 4 - worker scan test
     SUBCASE(test_cc_worker_pool_subtests[4]) {
-#if 0
+
         //only test - read patterned memory from mmap'ed file
 
         //perform setup
@@ -476,6 +492,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         ret = fixt_scan.reset();
         CHECK_EQ(ret, 0);
         fixt_scan.set_do_checks(true);
+        fixt_scan.set_mod(1);
 
         //setup the worker pool
         ret = wp._setup(opt_args.opts, fixt_opts,
@@ -483,7 +500,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
         _assert_worker_count(wp, 1);
-        _assert_worker_concurrency(wp, 0, 1);
+        _assert_worker_concurrency(wp, 1, 1);
 
         //run the scan
         ret = wp._single_run();
@@ -501,7 +518,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
         DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif        
+
     } //end test
 
 

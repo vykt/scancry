@@ -225,6 +225,7 @@ class _worker {
         std::vector<cm_byte> buf;
 
         //[methods]
+        void exit_flag_handle();
         [[nodiscard]] int read_buffer_smart(struct _scan_arg & arg) noexcept;
 
         //synchronisation

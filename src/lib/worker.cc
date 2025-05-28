@@ -69,6 +69,14 @@ const cm_lst_node * sc::_sa_sort_entry::get_area_node() const noexcept {
  *  --- [WORKER | PRIVATE] ---
  */
 
+void sc::_worker::exit_flag_handle() {
+    
+    //if the exit bit is set, kill this worker
+    if ((this->concur.flags & _worker_flag_exit) != 0b0)
+        this->exit();
+}
+
+
 [[nodiscard]] _SC_DBG_INLINE int
 sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
@@ -284,6 +292,13 @@ void sc::_worker::main() {
         ret = this->release_wait();
         if (ret != 0) this->exit();
 
+        /*
+         *  NOTE: Need an exit bit check here too incase a worker has
+         *        an empty scan area set.
+         */
+         
+         this->exit_flag_handle();
+
         //fetch own scan areas
         const std::vector<const cm_lst_node *> & scan_set
             = this->scan_area_sets[this->scan_area_index];
@@ -292,13 +307,9 @@ void sc::_worker::main() {
         for (auto area_iter = scan_set.begin();
              area_iter != scan_set.end(); ++area_iter) {
 
-            //if the exit bit is set, kill this worker
-            if ((this->concur.flags & _worker_flag_exit) != 0b0)
-                this->exit();
-
-            //if the cancel bit is set, reset
-            if ((this->concur.flags & _worker_flag_cancel) != 0b0)
-                continue;
+            //react to flags
+            this->exit_flag_handle();
+            if ((this->concur.flags & _worker_flag_cancel) != 0b0) continue;
 
             //fetch this scan area
             mc_vm_area * area = MC_GET_NODE_AREA((*area_iter));
@@ -357,7 +368,7 @@ void sc::_worker::main() {
         return -1;
     }
 
-    //for every provided session
+    //allocate worker objects in place
     for (int i = 0; i < sessions.size(); ++ i) {
 
         //create a new worker
@@ -368,12 +379,14 @@ void sc::_worker::main() {
                                                i,
                                                sessions[i],
                                                this->concur));
+    }
 
-        //add a pthread_id for this worker
-        this->worker_ids.push_back(0);
+    //spawn threads once no more reallocations take place
+    this->worker_ids.resize(sessions.size());
+    for (int i = 0; i < sessions.size(); ++i) {
 
         //start a thread for this worker
-        ret = pthread_create(&this->worker_ids.back(), nullptr,
+        ret = pthread_create(&this->worker_ids[i], nullptr,
                              _bootstrap_worker, &this->workers.back());
         if (ret != 0) {
             sc_errno = SC_ERR_PTHREAD;
@@ -579,7 +592,7 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 
     //wait for threads to be ready
-    while (this->concur.flags | _worker_flag_release_ready) {
+    while ((this->concur.flags | _worker_flag_release_ready) == false) {
         usleep(_single_run_sleep_interval_usec);
     }
 

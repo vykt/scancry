@@ -24,8 +24,12 @@ enum target_map_state {
 
 //target metadata
 const constexpr char * target_name = "unit_target";
+
 const constexpr char * pattern_1_basename = "pattern1.bin";
 const constexpr char * pattern_2_basename = "pattern2.bin";
+
+const constexpr size_t pattern_1_sz = 0x2000;
+const constexpr size_t pattern_2_sz = 0x2000;
 
 
 //target helpers

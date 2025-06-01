@@ -36,7 +36,11 @@ HEADER=scancry.h
 
 
 #[set build options]
-ifeq ($(build),debug)
+ifeq ($(build),verbose_debug)
+	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG -DVERBOSE_DEBUG
+	FLAGS_TEST += -DDEBUG -DVERBOSE_DEBUG
+ 	LDFLAGS    += -static-libasan
+else ifeq ($(build),debug)
 	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG
 	FLAGS_TEST += -DDEBUG
  	LDFLAGS    += -static-libasan

@@ -97,14 +97,15 @@ inline const constexpr char * test_c_map_area_set_subtests[] = {
 
 
 //C++ interface worker_pool tests
-inline const constexpr int test_cc_worker_pool_subtests_num = 6;
+inline const constexpr int test_cc_worker_pool_subtests_num = 7;
 inline const constexpr char * test_cc_worker_pool_subtests[] = {
     "test_cc_worker_pool",
     "test_cc_worker_pool_setup_free_workers",
     "test_cc_worker_pool_setup_free_workers_threaded",
     "test_cc_worker_pool_flags",
     "test_cc_worker_pool_scan",
-    "test_cc_worker_pool_scan_threaded"
+    "test_cc_worker_pool_scan_threaded",
+    "test_cc_worker_pool_crash_recover"
 };
 
 

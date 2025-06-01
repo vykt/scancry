@@ -4,11 +4,15 @@
 #include <vector>
 #include <unordered_set>
 #include <algorithm>
+#include <functional>
 
 //C standard library
 #include <cstddef>
 #include <cstring>
 #include <ctime>
+#ifdef VERBOSE_DEBUG
+#include <cstdio>
+#endif
 
 //system headers
 #include <unistd.h>
@@ -22,9 +26,6 @@
 #include "scancry.h"
 #include "scancry_impl.h"
 #include "error.hh"
-
-
-#define RET_PTHREAD_ERR { sc_errno = SC_ERR_PTHREAD; return -1; }
 
 
 /*
@@ -73,7 +74,7 @@ void sc::_worker::exit_flag_handle() {
     
     //if the exit bit is set, kill this worker
     if ((this->concur.flags & _worker_flag_exit) != 0b0)
-        this->exit();
+        this->exit(false);
 }
 
 
@@ -84,6 +85,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
     ssize_t read_sz, area_sz, left_sz, buf_real_sz, buf_off, buf_min_sz = 0;
     mc_vm_area * area;
+    off_t addr_off;
 
 
     //fetch this area
@@ -100,13 +102,14 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 
         read_sz = this->session->page_size;
         buf_off = 0;
+        addr_off = 0;
 
     //continue reading
     } else {
 
         //calculate relevant sizes & offsets
-        area_sz     = area->end_addr - area->end_addr;
-        left_sz     = area_sz - arg.area_off;
+        area_sz     = area->end_addr - area->start_addr;
+        left_sz     = area_sz - arg.area_off - (*this->opts)->addr_width;
         buf_real_sz = this->session->page_size - (*this->opts)->addr_width;
 
         //copy the end of the buffer to the beginning
@@ -117,15 +120,30 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
         //clamp read size between some minimum and the real buffer size
         read_sz = std::clamp(left_sz, buf_min_sz, buf_real_sz);
         buf_off = (*this->opts)->addr_width;
+        addr_off = (*this->opts)->addr_width;
+
+        #ifdef VERBOSE_DEBUG
+        std::printf("\n[SCRY] area_sz: 0x%lx | area_off: 0x%lx | left_sz: 0x%lx | buf_real_sz: 0x%lx | read_sz: 0x%lx\n",
+                    area_sz, arg.area_off, left_sz, buf_real_sz, read_sz);
+        #endif
+
     }
 
     //perform the read
-    ret = mc_read(this->session, arg.addr,
+    ret = mc_read(this->session, arg.addr + addr_off,
                   this->buf.data() + buf_off, read_sz);
     if (ret != 0) {
-        sc_errno = SC_ERR_MEMCRY;
         return -1;
     }
+
+    #ifdef VERBOSE_DEBUG
+    std::printf(
+        "[SCRY] scan_area_idx: %d | addr + addr_buf: 0x%lx | buf_off: 0x%lx | read_sz: 0x%lx\n",
+        this->scan_area_index,
+        arg.addr + addr_off,
+        buf_off,
+        read_sz);
+    #endif
 
     //reset `_scan_arg` state related to the read buffer
     arg.buf_left = this->session->page_size;
@@ -135,109 +153,130 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
 }
 
 
-[[nodiscard]] _SC_DBG_INLINE int sc::_worker::release_wait() noexcept {
+/*
+ *  FIXME: Nesting these calls results in a deadlock. Acquiring multiple
+ *         locks simultaneously is also necessary. Figure out some way to
+ *         resolve this.
+ */
+
+void sc::_worker::do_under_mutex(
+    pthread_mutex_t & mutex, std::function<void()> cb) {
 
     int ret;
 
+    //get the lock
+    ret = pthread_mutex_lock(&mutex);
+    if (ret != 0) this->exit(true);
 
-    //lock waiting count
-    ret = pthread_mutex_lock(&this->concur.release_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
+    //execute callback
+    cb();
 
-    //increment waiting count
-    ++this->concur.release_count;
-
-    //if all threads are now waiting
-    if (this->concur.release_count == this->concur.alive_count) {
-
-        //lock flags
-        ret = pthread_mutex_lock(&this->concur.flags_lock);
-        if (ret != 0) RET_PTHREAD_ERR
-
-        //set the workers ready flag
-        this->concur.flags |= _worker_flag_release_ready;
-
-        //unlock flags
-        ret = pthread_mutex_unlock(&this->concur.flags_lock);
-        if (ret != 0) RET_PTHREAD_ERR
+    //release the lock
+    ret = pthread_mutex_unlock(&mutex);
+    if (ret != 0) this->exit(true);
     
-    }
-
-    //wait for manager's signal
-    ret = pthread_cond_wait(&this->concur.release_count_cond,
-                            &this->concur.release_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
-
-    //decrease release count & unlock
-    this->concur.release_count -= 1;
-    ret = pthread_mutex_unlock(&this->concur.release_count_lock);
-    if (ret != 0) RET_PTHREAD_ERR
-
-    return 0;
 }
 
 
-void sc::_worker::exit() {
+void sc::_worker::do_under_mutex_critical(pthread_mutex_t & mutex,
+                                          const std::string & msg,
+                                          std::function<void()> cb) {
 
     int ret;
-    
 
-    //lock the alive count    
-    ret = pthread_mutex_lock(&this->concur.alive_count_lock);
-    if (ret != 0) {
-        print_critical(
-            "Worker failed to acquire the alive count lock on exit, count is now corrupted.");
-        pthread_exit(0);
-    }
+    //get the lock
+    ret = pthread_mutex_lock(&mutex);
+    if (ret != 0) { print_critical(msg); pthread_exit(0); }
 
-    //lock the waiting count
-    ret = pthread_mutex_lock(&this->concur.release_count_lock);
-    if (ret != 0) {
-        print_critical(
-            "Worker failed to acquire the waiting count lock on exit, expect a deadlock.");
-        pthread_exit(0);
-    }
+    //execute callback
+    cb();
 
-    //decrement alive count
-    --this->concur.alive_count;
+    //release the lock
+    ret = pthread_mutex_unlock(&mutex);
+    if (ret != 0) { print_critical(msg); pthread_exit(0); }
+}
 
-    //set the workers ready flag if other threads are waiting
-    if (this->concur.alive_count == this->concur.release_count) {
-        
-        //lock flags
-        ret = pthread_mutex_lock(&this->concur.flags_lock);
-        if (ret != 0) {
-            print_critical(
-                "Worker failed to acquire the flags lock on exit, expect a deadlock.");
-                pthread_exit(0);
-        }
 
-        //set the workers ready flag
-        this->concur.flags |= _worker_flag_release_ready;
+[[nodiscard]] _SC_DBG_INLINE int sc::_worker::release_wait() {
 
-        //unlock flags
-        ret = pthread_mutex_unlock(&this->concur.flags_lock);
-        if (ret != 0) {
-            print_critical(
-                "Worker failed to release the flags lock on exit, expect a deadlock.");
-        }
-    }
+    int ret;
 
-    //unlock the waiting count
-    ret = pthread_mutex_unlock(&this->concur.release_count_lock);
-    if (ret != 0) {
-        print_critical(
-            "Worker failed to release the waiting count lock on exit, expect a deadlock.");
-        pthread_exit(0);
-    }
-    
-    //unlock alive count
-    ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
-    if (ret != 0) {
-        print_critical(
-            "Worker failed to release the alive count on exit, expect a deadlock.");
-        pthread_exit(0);
-    }
+
+    //increment waiting count and signal worker pool class if all threads
+    //are now waiting
+    this->do_under_mutex(this->concur.release_count_lock, [this,&ret]() {
+
+        //increment waiting count
+        this->concur.release_count += 1;
+
+        /*
+         *  FIXME: Failure of nested `do_under_mutex()` will cause deadlock.
+         */
+
+        //if all threads are now waiting
+        if (this->concur.release_count == this->concur.alive_count) {
+            this->do_under_mutex(this->concur.flags_lock, [this]() {
+                this->concur.flags |= _worker_flag_release_ready;
+            });
+        } //end if all threads are now waiting
+
+        //wait for manager's signal
+        ret = pthread_cond_wait(&this->concur.release_count_cond,
+                                &this->concur.release_count_lock);
+        std::printf("cond_wait return: %d\n", ret); //DEBUG
+        ret = (ret != 0) ? -1 : 0;
+
+        //decrement release count
+        this->concur.release_count -= 1;
+    });
+
+    return (ret != 0) ? -1 : 0;
+}
+
+
+void sc::_worker::exit(bool is_error) {
+
+    /*
+     *  FIXME: This is awful, but the correct implementation is 4 times the size.
+     */
+
+    //lock alive count
+    this->do_under_mutex_critical(
+        this->concur.alive_count_lock,
+        "Worker exit failed critically, expect a deadlock (`alive_count`).",
+        [this, is_error]() {
+
+            //lock release count
+            this->do_under_mutex_critical(
+                this->concur.release_count_lock,
+                "Worker exit failed critically, expect a deadlock (`release_count`).",
+                [this, is_error]() {
+
+                    //lock flags
+                    this->do_under_mutex_critical(
+                        this->concur.flags_lock,
+                        "Worker exit failed critically, expect a deadlock (`flags`).",
+                        [this, is_error]() {
+
+                            //decrement alive count
+                            this->concur.alive_count -= 1;
+
+                            //request workers to exit if an error occurred
+                            if (is_error) {
+                                this->concur.flags |= _worker_flag_exit;
+                                this->concur.flags |= _worker_flag_error;
+                            }
+
+                            //signal worker pool if all other threads are ready
+                            if (this->concur.alive_count
+                                == this->concur.release_count) {
+
+                                this->concur.flags |= _worker_flag_release_ready;
+                            }
+                    });
+                    
+            });
+    });
 
     pthread_exit(0);
 }
@@ -279,18 +318,15 @@ void sc::_worker::main() {
     
 
     //increment alive count
-    ret = pthread_mutex_lock(&this->concur.alive_count_lock);
-    if (ret != 0) this->exit();
-    this->concur.alive_count += 1;
-    ret = pthread_mutex_unlock(&this->concur.alive_count_lock);
-    if (ret != 0) this->exit();
+    this->do_under_mutex(this->concur.alive_count_lock,
+                         [this]() {this->concur.alive_count += 1;});
 
     //repeatedly perform requested scans
     while (true) {
 
         //wait for the manager to release this worker
         ret = this->release_wait();
-        if (ret != 0) this->exit();
+        if (ret != 0) this->exit(true);
 
         /*
          *  NOTE: Need an exit bit check here too incase a worker has
@@ -326,7 +362,7 @@ void sc::_worker::main() {
                 //fetch next buffer if current buffer has run out
                 if (scan_arg.buf_left <= (*this->opts)->addr_width) {
                     ret = this->read_buffer_smart(scan_arg);
-                    if (ret != 0) this->exit();
+                    if (ret != 0) this->exit(true);
                 }
 
                 //send this address to the scanner
@@ -335,7 +371,7 @@ void sc::_worker::main() {
                                                    *this->opts_scan);
                 if (ret != 0) {
                     print_warning("`_process_addr()` encountered an error.");
-                    this->exit();
+                    this->exit(true);
                 }
 
                 //increment `_scan_arg` state
@@ -387,7 +423,7 @@ void sc::_worker::main() {
 
         //start a thread for this worker
         ret = pthread_create(&this->worker_ids[i], nullptr,
-                             _bootstrap_worker, &this->workers.back());
+                             _bootstrap_worker, &this->workers[i]);
         if (ret != 0) {
             sc_errno = SC_ERR_PTHREAD;
             return -1;
@@ -601,8 +637,10 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
         ret = pthread_mutex_lock(&this->concur.flags_lock);
     } while (ret != 0);
 
-    //reset the workers ready flag
+    //reset flags
     this->concur.flags &= ~_worker_flag_release_ready;
+    this->concur.flags &= ~_worker_flag_error;
+    this->concur.flags &= ~_worker_flag_exit;
 
     //unlock flags
     do {
@@ -615,8 +653,13 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
     } while (ret != 0);
 
     //wait for the threads to finish
-    while (this->concur.flags | _worker_flag_release_ready) {
+    while ((this->concur.flags & _worker_flag_release_ready) == false) {
         usleep(_single_run_sleep_interval_usec);
+    }
+
+    //check if an error occurred during the scan
+    if ((this->concur.flags & _worker_flag_error) != 0) {
+        return -1;
     }
 
     return 0;

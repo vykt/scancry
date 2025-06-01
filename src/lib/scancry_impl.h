@@ -7,6 +7,7 @@
 #include <optional>
 #include <memory>
 #include <vector>
+#include <functional>
 #endif
 
 //system headers
@@ -157,9 +158,17 @@ class _scan : public _lockable {
 const constexpr cm_byte _worker_flag_release_ready = 0x1;
 const constexpr cm_byte _worker_flag_exit          = 0x2;
 const constexpr cm_byte _worker_flag_cancel        = 0x4;
+const constexpr cm_byte _worker_flag_error         = 0x8;
 
 //worker misc.
 const constexpr useconds_t _release_broadcast_wait = 50000;
+
+
+/*
+ *  NOTE: For the time being, just save an error string that the user
+ *        can optionally view. Ideally, an error string should only be
+ *        saved here if it is no longer recoverable.
+ */
 
 //concurrent variables shared by a worker manager and its workers
 struct _worker_concurrency {
@@ -227,11 +236,15 @@ class _worker {
         //[methods]
         void exit_flag_handle();
         [[nodiscard]] int read_buffer_smart(struct _scan_arg & arg) noexcept;
+        void do_under_mutex(pthread_mutex_t & mutex, std::function<void()> cb);
+        void do_under_mutex_critical(pthread_mutex_t & mutex,
+                                     const std::string & msg,
+                                     std::function<void()> cb);
 
         //synchronisation
-        [[nodiscard]] int release_wait() noexcept;
+        [[nodiscard]] int release_wait();
         [[nodiscard]] int layer_wait() noexcept;
-        void exit();
+        void exit(bool is_error);
 
     public:
         //[methods]

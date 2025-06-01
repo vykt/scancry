@@ -8,6 +8,9 @@
 //C standard library
 #include <cstdlib>
 #include <cstring>
+#ifdef VERBOSE_DEBUG
+#include <cstdio>
+#endif
 
 //system headers
 #include <unistd.h>
@@ -28,8 +31,6 @@
 #include "../lib/scancry.h"
 #include "../lib/worker.hh"
 
-//DEBUG
-#include <cstdio>
 
 
       /* ===================== * 
@@ -56,10 +57,13 @@ class _fixture_scan : public sc::_scan {
     private:
         //[attributes]
         bool do_checks;
+        bool do_crash_one;
+        bool do_crash_all;
 
         cm_byte expected_byte;
         off_t read_off;
         int mod;
+        long call_count;
 
     public:
         //[methods]
@@ -87,6 +91,13 @@ class _fixture_scan : public sc::_scan {
                     cm_byte flags);
 
         void set_do_checks(bool do_checks) { this->do_checks = do_checks; };
+        void set_do_crash_one(bool do_crash_one) {
+            this->do_crash_one = do_crash_one;
+        };
+        void set_do_crash_all(bool do_crash_all) {
+            this->do_crash_all = do_crash_all;
+        };
+        long get_call_count() { return this->call_count; }
         [[nodiscard]] virtual int reset();
 };
 
@@ -96,7 +107,8 @@ class _fixture_scan : public sc::_scan {
  *        directed to read a mmap'ed `patternN.bin` file, which consists
  *        of an incrementing byte pattern for the first kilobyte, followed
  *        by a decrementing pattern for the next kilobyte. Checks are
- *      
+ *
+ *        This only supports offsets of 1 and 4.
  */
  
 [[nodiscard]] _SC_DBG_INLINE int _fixture_scan::_process_addr(
@@ -104,13 +116,23 @@ class _fixture_scan : public sc::_scan {
                                     const sc::opt * const opts,
                                     const sc::_opt_scan * const opts_scan) {
 
+    //skip this offset if `this->mod` does not divide the area offset
+    if ((arg.area_off % std::abs(this->mod)) != 0) return 0;
+
+    //TODO return -1 to one/all thread here
+
+    //increment call count
+    this->call_count += 1;
+
     //if checks are enabled
     if (do_checks) {
 
-        //DEBUG
-        std::printf("exp vs. cur: %x vs %x\n", this->expected_byte, *arg.cur_byte);
-        if (this->expected_byte != *arg.cur_byte) sleep(1);
-        //END DEBUG
+        #ifdef VERBOSE_DEBUG
+        #if 0
+        std::printf("[TEST] exp vs. cur: %x vs %x\n",
+                    this->expected_byte, *arg.cur_byte);
+        #endif
+        #endif
 
         //check byte pattern is correct
         CHECK_EQ(this->expected_byte, *arg.cur_byte);
@@ -122,6 +144,11 @@ class _fixture_scan : public sc::_scan {
         if (read_off < 0x1000) {
             this->expected_byte += this->mod;
         } else {
+            //re-align if mod = 4
+            if (std::abs(this->mod) == 4) {
+                if (this->mod == 4) this->expected_byte = 0xff;
+                if (this->mod == -4) this->expected_byte = 0x0;
+            }
             this->mod *= -1;
             read_off = 0x0;
         }
@@ -135,9 +162,12 @@ class _fixture_scan : public sc::_scan {
 [[nodiscard]] int _fixture_scan::reset() {
 
     this->do_checks     = false;
+    this->do_crash_one  = false;
+    this->do_crash_all  = false;
     this->expected_byte = 0;
     this->read_off      = 0;
     this->mod           = 0;
+    this->call_count    = 0;
 
     return 0;
 }
@@ -468,7 +498,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
     //test 4 - worker scan test
     SUBCASE(test_cc_worker_pool_subtests[4]) {
 
-        //only test - read patterned memory from mmap'ed file
+        //first test - read patterned memory from mmap'ed file
 
         //perform setup
         _memcry_helper::setup(mcry_args, pid, 1);
@@ -505,6 +535,59 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         //run the scan
         ret = wp._single_run();
         CHECK_EQ(ret, 0);        
+        CHECK_EQ(fixt_scan.get_call_count(),
+                _target_helper::pattern_1_sz + _target_helper::pattern_2_sz);
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+
+        //second test - read patterned memory from mmap'ed file, every 4th byte
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 1);
+        _opt_helper::setup(opt_args, mcry_args, [&]{
+            std::vector<const cm_lst_node *> exclusive_objs;
+            
+            //fetch pattern objects
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_1_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            node = mc_get_obj_by_basename(&mcry_args.map,
+                                          _target_helper::pattern_2_basename);
+            CHECK_NE(node, nullptr);
+            exclusive_objs.push_back(node);
+
+            ret = opt_args.opts.set_exclusive_objs(exclusive_objs);
+            CHECK_EQ(ret, 0);
+        });
+        ret = fixt_scan.reset();
+        CHECK_EQ(ret, 0);
+        fixt_scan.set_do_checks(true);
+        fixt_scan.set_mod(4);
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        usleep(thread_wait_usec_time);
+        _assert_worker_count(wp, 1);
+        _assert_worker_concurrency(wp, 1, 1);
+
+        //run the scan
+        ret = wp._single_run();
+        CHECK_EQ(ret, 0);        
+        CHECK_EQ(fixt_scan.get_call_count(),
+                 (_target_helper::pattern_1_sz + _target_helper::pattern_2_sz) / 4);
 
         //reset the worker pool
         ret = wp.free_workers();
@@ -524,11 +607,11 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
     //test 5 - worker scan test (multithreaded)
     SUBCASE(test_cc_worker_pool_subtests[5]) {
-#if 0
+
         //only test - read patterned memory from mmap'ed file
 
         //perform setup
-        _memcry_helper::setup(mcry_args, pid, 2);
+        _memcry_helper::setup(mcry_args, pid, 8);
         _opt_helper::setup(opt_args, mcry_args, [&]{
             std::vector<const cm_lst_node *> exclusive_objs;
             
@@ -549,14 +632,15 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         ret = fixt_scan.reset();
         CHECK_EQ(ret, 0);
         fixt_scan.set_do_checks(false);
+        fixt_scan.set_mod(1);
 
         //setup the worker pool
         ret = wp._setup(opt_args.opts, fixt_opts,
                         fixt_scan, opt_args.ma_set, 0b0);
         CHECK_EQ(ret, 0);
         usleep(thread_wait_usec_time);
-        _assert_worker_count(wp, 2);
-        _assert_worker_concurrency(wp, 0, 2);
+        _assert_worker_count(wp, 8);
+        _assert_worker_concurrency(wp, 8, 8);
 
         //run the scan
         ret = wp._single_run();
@@ -574,7 +658,83 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
         DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif        
+
+    } //end test
+
+
+    //test 6 - force one / all threads to crash
+    SUBCASE(test_cc_worker_pool_subtests[5]) {
+#if 0
+        //first test - force one worker to crash
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 2);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+        ret = fixt_scan.reset();
+        CHECK_EQ(ret, 0);
+        fixt_scan.set_do_checks(false);
+        fixt_scan.set_mod(1);
+        fixt_scan.set_do_crash_one(true);
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        usleep(thread_wait_usec_time);
+        _assert_worker_count(wp, 2);
+        _assert_worker_concurrency(wp, 2, 2);
+
+        //run the scan
+        ret = wp._single_run();
+        CHECK_EQ(ret, -1);        
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+
+        //second test - force all workers to crash
+
+        //perform setup
+        _memcry_helper::setup(mcry_args, pid, 2);
+        _opt_helper::setup(opt_args, mcry_args, [&]{});
+        ret = fixt_scan.reset();
+        CHECK_EQ(ret, 0);
+        fixt_scan.set_do_checks(false);
+        fixt_scan.set_mod(1);
+        fixt_scan.set_do_crash_all(true);
+
+        //setup the worker pool
+        ret = wp._setup(opt_args.opts, fixt_opts,
+                        fixt_scan, opt_args.ma_set, 0b0);
+        CHECK_EQ(ret, 0);
+        usleep(thread_wait_usec_time);
+        _assert_worker_count(wp, 2);
+        _assert_worker_concurrency(wp, 2, 2);
+
+        //run the scan
+        ret = wp._single_run();
+        CHECK_EQ(ret, -1);        
+
+        //reset the worker pool
+        ret = wp.free_workers();
+        CHECK_EQ(ret, 0);
+        _assert_worker_count(wp, 0);
+        _assert_worker_concurrency(wp, 0, 0);
+
+        //teardown setup
+        _opt_helper::teardown(opt_args);
+        _memcry_helper::teardown(mcry_args);
+
+        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+#endif
     } //end test
 
 

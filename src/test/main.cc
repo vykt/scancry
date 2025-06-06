@@ -18,25 +18,27 @@
 #include <doctest/doctest.h>
 
 //local headers
+#include "common.hh"
 #include "filters.hh"
 
 
 
 //tests bitmask
-const constexpr uint16_t cc_opt_test      = 1 << 0;
-const constexpr uint16_t c_opt_test       = 1 << 1;
-const constexpr uint16_t cc_opt_ptrscan_test = 1 << 2;
-const constexpr uint16_t c_opt_ptrscan_test  = 1 << 3;
+const constexpr uint16_t cc_opt_test          = 1 << 0;
+const constexpr uint16_t c_opt_test           = 1 << 1;
+const constexpr uint16_t cc_opt_ptrscan_test  = 1 << 2;
+const constexpr uint16_t c_opt_ptrscan_test   = 1 << 3;
 const constexpr uint16_t cc_map_area_set_test = 1 << 4;
 const constexpr uint16_t c_map_area_set_test  = 1 << 5;
-const constexpr uint16_t cc_worker_pool_test = 1 << 6;
-const constexpr uint16_t c_worker_pool_test = 1 << 7;
+const constexpr uint16_t cc_worker_pool_test  = 1 << 6;
+const constexpr uint16_t c_worker_pool_test   = 1 << 7;
 
 
 //determine which tests to run
 static uint16_t _get_test_mode(int argc, char ** argv) {
 
     const struct option long_opts[] = {
+        {"colour", no_argument, NULL, 'c'},
         {"all", no_argument, NULL, 'a'},
         {"cc-opt", no_argument, NULL, 'o'},
         {"c-opt", no_argument, NULL, 'O'},
@@ -53,11 +55,15 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
     uint16_t test_mask = 0;
 
     
-    while((opt = getopt_long(argc, argv, "aoOpPsSwW", long_opts, NULL)) != -1 
+    while((opt = getopt_long(argc, argv, "caoOpPsSwW", long_opts, NULL)) != -1 
           && opt != 0) {
 
         //determine parsed argument
         switch (opt) {
+
+            case 'c':
+                use_colour = true;
+                break;
 
             case 'a':
                 test_mask = UINT16_MAX;
@@ -128,6 +134,10 @@ static void _run_unit_tests(cm_byte test_mask) {
 //dispatch tests
 int main(int argc, char ** argv) {
 
+    //initialise miscellaneous state
+    use_colour = false;
+
+    //setup & run tests
     uint16_t test_mask = _get_test_mode(argc, argv);
     _run_unit_tests(test_mask);
     

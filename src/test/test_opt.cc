@@ -206,6 +206,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 1: set & get `file_path_out`
     SUBCASE(test_cc_opt_subtests[1]) {
+        title(CC, "opt", "Set & get `file_path_out`");
 
         std::optional<std::string> path  = "/foo/bar";
         _cc_opt_ref_test<sc::opt, std::string>(
@@ -216,6 +217,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 2: set & get `file_path_in`
     SUBCASE(test_cc_opt_subtests[2]) {
+        title(CC, "opt", "Set & get `file_path_in`");
 
         std::optional<std::string> path = "/foo/bar";
         _cc_opt_ref_test<sc::opt, std::string>(
@@ -226,6 +228,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 3: set & get `sessions`
     SUBCASE(test_cc_opt_subtests[3]) {
+        title(CC, "opt", "Set & get `sessions`");
 
         /*
          *  Test implemented directly.
@@ -253,6 +256,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 4: set & get `map`
     SUBCASE(test_cc_opt_subtests[4]) {
+        title(CC, "opt", "Set & get `map`");
 
         /*
          *  Test implemented directly.
@@ -274,6 +278,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     
     //test 5: set & get `omit_areas`
     SUBCASE(test_cc_opt_subtests[5]) {
+        title(CC, "opt", "Set & get `omit_areas`");
 
         std::vector<const cm_lst_node *> s = {
             (const cm_lst_node *) 0x40404040,
@@ -290,6 +295,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 6: set & get `omit_objs`
     SUBCASE(test_cc_opt_subtests[6]) {
+        title(CC, "opt", "Set & get `omit_objs`");
 
         std::vector<const cm_lst_node *> s = {
             (const cm_lst_node *) 0x04040404,
@@ -305,6 +311,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 7: set & get `exclusive_areas`
     SUBCASE(test_cc_opt_subtests[7]) {
+        title(CC, "opt", "Set & get `exclusive_areas`");
 
         std::vector<const cm_lst_node *> s = {
             (const cm_lst_node *) 0x70707070,
@@ -320,6 +327,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     
     //test 8: set & get `exclusive_objs`
     SUBCASE(test_cc_opt_subtests[8]) {
+        title(CC, "opt", "Set & get `exclusive_objs`");
         
         std::vector<const cm_lst_node *> s = {
             (const cm_lst_node *) 0x01010101,
@@ -335,6 +343,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 9: get & set `addr_ranges`
     SUBCASE(test_cc_opt_subtests[9]) {
+        title(CC, "opt", "Set & get `addr_ranges`");
 
         std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
             {0x1000, 0x2000},
@@ -350,6 +359,7 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
     //test 10: set & get `access`
     SUBCASE(test_cc_opt_subtests[10]) {
+        title(CC, "opt", "Set & get `access`");
 
         std::optional<cm_byte> access = MC_ACCESS_READ | MC_ACCESS_WRITE;
         _cc_opt_val_test<sc::opt, cm_byte>(o, access,
@@ -403,6 +413,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 1: set & get `target_addr`
     SUBCASE(test_cc_opt_ptrscan_subtests[1]) {
+        title(CC, "opt_ptrscan", "Set & get `target_addr`");
 
         _cc_opt_val_test<sc::opt_ptrscan, uintptr_t>(
                             o, 0x1000,
@@ -414,6 +425,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 2: set & get `alignment`
     SUBCASE(test_cc_opt_ptrscan_subtests[2]) {
+        title(CC, "opt_ptrscan", "Set & get `alignment`");
 
         _cc_opt_val_test<sc::opt_ptrscan, off_t>(
                             o, 0x4,
@@ -425,6 +437,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 3: set & get `max_obj_sz`
     SUBCASE(test_cc_opt_ptrscan_subtests[3]) {
+        title(CC, "opt_ptrscan", "Set & get `max_obj_sz`");
 
         _cc_opt_val_test<sc::opt_ptrscan, off_t>(
                             o, 0x4,
@@ -436,6 +449,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 4: set & get `max_depth`
     SUBCASE(test_cc_opt_ptrscan_subtests[4]) {
+        title(CC, "opt_ptrscan", "Set & get `max_depth`");
 
         _cc_opt_val_test<sc::opt_ptrscan, int>(
                             o, 0x4,
@@ -447,6 +461,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 5: set & get `static_areas`
     SUBCASE(test_cc_opt_ptrscan_subtests[5]) {
+        title(CC, "opt_ptrscan", "Set & get `static_areas`");
 
         /*
          *  Test implemented directly.
@@ -493,6 +508,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
     //test 6: set & get `preset_offsets`
     SUBCASE(test_cc_opt_ptrscan_subtests[6]) {
+        title(CC, "opt_ptrscan", "Set & get `preset_offsets`");
 
         std::vector<off_t> preset_offsets = {
             0x40,
@@ -510,6 +526,7 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
     
     //test 7: set & get `smart_scan`
     SUBCASE(test_cc_opt_ptrscan_subtests[7]) {
+        title(CC, "opt_ptrscan", "Set & get `smart_scan`");
 
         _cc_val_test<sc::opt_ptrscan, bool>(
                             o, true,
@@ -723,6 +740,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 1: set & get `file_path_out`
     SUBCASE(test_c_opt_subtests[1]) {
+        title(C, "sc_opt", "Set & get `file_path_out`");
 
         const char * path = "/foo/bar";
 
@@ -741,6 +759,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 2: set & get `file_path_in`
     SUBCASE(test_c_opt_subtests[2]) {
+        title(C, "sc_opt", "Set & get `file_path_in`");
 
         const char * path = "/foo/bar";
 
@@ -759,6 +778,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 3: set & get `sessions`
     SUBCASE(test_c_opt_subtests[3]) {
+        title(C, "sc_opt", "Set & get `sessions`");
 
         /*
          *  Test implemented directly.
@@ -838,6 +858,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 4: set & get `map`
     SUBCASE(test_c_opt_subtests[4]) {
+        title(C, "sc_opt", "Set & get `map`");
 
         /*
          *  NOTE: The setter signature is cast to fix constness of the
@@ -855,6 +876,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 5: get `addr_width`
     SUBCASE(test_c_opt_subtests[5]) {
+        title(C, "sc_opt", "Get `addr_width`");
 
         /*
          *  Test implemented directly.
@@ -871,6 +893,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 6: set & get `omit_areas`
     SUBCASE(test_c_opt_subtests[6]) {
+        title(C, "sc_opt", "Set & get `omit_areas`");
 
         const cm_lst_node * a[3] = {
             (const cm_lst_node *) 0x40404040,
@@ -887,6 +910,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 7: set & get `omit_objs`
     SUBCASE(test_c_opt_subtests[7]) {
+        title(C, "sc_opt", "Set & get `omit_objs`");
 
         const cm_lst_node * a[3] = {
             (const cm_lst_node *) 0x04040404,
@@ -903,6 +927,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 8: set & get `exclusive_areas`
     SUBCASE(test_c_opt_subtests[8]) {
+        title(C, "sc_opt", "Set & get `exclusive_areas`");
 
         const cm_lst_node * a[3] = {
             (const cm_lst_node *) 0x70707070,
@@ -919,6 +944,7 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
     //test 9: set & get `exclusive_objs`
     SUBCASE(test_c_opt_subtests[9]) {
+        title(C, "sc_opt", "Set & get `exclusive_objs`");
 
         const cm_lst_node * a[3] = {
             (const cm_lst_node *) 0x07070707,
@@ -933,8 +959,9 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 10: set & get an address ranges
+    //test 10: set & get an `addr_ranges`
     SUBCASE(test_c_opt_subtests[10]) {
+        title(C, "sc_opt", "Set & get `addr_ranges`");
 
         sc_addr_range a[3] = {
             {0x1000, 0x2000},
@@ -951,8 +978,9 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: set & get access
+    //test 11: set & get `access`
     SUBCASE(test_c_opt_subtests[11]) {
+        title(C, "sc_opt", "Set & get `access`");
 
         _c_opt_test<sc_opt, cm_byte>(
                             o, MC_ACCESS_READ | MC_ACCESS_WRITE, -1,
@@ -996,6 +1024,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 1: set & get `target_addr`
     SUBCASE(test_c_opt_ptrscan_subtests[1]) {
+        title(C, "sc_opt_ptrscan", "Set & get `target_addr`");
 
         _c_opt_test<sc_opt_ptrscan, uintptr_t>(
                             o, 0x1000, 0,
@@ -1020,6 +1049,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 3: set & get `max_obj_sz`
     SUBCASE(test_c_opt_ptrscan_subtests[3]) {
+        title(C, "sc_opt_ptrscan", "Set & get `max_obj_sz`");
 
         _c_opt_test<sc_opt_ptrscan, off_t>(
                             o, 0x4, 0,
@@ -1032,6 +1062,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 4: set & get `max_depth`
     SUBCASE(test_c_opt_ptrscan_subtests[4]) {
+        title(C, "sc_opt_ptrscan", "Set & get `max_depth`");
 
         _c_opt_test<sc_opt_ptrscan, int>(
                             o, 0x4, 0,
@@ -1043,6 +1074,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 5: set & get `static_areas`
     SUBCASE(test_c_opt_ptrscan_subtests[5]) {
+        title(C, "sc_opt_ptrscan", "Set & get `static_areas`");
 
         /*
          *  NOTE: The C interface converts the STL hashmap into an
@@ -1084,6 +1116,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 6: set & get `preset_offset`
     SUBCASE(test_c_opt_subtests[6]) {
+        title(C, "sc_opt_ptrscan", "Set & get `preset_offsets`");
 
         off_t offset_arr[3] = {
             0x40,
@@ -1100,6 +1133,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 7: set & get `smart_scan`
     SUBCASE(test_c_opt_ptrscan_subtests[7]) {
+        title(C, "sc_opt_ptrscan", "Set & get `smart_scan`");
 
         _c_val_test<sc_opt_ptrscan, bool>(
             o, true, sc_opt_ptr_set_smart_scan,

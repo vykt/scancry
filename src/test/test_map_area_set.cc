@@ -93,8 +93,11 @@ static void _cc_print_set(
 
     mc_vm_area * area;
 
+    
+    subtitle("set dump", heading);
 
-    std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
+    //use hex conversion
+    std::cout << std::hex;
 
     //for every area
     for (auto iter = sorted_area_nodes.cbegin();
@@ -160,6 +163,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 1: simple, select the entire map
     SUBCASE(test_cc_map_area_set_subtests[1]) {
+        title(CC, "map_area_set", "Select the entire map");
 
         //only test: apply no constaints
         ret = ma_set.update_set(opts);
@@ -185,6 +189,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 2: apply an access permission constraint
     SUBCASE(test_cc_map_area_set_subtests[2]) {
+        title(CC, "map_area_set", "Apply access permission constraints");
 
         //first test: apply `rw-` access constraint
         ret = opts.set_access(MC_ACCESS_READ | MC_ACCESS_WRITE);
@@ -237,6 +242,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 3: apply address range constraints
     SUBCASE(test_cc_map_area_set_subtests[3]) {
+        title(CC, "map_area_set", "Apply address range constraints");
         
         sc::map_area_set ma_set;
 
@@ -292,6 +298,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
     //test 4: apply object & area constraints
     SUBCASE(test_cc_map_area_set_subtests[4]) {
+        title(CC, "map_area_set", "Apply object, area, and mixed constraints");
 
         sc::map_area_set ma_set;
 
@@ -520,6 +527,7 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
 
     //test C wrappers work correctly
     SUBCASE(test_c_map_area_set_subtests[1]) {
+        title(C, "sc_map_area_set", "Check C wrappers work");
 
         mc_vm_obj * obj;
         sc_map_area_set ma_set;

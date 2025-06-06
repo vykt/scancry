@@ -1,6 +1,8 @@
 //standard template library
 #include <optional>
 #include <vector>
+#include <string>
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 #include <utility>
@@ -119,7 +121,22 @@ class _fixture_scan : public sc::_scan {
     //skip this offset if `this->mod` does not divide the area offset
     if ((arg.area_off % std::abs(this->mod)) != 0) return 0;
 
-    //TODO return -1 to one/all thread here
+    /*
+     *  FIXME: Race condition possible on `do_crash_one` check.
+     */
+
+    //crash one worker if requested
+    if (this->do_crash_one) {
+        this->do_crash_one = false;
+        return -1;
+    }
+
+    //crash all workers if requested
+    if (this->do_crash_all) {
+        this->do_crash_all = true;
+        return -1;
+    }
+    
 
     //increment call count
     this->call_count += 1;
@@ -173,11 +190,15 @@ class _fixture_scan : public sc::_scan {
 }
 
 
-static void _print_scan_area_sets(sc::worker_pool & wp) {
+static void _print_scan_area_sets(sc::worker_pool & wp,
+                                  std::string header) {
 #ifdef DEBUG
     int ret, count;
     mc_vm_area * area;
 
+
+    //print header
+    subtitle("scan area sets", header);
 
     //for every scan area set
     count = 0;
@@ -194,8 +215,10 @@ static void _print_scan_area_sets(sc::worker_pool & wp) {
         }
 
         //print the header for this set
-        std::cout << " --- [" << "Scan area set: " << count << ", sz: 0x"
-                  << std::hex << sz << std::dec << "] --- " << std::endl;
+        std::stringstream subtitle_ss;
+        subtitle_ss << "set: " << count << ", sz: 0x"
+                    << std::hex << sz << std::dec;
+        subtitle("scan_area_sets", subtitle_ss.str());
 
         //for every entry in a scan area set
         for (auto inner_iter = iter->cbegin();
@@ -207,8 +230,9 @@ static void _print_scan_area_sets(sc::worker_pool & wp) {
         } //end for each member of a scan area set
              
     } //end for each scan area set
+    
 #else
-    std::cout << "< Only available in debug builds. >" << std::endl;
+    std::cout << "<Only available in debug builds.>\n" << std::endl;
 #endif
     return;
 }
@@ -264,6 +288,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
     //test 1 - setup & free workers
     SUBCASE(test_cc_worker_pool_subtests[1]) {
+        title(CC, "worker_pool", "Setup & free workers");
 
         //first test - entire target
 
@@ -281,9 +306,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _assert_worker_concurrency(wp, 1, 1);
 
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - EVERYTHING - 1 WORKER:"
-                  << std::endl;
-        _print_scan_area_sets(wp);
+        _print_scan_area_sets(wp, "everything - 1 worker");
 
         //reset the worker pool
         ret = wp.free_workers();
@@ -323,9 +346,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _assert_worker_concurrency(wp, 1, 1);
 
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - MAIN EXECUTABLE ONLY - 1 WORKER:"
-                  << std::endl;
-        _print_scan_area_sets(wp);
+        _print_scan_area_sets(wp, "main executable only - 1 worker");
 
         //reset the worker pool
         ret = wp.free_workers();
@@ -345,6 +366,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
     
     //test 2 - setup & free workers (multithreaded)
     SUBCASE(test_cc_worker_pool_subtests[2]) {
+        title(CC, "worker_pool", "Setup & free workers (multithreaded)");
 
         //first test - entire target - 8 threads
 
@@ -362,9 +384,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _assert_worker_concurrency(wp, 8, 8);
 
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - EVERYTHING - 8 WORKERS:"
-                  << std::endl;
-        _print_scan_area_sets(wp);
+        _print_scan_area_sets(wp, "everything - 8 workers");
 
         //reset the worker pool
         ret = wp.free_workers();
@@ -404,9 +424,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _assert_worker_concurrency(wp, 8, 8);
 
         //display scan area sets
-        std::cout << "\nSCAN AREA SETS - MAIN EXECUTABLE ONLY - 8 WORKERS:"
-                  << std::endl;
-        _print_scan_area_sets(wp);
+        _print_scan_area_sets(wp, "main executable only - 8 workers");
 
         //reset the worker pool
         ret = wp.free_workers();
@@ -418,14 +436,17 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _opt_helper::teardown(opt_args);
         _memcry_helper::teardown(mcry_args);
 
-        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
-        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+        DOCTEST_INFO(
+            "WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO(
+            "WARNING: This test is incomplete, use a debugger to inspect state.");
 
     } //end test
 
 
     //test 3 - flag tests
     SUBCASE(test_cc_worker_pool_subtests[3]) {
+        title(CC, "worker_pool", "Flags");
 
         //only test - keep workers & keep the scan set
 
@@ -497,6 +518,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
     //test 4 - worker scan test
     SUBCASE(test_cc_worker_pool_subtests[4]) {
+        title(CC, "worker_pool", "Perform scan");
 
         //first test - read patterned memory from mmap'ed file
 
@@ -607,6 +629,7 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
     //test 5 - worker scan test (multithreaded)
     SUBCASE(test_cc_worker_pool_subtests[5]) {
+        title(CC, "worker_pool", "Perform scan (multithreaded)");
 
         //only test - read patterned memory from mmap'ed file
 
@@ -656,15 +679,21 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
         _opt_helper::teardown(opt_args);
         _memcry_helper::teardown(mcry_args);
 
-        DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
-        DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
+        DOCTEST_INFO(
+            "WARNING: This test requires a debug build (`-DDEBUG`).");
+        DOCTEST_INFO(
+            "WARNING: This test is incomplete, use a debugger to inspect state.");
 
     } //end test
 
 
     //test 6 - force one / all threads to crash
     SUBCASE(test_cc_worker_pool_subtests[5]) {
-#if 0
+        title(CC, "worker_pool", "Force threads to crash");
+
+        DOCTEST_INFO(
+            "NOTE: Expect worker errors during this test.");
+
         //first test - force one worker to crash
 
         //perform setup
@@ -734,7 +763,10 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
         DOCTEST_INFO("WARNING: This test requires a debug build (`-DDEBUG`).");
         DOCTEST_INFO("WARNING: This test is incomplete, use a debugger to inspect state.");
-#endif
+
+        DOCTEST_INFO(
+            "NOTE: Worker errors no longer expected.");
+
     } //end test
 
 

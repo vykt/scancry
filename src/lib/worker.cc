@@ -31,7 +31,18 @@
 /*
  *  NOTE: C-style `void *` were chosen to pass type ambiguous parameters
  *        instead of using templates or RTTI-related methods.
+ */
+
+/*
+ *  NOTE: Currently `std::function` i used to take lambdas with scope
+ *        captures. Such lambdas allocate & deallocate memory each time
+ *        they are called. Currently they are run once per thread per
+ *        single run, and several times on each thread's exit. If their
+ *        use expands to performance critical code, switch to templates.
  *
+ *        Consider also that for consistency, templates should probably
+ *        be used everywhere instead of mixing templates with type
+ *        erasure.
  */
 
 
@@ -223,7 +234,6 @@ void sc::_worker::do_under_mutex_critical(pthread_mutex_t & mutex,
         //wait for manager's signal
         ret = pthread_cond_wait(&this->concur.release_count_cond,
                                 &this->concur.release_count_lock);
-        std::printf("cond_wait return: %d\n", ret); //DEBUG
         ret = (ret != 0) ? -1 : 0;
 
         //decrement release count
@@ -237,7 +247,8 @@ void sc::_worker::do_under_mutex_critical(pthread_mutex_t & mutex,
 void sc::_worker::exit(bool is_error) {
 
     /*
-     *  FIXME: This is awful, but the correct implementation is 4 times the size.
+     *  FIXME: This is awful, but the correct implementation is 4 times
+     *         the size.
      */
 
     //lock alive count
@@ -271,7 +282,8 @@ void sc::_worker::exit(bool is_error) {
                             if (this->concur.alive_count
                                 == this->concur.release_count) {
 
-                                this->concur.flags |= _worker_flag_release_ready;
+                                this->concur.flags
+                                    |= _worker_flag_release_ready;
                             }
                     });
                     

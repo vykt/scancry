@@ -14,6 +14,8 @@
 - A table scanner, as found in *scanmem* and *Cheat Engine*.
 - A pattern scanner.
 
+**Pointer scanner example**
+
 <p align="center">
     <img src="media/overview.png">
 </p>

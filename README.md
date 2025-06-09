@@ -26,6 +26,7 @@ Besides addressing *libscanmem*'s shortcomings, *ScanCry*'s core comes with new 
   - Omit or exclusively scan given areas and objects.
   - Only scan areas with given access permissions (e.g.: `rw-`)
 - A **pointer scanner** is implemented as a scan type, with support for extensive configuration for all scenarios.
+- C bindings are provided; you can use *ScanCry* with your favourite language.
 
 <br>
 

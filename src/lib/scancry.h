@@ -99,7 +99,11 @@ class opt : public _lockable {
         std::optional<
             std::vector<const cm_lst_node *>> exclusive_objs;
         std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> addr_ranges;
+            std::vector<std::pair<uintptr_t, uintptr_t>>>
+                omit_addr_ranges;
+        std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>>
+                exclusive_addr_ranges;
         std::optional<cm_byte> access;
 
     public:
@@ -165,11 +169,17 @@ class opt : public _lockable {
         [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
             get_exclusive_objs() const;
 
-        [[nodiscard]] int set_addr_ranges(const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range);
+        [[nodiscard]] int set_omit_addr_ranges(const std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_ranges);
         [[nodiscard]] const std::optional<
             std::vector<std::pair<uintptr_t, uintptr_t>>> &
-                get_addr_ranges() const;
+                get_omit_addr_ranges() const;
+
+        [[nodiscard]] int set_exclusive_addr_ranges(const std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_ranges);
+        [[nodiscard]] const std::optional<
+            std::vector<std::pair<uintptr_t, uintptr_t>>> &
+                get_exclusive_addr_ranges() const;
 
         [[nodiscard]] int set_access(
             const std::optional<cm_byte> access) noexcept;
@@ -644,9 +654,18 @@ extern int sc_opt_get_exclusive_objs(
                 const sc_opt opts, cm_vct * exclusive_objs);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * ranges);
+extern int sc_opt_set_omit_addr_ranges(
+               sc_opt opts, const cm_vct * ranges);
 //return: sc_addr_range, both fields zero if unset
-extern int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * ranges);
+extern int sc_opt_get_omit_addr_ranges(
+               const sc_opt opts, cm_vct * ranges);
+
+//all return 0 on success, -1 on error
+extern int sc_opt_set_exclusive_addr_ranges(
+               sc_opt opts, const cm_vct * ranges);
+//return: sc_addr_range, both fields zero if unset
+extern int sc_opt_get_exclusive_addr_ranges(
+               const sc_opt opts, cm_vct * ranges);
 
 //return: 0 on success, -1 on error
 extern int sc_opt_set_access(sc_opt opts, const cm_byte access);

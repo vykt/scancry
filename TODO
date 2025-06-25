@@ -1,3 +1,7 @@
-1) Improve GDB tooling (see what is needed by threading code onwards).
+1) Add an exclude address ranges constraint
 
-2) Check all tests in filters.hh are implemented.
+2) Both the pointer scanner and pattern scanner need to be able to only
+   scan every Nth address. There needs to be an additional callback in
+   the `_scan` interface that fetches the next i given the current i.
+
+3) Instead of using std::function in the worker, use templates.

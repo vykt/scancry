@@ -45,8 +45,13 @@ int sc_opt_get_exclusive_areas(const sc_opt opts, cm_vct * exclusive_areas);
 int sc_opt_set_exclusive_objs(sc_opt opts, const cm_vct * exclusive_objs);
 int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs);
 
-int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * addr_ranges);
-int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * addr_ranges);
+int sc_opt_set_omit_addr_ranges(sc_opt opts, const cm_vct * addr_ranges);
+int sc_opt_get_omit_addr_ranges(const sc_opt opts, cm_vct * addr_ranges);
+
+int sc_opt_set_exclusive_addr_ranges(
+        sc_opt opts, const cm_vct * addr_ranges);
+int sc_opt_get_exclusive_addr_ranges(
+        const sc_opt opts, cm_vct * addr_ranges);
 
 int sc_opt_set_access(sc_opt opts, const cm_byte access);
 cm_byte sc_opt_get_access(const sc_opt opts);

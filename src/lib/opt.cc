@@ -62,7 +62,8 @@ sc::opt::opt(const opt & opts)
    omit_objs(opts.omit_objs),
    exclusive_areas(opts.exclusive_areas),
    exclusive_objs(opts.exclusive_objs),
-   addr_ranges(opts.addr_ranges),
+   omit_addr_ranges(opts.omit_addr_ranges),
+   exclusive_addr_ranges(opts.exclusive_addr_ranges),
    access(opts.access),
    addr_width(opts.addr_width) {}
 
@@ -77,7 +78,8 @@ sc::opt::opt(const opt && opts)
    omit_objs(opts.omit_objs),
    exclusive_areas(opts.exclusive_areas),
    exclusive_objs(opts.exclusive_objs),
-   addr_ranges(opts.addr_ranges),
+   omit_addr_ranges(opts.omit_addr_ranges),
+   exclusive_addr_ranges(opts.exclusive_addr_ranges),
    access(opts.access),
    addr_width(opts.addr_width) {}
 
@@ -92,7 +94,8 @@ sc::opt::opt(const opt && opts)
     this->omit_objs = std::nullopt;
     this->exclusive_areas = std::nullopt;
     this->exclusive_objs = std::nullopt;
-    this->addr_ranges = std::nullopt;
+    this->omit_addr_ranges = std::nullopt;
+    this->exclusive_addr_ranges = std::nullopt;
     this->access = std::nullopt;
     _UNLOCK(-1)
 
@@ -243,11 +246,11 @@ sc::opt::opt(const opt && opts)
 }
 
 
-[[nodiscard]] int sc::opt::set_addr_ranges(const std::optional<
+[[nodiscard]] int sc::opt::set_omit_addr_ranges(const std::optional<
     std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range) {
 
     _LOCK(-1)
-    this->addr_ranges = addr_range;
+    this->omit_addr_ranges = addr_range;
     _UNLOCK(-1)
 
     return 0;
@@ -256,9 +259,28 @@ sc::opt::opt(const opt && opts)
 
 [[nodiscard]] const std::optional<
     std::vector<std::pair<uintptr_t, uintptr_t>>> &
-        sc::opt::get_addr_ranges() const {
+        sc::opt::get_omit_addr_ranges() const {
 
-    return this->addr_ranges;
+    return this->omit_addr_ranges;
+}
+
+
+[[nodiscard]] int sc::opt::set_exclusive_addr_ranges(const std::optional<
+    std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range) {
+
+    _LOCK(-1)
+    this->exclusive_addr_ranges = addr_range;
+    _UNLOCK(-1)
+
+    return 0;
+}
+
+
+[[nodiscard]] const std::optional<
+    std::vector<std::pair<uintptr_t, uintptr_t>>> &
+        sc::opt::get_exclusive_addr_ranges() const {
+
+    return this->exclusive_addr_ranges;
 }
 
 
@@ -907,13 +929,14 @@ int sc_opt_get_exclusive_objs(const sc_opt opts, cm_vct * exclusive_objs) {
 }
 
 
-int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * addr_ranges) {
+int sc_opt_set_omit_addr_ranges(
+        sc_opt opts, const cm_vct * addr_ranges) {
 
     //call generic setter
     return _vector_setter<sc::opt,
                           std::pair<uintptr_t, uintptr_t>,
                           sc_addr_range>(
-        opts, addr_ranges, &sc::opt::set_addr_ranges,
+        opts, addr_ranges, &sc::opt::set_omit_addr_ranges,
             //start lambda
             [](std::pair<uintptr_t, uintptr_t> * cc_addr_range,
             sc_addr_range * c_addr_range) -> int {
@@ -925,13 +948,52 @@ int sc_opt_set_addr_ranges(sc_opt opts, const cm_vct * addr_ranges) {
 }
 
 
-int sc_opt_get_addr_ranges(const sc_opt opts, cm_vct * addr_ranges) {
+int sc_opt_get_omit_addr_ranges(
+        const sc_opt opts, cm_vct * addr_ranges) {
 
     //call generic getter
     return _vector_getter<sc::opt,
                           std::pair<uintptr_t, uintptr_t>,
                           sc_addr_range>(
-        opts, addr_ranges, &sc::opt::get_addr_ranges,
+        opts, addr_ranges, &sc::opt::get_omit_addr_ranges,
+            //start lambda
+            [](sc_addr_range * c_addr_range,
+            std::pair<uintptr_t, uintptr_t> * cc_addr_range) -> int {
+
+                c_addr_range->min = cc_addr_range->first;
+                c_addr_range->max = cc_addr_range->second;
+                return 0;
+        }); //end lambda
+}
+
+
+int sc_opt_set_exclusive_addr_ranges(
+        sc_opt opts, const cm_vct * addr_ranges) {
+
+    //call generic setter
+    return _vector_setter<sc::opt,
+                          std::pair<uintptr_t, uintptr_t>,
+                          sc_addr_range>(
+        opts, addr_ranges, &sc::opt::set_exclusive_addr_ranges,
+            //start lambda
+            [](std::pair<uintptr_t, uintptr_t> * cc_addr_range,
+            sc_addr_range * c_addr_range) -> int {
+
+                *cc_addr_range = std::pair<uintptr_t, uintptr_t>(
+                    c_addr_range->min, c_addr_range->max);
+                return 0;
+        }); //end lambda
+}
+
+
+int sc_opt_get_addr_ranges(
+        const sc_opt opts, cm_vct * addr_ranges) {
+
+    //call generic getter
+    return _vector_getter<sc::opt,
+                          std::pair<uintptr_t, uintptr_t>,
+                          sc_addr_range>(
+        opts, addr_ranges, &sc::opt::get_exclusive_addr_ranges,
             //start lambda
             [](sc_addr_range * c_addr_range,
             std::pair<uintptr_t, uintptr_t> * cc_addr_range) -> int {

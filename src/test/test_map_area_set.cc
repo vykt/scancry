@@ -28,6 +28,12 @@
 #include "../lib/map_area_set.hh"
 
 
+/*
+ *  NOTE: Assertions in these tests assume your dynamic linker creates 5
+ *        distinct areas in loadable PIEs. On some systems (including
+ *        Android) this is not the case.
+ */
+
 
       /* ===================== * 
  ===== *  C++ INTERFACE TESTS  * =====
@@ -246,9 +252,9 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         
         sc::map_area_set ma_set;
 
-        cm_lst_node * main_node, * stack_node;
+        cm_lst_node * main_node, * omit_0_node, * omit_1_node, * stack_node;
         mc_vm_obj * main_obj, * stack_obj;
-        mc_vm_area * main_area, * stack_area;
+        mc_vm_area * main_area, * omit_0_area, * omit_1_area, * stack_area;
 
 
         //setup
@@ -261,20 +267,35 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         stack_obj = MC_GET_NODE_OBJ(stack_node);
 
 
-        //only test: scan only the main executable
-        std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
+        //only test: apply a mix of ranges
+
+        //exclusive ranges
+        std::vector<std::pair<uintptr_t, uintptr_t>> exclusive_ranges = {
             {main_obj->start_addr, main_obj->end_addr},
             {stack_obj->start_addr, stack_obj->end_addr}
         };
 
-        ret = opts.set_addr_ranges(ranges);
+        //omit ranges
+        omit_0_node = MC_GET_NODE_PTR(main_obj->vm_area_node_ps.head);
+        omit_0_area = MC_GET_NODE_AREA(omit_0_node->next->next);
+        omit_1_node = omit_0_node->next;
+        omit_1_area = MC_GET_NODE_AREA(omit_1_node);
+        std::vector<std::pair<uintptr_t, uintptr_t>> omit_ranges = {
+            {omit_0_area->start_addr, omit_0_area->end_addr},
+            {omit_1_area->start_addr, omit_1_area->end_addr}
+        };
+
+        ret = opts.set_exclusive_addr_ranges(exclusive_ranges);
+        CHECK_EQ(ret, 0);
+
+        ret = opts.set_omit_addr_ranges(omit_ranges);
         CHECK_EQ(ret, 0);
 
         ret = ma_set.update_set(opts);
         CHECK_EQ(ret, 0);
 
         auto area_nodes = ma_set.get_area_nodes();
-        CHECK_EQ(area_nodes.size(), 6);
+        CHECK_EQ(area_nodes.size(), 4);
         
         //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes);

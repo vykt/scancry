@@ -115,8 +115,6 @@ std::optional<std::pair<uintptr_t, uintptr_t>> in_addr_ranges(
     const mc_vm_area * area, const std::vector<
         std::pair<uintptr_t, uintptr_t>> & addr_ranges) {
 
-    bool found = false;
-
     //for every address range
     for (auto iter = addr_ranges.begin(); iter != addr_ranges.end(); ++iter) {
 
@@ -196,6 +194,7 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
      */
     
     bool first_iter;
+    bool exclusive_used;
 
     std::optional<std::pair<uintptr_t, uintptr_t>> addr_range;
 
@@ -233,6 +232,10 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
     //setup iteration over objects
     area_node = map->vm_areas.head;
     first_iter = true;
+    exclusive_used = ((exclusive_objs_set.has_value() == true)
+                      || (exclusive_areas_set.has_value() == true)
+                      || (exclusive_addr_ranges.has_value() == true))
+                      ? true : false;
 
     //iterate through every area
     while ((first_iter == true)
@@ -254,6 +257,7 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
         //check if this object is omitted or blacklisted
         obj_node = area->obj_node_p;
         if (obj_node != nullptr) {
+            obj = MC_GET_NODE_OBJ(obj_node);
 
             //if the omit object set is provided
             if (omit_objs_set.has_value() == true) {
@@ -262,7 +266,6 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
                 if (is_included(obj_node, omit_objs_set.value()) == true) {
 
                     //can skip to the end of this object
-                    obj = MC_GET_NODE_OBJ(obj_node);
                     area_node = get_last_obj_area(obj);
                     goto _update_set_continue;
                 }
@@ -305,6 +308,7 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
                         break;
                     area = MC_GET_NODE_AREA(area_node);
                 }
+                continue;
             }
         } //end check if this address range is omitted
 
@@ -312,20 +316,26 @@ sc::map_area_set::map_area_set(const map_area_set && ma_set)
         // -- exclusive checks
 
         //check if object is in the exclusive objects set
-        if (obj != nullptr) {
+        if (obj != nullptr && (exclusive_objs_set.has_value() == true)) {
             if (is_included(obj_node, exclusive_objs_set.value()) == true)
                 goto _update_set_add;
         }
 
         //check if area is in the exclusive areas set
-        if (is_included(area_node, exclusive_areas_set.value()) == true) {
-            goto _update_set_add;
+        if (exclusive_areas_set.has_value() == true) {
+            if (is_included(area_node, exclusive_areas_set.value()) == true)
+                goto _update_set_add;
         }
 
         //check if this address range is included
-        addr_range = in_addr_ranges(area, exclusive_addr_ranges.value());
-        if (addr_range.has_value() == true) goto _update_set_add;
+        if (exclusive_addr_ranges.has_value() == true) {
+            addr_range = in_addr_ranges(area,
+                                        exclusive_addr_ranges.value());
+            if (addr_range.has_value() == true) goto _update_set_add;
+        }
 
+        //if exclusive set(s) are used, do not include this area
+        if (exclusive_used == true) goto _update_set_continue;
 
         //add to the scan set
         _update_set_add:

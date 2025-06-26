@@ -327,6 +327,7 @@ sc::_worker::_worker(opt ** const opts,
 void sc::_worker::main() {
 
     int ret;
+    off_t buf_adv;
     
 
     //increment alive count
@@ -378,19 +379,19 @@ void sc::_worker::main() {
                 }
 
                 //send this address to the scanner
-                ret = (*this->scan)->_process_addr(scan_arg,
-                                                   *this->opts,
-                                                   *this->opts_scan);
-                if (ret != 0) {
+                buf_adv = (*this->scan)->_process_addr(scan_arg,
+                                                       *this->opts,
+                                                       *this->opts_scan);
+                if (buf_adv == -1) {
                     print_warning("`_process_addr()` encountered an error.");
                     this->exit(true);
                 }
 
                 //increment `_scan_arg` state
-                ++scan_arg.addr;
-                ++scan_arg.area_off;
-                --scan_arg.buf_left;
-                ++scan_arg.cur_byte;
+                scan_arg.addr += buf_adv;
+                scan_arg.area_off += buf_adv;
+                scan_arg.buf_left -= buf_adv;
+                scan_arg.cur_byte += buf_adv;
                 
             } //end process every address
                 

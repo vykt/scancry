@@ -132,7 +132,11 @@ class _scan : public _lockable {
 
     public:
         //[methods]
-        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE int
+        
+        /*
+         *  NOTE: This function returns the next iteration buffer offset.
+         */
+        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE off_t
                 _process_addr(
                     const struct _scan_arg arg, const opt * const opts,
                     const _opt_scan * const opts_scan) = 0;

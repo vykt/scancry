@@ -461,7 +461,7 @@ class ptrscan : public _scan {
 
     public:
         //[methods]
-        /* internal */ [[nodiscard]] int _process_addr(
+        /* internal */ [[nodiscard]] off_t _process_addr(
                     const struct _scan_arg arg, const opt * const opts,
                     const _opt_scan * const opts_scan) override final;
 

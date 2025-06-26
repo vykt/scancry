@@ -986,7 +986,7 @@ int sc_opt_set_exclusive_addr_ranges(
 }
 
 
-int sc_opt_get_addr_ranges(
+int sc_opt_get_exclusive_addr_ranges(
         const sc_opt opts, cm_vct * addr_ranges) {
 
     //call generic getter

@@ -476,7 +476,7 @@ struct _potential_node {
 
 
 //process a single address from a worker thread
-[[nodiscard]] int sc::ptrscan::_process_addr(
+[[nodiscard]] off_t sc::ptrscan::_process_addr(
                                     const struct _scan_arg arg,
                                     const opt * const opts,
                                     const _opt_scan * const opts_scan) {
@@ -499,8 +499,14 @@ struct _potential_node {
         = (const opt_ptrscan * const) opts_scan;
     #pragma GCC diagnostic pop
 
-    //if not on an alignment boundary, return
-    if ((arg.area_off % opts_ptrscan->get_alignment().value()) != 0) return 0;
+    //if not on an alignment boundary for some reason, re-align
+    /* FIXME should be impossible as long as alignment is 2^x
+    off_t misalignment
+        = arg.area_off & opts_ptrscan->get_alignment().value();
+    if (misalignment != 0) {
+        return opts_ptrscan->get_alignment().value() - misalignment;
+    }
+    */
 
     //if not enough space is left in the buffer to hold a pointer
     /* FIXME [should be impossible, remove?]
@@ -619,7 +625,7 @@ struct _potential_node {
         return -1;
     }
 
-    return 0;
+    return opts_ptrscan->get_alignment().value();
 }
 
 

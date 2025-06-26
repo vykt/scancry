@@ -341,9 +341,9 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 9: get & set `addr_ranges`
+    //test 9: get & set `omit_addr_ranges`
     SUBCASE(test_cc_opt_subtests[9]) {
-        title(CC, "opt", "Set & get `addr_ranges`");
+        title(CC, "opt", "Set & get `omit_addr_ranges`");
 
         std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
             {0x1000, 0x2000},
@@ -352,13 +352,33 @@ TEST_CASE(test_cc_opt_subtests[0]) {
         };
 
         _cc_vector_test<sc::opt, std::pair<uintptr_t, uintptr_t>>(
-            o, ranges, &sc::opt::set_addr_ranges, &sc::opt::get_addr_ranges);
+            o, ranges,
+            &sc::opt::set_omit_addr_ranges,
+            &sc::opt::get_omit_addr_ranges);
             
     } //end test
 
 
-    //test 10: set & get `access`
-    SUBCASE(test_cc_opt_subtests[10]) {
+    //test 10: get & set `exclusive_addr_ranges`
+    SUBCASE(test_cc_opt_subtests[9]) {
+        title(CC, "opt", "Set & get `exclusive_addr_ranges`");
+
+        std::vector<std::pair<uintptr_t, uintptr_t>> ranges = {
+            {0x1000, 0x2000},
+            {0x3000, 0x4000},
+            {0x5000, 0x6000}
+        };
+
+        _cc_vector_test<sc::opt, std::pair<uintptr_t, uintptr_t>>(
+            o, ranges,
+            &sc::opt::set_exclusive_addr_ranges,
+            &sc::opt::get_exclusive_addr_ranges);
+            
+    } //end test
+
+
+    //test 11: set & get `access`
+    SUBCASE(test_cc_opt_subtests[11]) {
         title(CC, "opt", "Set & get `access`");
 
         std::optional<cm_byte> access = MC_ACCESS_READ | MC_ACCESS_WRITE;
@@ -368,8 +388,8 @@ TEST_CASE(test_cc_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: reset
-    SUBCASE(test_cc_opt_subtests[11]) {
+    //test 12: reset
+    SUBCASE(test_cc_opt_subtests[12]) {
 
         /*
          *  TODO Implement.
@@ -959,9 +979,9 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 10: set & get an `addr_ranges`
+    //test 10: set & get an `omit_addr_ranges`
     SUBCASE(test_c_opt_subtests[10]) {
-        title(C, "sc_opt", "Set & get `addr_ranges`");
+        title(C, "sc_opt", "Set & get `omit_addr_ranges`");
 
         sc_addr_range a[3] = {
             {0x1000, 0x2000},
@@ -970,7 +990,9 @@ TEST_CASE(test_c_opt_subtests[0]) {
         };
 
         _c_vector_test<sc_opt, sc_addr_range>(
-            o, a, 3, sc_opt_set_addr_ranges, sc_opt_get_addr_ranges,
+            o, a, 3,
+            sc_opt_set_omit_addr_ranges,
+            sc_opt_get_omit_addr_ranges,
             [](sc_addr_range ar_1, sc_addr_range ar_2) -> bool {
                 return (ar_1.min == ar_2.min) && (ar_1.max == ar_2.max);
             });
@@ -978,8 +1000,29 @@ TEST_CASE(test_c_opt_subtests[0]) {
     } //end test
 
 
-    //test 11: set & get `access`
+    //test 11: set & get an `exclusive_addr_ranges`
     SUBCASE(test_c_opt_subtests[11]) {
+        title(C, "sc_opt", "Set & get `exclusive_addr_ranges`");
+
+        sc_addr_range a[3] = {
+            {0x1000, 0x2000},
+            {0x3000, 0x4000},
+            {0x5000, 0x6000}
+        };
+
+        _c_vector_test<sc_opt, sc_addr_range>(
+            o, a, 3,
+            sc_opt_set_exclusive_addr_ranges,
+            sc_opt_get_exclusive_addr_ranges,
+            [](sc_addr_range ar_1, sc_addr_range ar_2) -> bool {
+                return (ar_1.min == ar_2.min) && (ar_1.max == ar_2.max);
+            });
+
+    } //end test
+
+
+    //test 12: set & get `access`
+    SUBCASE(test_c_opt_subtests[12]) {
         title(C, "sc_opt", "Set & get `access`");
 
         _c_opt_test<sc_opt, cm_byte>(

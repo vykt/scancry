@@ -276,8 +276,8 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         };
 
         //omit ranges
-        omit_0_node = MC_GET_NODE_PTR(main_obj->vm_area_node_ps.head);
-        omit_0_area = MC_GET_NODE_AREA(omit_0_node->next->next);
+        omit_0_node = MC_GET_NODE_PTR(main_obj->vm_area_node_ps.head->next);
+        omit_0_area = MC_GET_NODE_AREA(omit_0_node);
         omit_1_node = omit_0_node->next;
         omit_1_area = MC_GET_NODE_AREA(omit_1_node);
         std::vector<std::pair<uintptr_t, uintptr_t>> omit_ranges = {
@@ -404,24 +404,24 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
             std::vector<const cm_lst_node *>({map.vm_areas.head}));
         CHECK_EQ(ret, 0);
         
-        //only target `r--` segments
+        //only target `r??` segments (redundant)
         ret = opts.set_access(MC_ACCESS_READ);
         CHECK_EQ(ret, 0);
 
-        //exclude second area of main by address
+        //exclude third area of main by address
         tmp_node = map.vm_areas.head->next->next;
         tmp_area = MC_GET_NODE_AREA(tmp_node);
         std::vector<std::pair<uintptr_t, uintptr_t>> ar_vct = {
             {tmp_area->start_addr, tmp_area->end_addr}
         };
-        ret = opts.set_addr_ranges(ar_vct);
+        ret = opts.set_omit_addr_ranges(ar_vct);
         CHECK_EQ(ret, 0);
 
         ret = ma_set.update_set(opts);
         CHECK_EQ(ret, 0);
 
         auto area_nodes_3 = ma_set.get_area_nodes();
-        CHECK_EQ(area_nodes_3.size(), 1);
+        CHECK_EQ(area_nodes_3.size(), 3);
         
         //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_3);

@@ -38,9 +38,9 @@ void subtitle(const std::string tag, const std::string subtitle) {
     if (use_colour == true) {
         std::cout << "<" << colour::YELLOW << tag << colour::RESET << "> "
                   << colour::GREEN << subtitle << colour::RESET
-                  << std::endl;;
+                  << std::endl;
     } else {
-        std::cout << "<" << tag << "> ";
+        std::cout << "<" << tag << "> " << subtitle << std::endl;
     }
     
     return;

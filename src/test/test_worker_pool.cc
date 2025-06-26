@@ -69,7 +69,7 @@ class _fixture_scan : public sc::_scan {
 
     public:
         //[methods]
-        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE int
+        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE off_t
             _process_addr(
                 const struct sc::_scan_arg arg, const sc::opt * const opts,
                 const sc::_opt_scan * const opts_scan);
@@ -113,13 +113,13 @@ class _fixture_scan : public sc::_scan {
  *        This only supports offsets of 1 and 4.
  */
  
-[[nodiscard]] _SC_DBG_INLINE int _fixture_scan::_process_addr(
+[[nodiscard]] _SC_DBG_INLINE off_t _fixture_scan::_process_addr(
                                     const struct sc::_scan_arg arg,
                                     const sc::opt * const opts,
                                     const sc::_opt_scan * const opts_scan) {
 
     //skip this offset if `this->mod` does not divide the area offset
-    if ((arg.area_off % std::abs(this->mod)) != 0) return 0;
+    //if ((arg.area_off % std::abs(this->mod)) != 0) return 0;
 
     /*
      *  FIXME: Race condition possible on `do_crash_one` check.
@@ -172,7 +172,7 @@ class _fixture_scan : public sc::_scan {
     
     } //end if checks are enabled
 
-    return 0;
+    return std::abs(this->mod);
 }
 
 

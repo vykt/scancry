@@ -23,7 +23,7 @@ namespace _opt_helper {
 struct args {
 
     sc::opt opts;
-    sc::opt_ptrscan opts_ptrscan;
+    sc::opt_ptr opts_ptr;
     sc::map_area_set ma_set;
 
     args(sc::addr_width aw) : opts(sc::opt(aw)) {}

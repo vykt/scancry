@@ -191,7 +191,7 @@ class opt : public _lockable {
 /*
  *  Configuration options only applicable to pointer scans.
  */
-class opt_ptrscan final : public _opt_scan {
+class opt_ptr final : public _opt_scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
@@ -237,10 +237,10 @@ class opt_ptrscan final : public _opt_scan {
 
     public:
         //ctor
-        opt_ptrscan();
-        opt_ptrscan(const opt_ptrscan & opts_ptrscan);
-        opt_ptrscan(const opt_ptrscan && opts_ptrscan);
-        ~opt_ptrscan() override final {};
+        opt_ptr();
+        opt_ptr(const opt_ptr & opts_ptr);
+        opt_ptr(const opt_ptr && opts_ptr);
+        ~opt_ptr() override final {};
 
         //reset
         [[nodiscard]] int reset() override final;
@@ -485,18 +485,73 @@ class ptrscan : public _scan {
         //perform a scan
         [[nodiscard]] int scan(
                     sc::opt & opts,
-                    sc::opt_ptrscan & opts_ptrscan,
+                    sc::opt_ptr & opts_ptr,
                     sc::map_area_set & ma_set,
                     worker_pool & w_pool,
                     cm_byte flags);
 
         //verify chains
         [[nodiscard]] int verify(
-            sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan);
+            sc::opt & opts, const sc::opt_ptr & opts_ptr);
 
         //getters & setters
         [[nodiscard]]
             const std::vector<struct ptrscan_chain> & get_chains() const;
+};
+
+
+/*
+ *  NOTE: ScanCry uses a binary file format with the following sections:
+ *
+ *        Name format: <process comm>.<pid>.sc
+ *               e.g.: netnote.1823.sc
+ *
+ *        File format:
+ *                     [ 1. ScanCry header ]
+ *                     [ 2. scan header    ]
+ *                     [ 3. data           ]
+ *
+ *        The ScanCry header is a generic header applicable to all files.
+ *
+ */
+
+//scancry header constants
+const constexpr int scancry_magic_sz = 4;
+const constexpr cm_byte scancry_magic[scancry_magic_sz]
+                                           = {'S', 'C', 0x13, 0x37};
+const constexpr cm_byte scan_type_ptrscan = 0x00;
+const constexpr cm_byte scan_type_ptnscan = 0x01;
+const constexpr cm_byte scan_type_valscan = 0x02;
+
+//versions
+const constexpr cm_byte scancry_file_ver_0 = 0;
+
+
+//ScanCry file header
+struct scancry_file_hdr {
+
+    cm_byte magic[scancry_magic_sz];
+    cm_byte version;
+    cm_byte scan_type;
+};
+
+
+//pointer scan file header
+struct ptrscan_file_hdr {
+
+    uint32_t pathnames_num;
+    uint32_t pathnames_offset;
+    uint32_t chains_num;
+    uint32_t chains_offset;
+};
+
+
+//combined ScanCry & scan header struct
+struct combined_file_hdr {
+    struct scancry_file_hdr sc_hdr;
+    union {
+        ptrscan_file_hdr ptr_hdr;
+    };
 };
 
 
@@ -508,7 +563,7 @@ class serialiser : public _lockable {
         [[nodiscard]] std::optional<cm_byte>
             get_scan_type(_scan * scan) const;
         [[nodiscard]] bool
-            is_header_valid(sc::_scancry_file_hdr & hdr) const;
+            is_header_valid(sc::scancry_file_hdr & hdr) const;
 
     public:
         //file operations
@@ -516,10 +571,8 @@ class serialiser : public _lockable {
             sc::_scan & scan, const sc::opt & opts);
         [[nodiscard]] int load_scan(
             sc::_scan & scan, const sc::opt & opts, bool shallow);
-
-    /*
-     *  TODO: Consider implementing a way to fetch file metadata
-     */
+        [[nodiscard]] std::optional<combined_file_hdr> read_headers(
+            const char * file_path);
 };
 
 
@@ -548,7 +601,7 @@ extern "C" {
 //opaque types
 typedef void * sc_opt;
 typedef /* base */ void * sc_opt_scan;
-typedef void * sc_opt_ptrscan;
+typedef void * sc_opt_ptr;
 
 typedef void * sc_map_area_set;
 typedef void * sc_worker_pool;
@@ -674,39 +727,39 @@ extern cm_byte sc_opt_get_access(const sc_opt opts);
 
 
 /*
- *  --- [OPT_PTRSCAN] ---
+ *  --- [OPT_PTR] ---
  */
 
-//return: an opaque handle to a `opt_ptrscan` object, or NULL on error
-extern sc_opt_ptrscan sc_new_opt_ptrscan();
-extern sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan);
+//return: an opaque handle to a `opt_ptr` object, or NULL on error
+extern sc_opt_ptr sc_new_opt_ptr();
+extern sc_opt_ptr sc_copy_opt_ptr(const sc_opt_ptr opts_ptr);
 //returns 0 on success, -1 on error
-extern int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan);
-extern int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan);
+extern int sc_del_opt_ptr(sc_opt_ptr opts_ptr);
+extern int sc_opt_ptr_reset(sc_opt_ptr opts_ptr);
 
 //return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_target_addr(sc_opt_ptr opts_ptr,
                                       const uintptr_t target_addr);
 //return: target address if set, 0x0 if unset 
-extern uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan);
+extern uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptr opts_ptr);
 
 //return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_alignment(sc_opt_ptr opts_ptr,
                                  const off_t alignment);
 //return: scan alignment if set, 0x0 if not set
-extern off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan);
+extern off_t sc_opt_ptr_get_alignment(const sc_opt_ptr opts_ptr);
 
 //return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_max_obj_sz(sc_opt_ptr opts_ptr,
                                      const off_t max_obj_sz);
 //return: max object size if set, 0x0 if not set
-extern off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan);
+extern off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptr opts_ptr);
 
 //return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_max_depth(sc_opt_ptr opts_ptr,
                                     const int max_depth);
 //return: max scan depth if set, 0x0 if not set
-extern int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
+extern int sc_opt_ptr_get_max_depth(const sc_opt_ptr opts_ptr);
 
 
 /*
@@ -717,22 +770,22 @@ extern int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan);
  */
 
 //all return 0 on success, -1 on error
-extern int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_static_areas(sc_opt_ptr opts_ptr,
                                        const cm_vct * static_areas);
-extern int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_get_static_areas(const sc_opt_ptr opts_ptr,
                                        cm_vct * static_areas);
 
 //all return 0 on success, -1 on error
-extern int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_preset_offsets(sc_opt_ptr opts_ptr,
                                          const cm_vct * preset_offsets);
-extern int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_get_preset_offsets(const sc_opt_ptr opts_ptr,
                                          cm_vct * preset_offsets);
 
 //return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+extern int sc_opt_ptr_set_smart_scan(sc_opt_ptr opts_ptr,
                                      const bool enable);
 //return: whether smart scan is enabled
-extern bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan);
+extern bool sc_opt_ptr_get_smart_scan(const sc_opt_ptr opts_ptr);
 
 
 /*

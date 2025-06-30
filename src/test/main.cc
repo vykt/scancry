@@ -42,8 +42,8 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
         {"all", no_argument, NULL, 'a'},
         {"cc-opt", no_argument, NULL, 'o'},
         {"c-opt", no_argument, NULL, 'O'},
-        {"cc-opt_ptrscan", no_argument, NULL, 'p'},
-        {"c-opt_ptrscan", no_argument, NULL, 'P'},
+        {"cc-opt_ptr", no_argument, NULL, 'p'},
+        {"c-opt_ptr", no_argument, NULL, 'P'},
         {"cc-map_area_set", no_argument, NULL, 's'},
         {"c-map_area_set", no_argument, NULL, 'S'},
         {"cc-worker_pool", no_argument, NULL, 'w'},
@@ -117,8 +117,8 @@ static void _run_unit_tests(cm_byte test_mask) {
     //add selected filters
     if (test_mask & cc_opt_test) add_cc_opt(context); 
     if (test_mask & c_opt_test)  add_c_opt(context);
-    if (test_mask & cc_opt_ptrscan_test) add_cc_opt_ptrscan(context); 
-    if (test_mask & c_opt_ptrscan_test)  add_c_opt_ptrscan(context);
+    if (test_mask & cc_opt_ptrscan_test) add_cc_opt_ptr(context);
+    if (test_mask & c_opt_ptrscan_test)  add_c_opt_ptr(context);
     if (test_mask & cc_map_area_set_test) add_cc_map_area_set(context); 
     if (test_mask & c_map_area_set_test)  add_c_map_area_set(context); 
     if (test_mask & cc_worker_pool_test) add_cc_worker_pool(context);

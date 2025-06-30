@@ -301,53 +301,6 @@ struct _ptrscan_cache {
 };
 
 
-/*
- *  NOTE: ScanCry uses a binary file format with the following sections:
- *
- *        Name format: <process comm>.<pid>.sc
- *               e.g.: netnote.1823.sc
- *
- *        File format:
- *                     [ 1. ScanCry header ]
- *                     [ 2. scan header    ]
- *                     [ 3. data           ]
- *
- *        The ScanCry header is a generic header applicable to all files.
- *
- */
-
-
-//scancry header constants
-const constexpr int _scancry_magic_sz = 4;
-const constexpr cm_byte _scancry_magic[_scancry_magic_sz]
-                                           = {'S', 'C', 0x13, 0x37};
-const constexpr cm_byte _scan_type_ptrscan = 0x00;
-const constexpr cm_byte _scan_type_ptnscan = 0x01;
-const constexpr cm_byte _scan_type_valscan = 0x02;
-
-//versions
-const constexpr cm_byte _scancry_file_ver_0 = 0;
-
-
-//ScanCry file header
-struct _scancry_file_hdr {
-
-    cm_byte magic[_scancry_magic_sz];
-    cm_byte version;
-    cm_byte scan_type;
-};
-
-
-//pointer scan file header
-struct _ptrscan_file_hdr {
-
-    uint32_t pathnames_num;
-    uint32_t pathnames_offset;
-    uint32_t chains_num;
-    uint32_t chains_offset;
-};
-
-
 } //namespace sc
 #endif //ifdef __cplusplus
 

@@ -43,153 +43,6 @@
  *  --- [HELPERS] ---
  */
 
-//worker thread fixture scan options class
-class _fixture_opts : public sc::_opt_scan {
-
-    public:
-        //[methods]
-        ~_fixture_opts() {}
-        [[nodiscard]] virtual int reset() { return 0; }
-};
-
-
-//worker thread fixture scan class
-class _fixture_scan : public sc::_scan {
-
-    private:
-        //[attributes]
-        bool do_checks;
-        bool do_crash_one;
-        bool do_crash_all;
-
-        cm_byte expected_byte;
-        off_t read_off;
-        int mod;
-        long call_count;
-
-    public:
-        //[methods]
-        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE off_t
-            _process_addr(
-                const struct sc::_scan_arg arg, const sc::opt * const opts,
-                const sc::_opt_scan * const opts_scan);
-
-        /* internal */ [[nodiscard]] virtual int _generate_body(
-                std::vector<cm_byte> & buf, off_t hdr_off) { return 0; }
-        /* internal */ [[nodiscard]] virtual int _process_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off,
-                const mc_vm_map & map) { return 0; }
-        /* internal */ [[nodiscard]] virtual int _read_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off) { return 0; }
-
-        _fixture_scan() : expected_byte(0), read_off(0), mod(1) {}
-        void set_mod(int mod) { this->mod = mod; }
-
-        [[nodiscard]] int scan(
-                    sc::opt & opts,
-                    _fixture_opts & opts_ptrscan,
-                    sc::map_area_set & ma_set,
-                    sc::worker_pool & w_pool,
-                    cm_byte flags);
-
-        void set_do_checks(bool do_checks) { this->do_checks = do_checks; };
-        void set_do_crash_one(bool do_crash_one) {
-            this->do_crash_one = do_crash_one;
-        };
-        void set_do_crash_all(bool do_crash_all) {
-            this->do_crash_all = do_crash_all;
-        };
-        long get_call_count() { return this->call_count; }
-        [[nodiscard]] virtual int reset();
-};
-
-
-/*
- *  NOTE: To test if workers read memory correctly, worker thread(s) are
- *        directed to read a mmap'ed `patternN.bin` file, which consists
- *        of an incrementing byte pattern for the first kilobyte, followed
- *        by a decrementing pattern for the next kilobyte. Checks are
- *
- *        This only supports offsets of 1 and 4.
- */
- 
-[[nodiscard]] _SC_DBG_INLINE off_t _fixture_scan::_process_addr(
-                                    const struct sc::_scan_arg arg,
-                                    const sc::opt * const opts,
-                                    const sc::_opt_scan * const opts_scan) {
-
-    //skip this offset if `this->mod` does not divide the area offset
-    //if ((arg.area_off % std::abs(this->mod)) != 0) return 0;
-
-    /*
-     *  FIXME: Race condition possible on `do_crash_one` check.
-     */
-
-    //crash one worker if requested
-    if (this->do_crash_one) {
-        this->do_crash_one = false;
-        return -1;
-    }
-
-    //crash all workers if requested
-    if (this->do_crash_all) {
-        this->do_crash_all = true;
-        return -1;
-    }
-    
-
-    //increment call count
-    this->call_count += 1;
-
-    //if checks are enabled
-    if (do_checks) {
-
-        #ifdef VERBOSE_DEBUG
-        #if 0
-        std::printf("[TEST] exp vs. cur: %x vs %x\n",
-                    this->expected_byte, *arg.cur_byte);
-        #endif
-        #endif
-
-        //check byte pattern is correct
-        CHECK_EQ(this->expected_byte, *arg.cur_byte);
-
-        //advance state
-        read_off += std::abs(this->mod);
-
-        //apply modifier for each scanned byte
-        if (read_off < 0x1000) {
-            this->expected_byte += this->mod;
-        } else {
-            //re-align if mod = 4
-            if (std::abs(this->mod) == 4) {
-                if (this->mod == 4) this->expected_byte = 0xff;
-                if (this->mod == -4) this->expected_byte = 0x0;
-            }
-            this->mod *= -1;
-            read_off = 0x0;
-        }
-    
-    } //end if checks are enabled
-
-    return std::abs(this->mod);
-}
-
-
-[[nodiscard]] int _fixture_scan::reset() {
-
-    this->do_checks     = false;
-    this->do_crash_one  = false;
-    this->do_crash_all  = false;
-    this->expected_byte = 0;
-    this->read_off      = 0;
-    this->mod           = 0;
-    this->call_count    = 0;
-
-    return 0;
-}
-
-
 static void _print_scan_area_sets(sc::worker_pool & wp,
                                   std::string header) {
 #ifdef DEBUG
@@ -801,7 +654,7 @@ TEST_CASE(test_c_worker_pool_subtests[0]) {
 
     //launch target
     pid = _target_helper::start_target();
-    CHECK_EQ(pid, 0);
+    CHECK_NE(pid, -1);
 
 
     //test 0: construct worker pools
@@ -826,7 +679,7 @@ TEST_CASE(test_c_worker_pool_subtests[0]) {
                             fixt_scan, opt_args.ma_set, 0b0);
         CHECK_EQ(ret, 0);
         _assert_worker_count(*wp_cc, 1);
-        _assert_worker_concurrency(*wp_cc, 0, 1);
+        _assert_worker_concurrency(*wp_cc, 1, 1);
 
         //reset the worker pool
         ret = sc_wp_free_workers(wp);

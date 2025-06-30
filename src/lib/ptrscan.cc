@@ -280,8 +280,8 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off) {
 
     //fetch the ptrscan header
-    std::optional<struct _ptrscan_file_hdr> local_hdr
-        = fbuf_util::unpack_type<struct _ptrscan_file_hdr>(buf, buf_off);
+    std::optional<struct ptrscan_file_hdr> local_hdr
+        = fbuf_util::unpack_type<struct ptrscan_file_hdr>(buf, buf_off);
     if (local_hdr.has_value() == false) return -1;
 
     //fetch every pathname
@@ -495,16 +495,16 @@ struct _potential_node {
     //fetch ptrscan options & suppress warnings
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wignored-qualifiers"
-    const opt_ptrscan * const opts_ptrscan
-        = (const opt_ptrscan * const) opts_scan;
+    const opt_ptr * const opts_ptr
+        = (const opt_ptr * const) opts_scan;
     #pragma GCC diagnostic pop
 
     //if not on an alignment boundary for some reason, re-align
     /* FIXME should be impossible as long as alignment is 2^x
     off_t misalignment
-        = arg.area_off & opts_ptrscan->get_alignment().value();
+        = arg.area_off & opts_ptr->get_alignment().value();
     if (misalignment != 0) {
-        return opts_ptrscan->get_alignment().value() - misalignment;
+        return opts_ptr->get_alignment().value() - misalignment;
     }
     */
 
@@ -537,7 +537,7 @@ struct _potential_node {
 
     //setup new node container
     std::vector<struct _potential_node> new_nodes;
-    off_t min_obj_sz = opts_ptrscan->get_max_obj_sz().value();
+    off_t min_obj_sz = opts_ptr->get_max_obj_sz().value();
 
     //get potential pointer value
     uintptr_t potential_ptr;
@@ -562,20 +562,20 @@ struct _potential_node {
         //if this potential pointer falls outside the range of this
         //node, skip it
         if (potential_ptr <
-                (now_node->own_addr - opts_ptrscan->get_max_obj_sz().value())
+                (now_node->own_addr - opts_ptr->get_max_obj_sz().value())
             || potential_ptr > (now_node->own_addr)) continue;
 
 
         //else this is a match
 
         //check the offset is correct, if one applies
-        auto presets = opts_ptrscan->get_preset_offsets();
+        auto presets = opts_ptr->get_preset_offsets();
         if (presets.has_value() && presets->size() <= this->cur_depth_level)
             if (potential_ptr != (now_node->own_addr
                     - (*presets)[this->cur_depth_level])) continue;
         
         //if this is a smart scan, manipulate the new node container
-        if (opts_ptrscan->get_smart_scan() == true) {
+        if (opts_ptr->get_smart_scan() == true) {
 
             //if greater than current minimum, ignore this match
             if ((now_node->own_addr - potential_ptr)
@@ -625,15 +625,15 @@ struct _potential_node {
         return -1;
     }
 
-    return opts_ptrscan->get_alignment().value();
+    return opts_ptr->get_alignment().value();
 }
 
 
 [[nodiscard]] int sc::ptrscan::_generate_body(
     std::vector<cm_byte> & buf, const off_t hdr_off) {
 
-    std::optional<int> ret;
-    struct _ptrscan_file_hdr local_hdr;
+    int ret;
+    struct sc::ptrscan_file_hdr local_hdr;
 
     cm_byte ctrl_byte;
     off_t buf_off = 0;
@@ -666,9 +666,9 @@ struct _potential_node {
 
 
     //store the header
-    ret = fbuf_util::pack_type<struct _ptrscan_file_hdr>(
+    ret = fbuf_util::pack_type<struct ptrscan_file_hdr>(
                                                 buf, buf_off, local_hdr);
-    if (ret.has_value() == false) goto _read_body_fail;
+    if (ret != 0) goto _read_body_fail;
     
 
     //store every pathname
@@ -676,13 +676,13 @@ struct _potential_node {
          iter != this->ser_pathnames.end(); ++iter) {
 
         ret = fbuf_util::pack_string(buf, buf_off, *iter);
-        if (ret.has_value() == false) goto _read_body_fail;
+        if (ret != 0) goto _read_body_fail;
     }
 
     //store an additional null terminator to denote the end of pathnames
     ctrl_byte = 0x00;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret.has_value() == false) goto _read_body_fail;
+    if (ret != 0) goto _read_body_fail;
     
 
     //store every chain
@@ -691,7 +691,7 @@ struct _potential_node {
 
         //store pathname index
         ret = fbuf_util::pack_type(buf, buf_off, iter->_get_obj_idx());
-        if (ret.has_value() == false) goto _read_body_fail;
+        if (ret != 0) goto _read_body_fail;
 
         //store every offset & downcast to 32bit offsets
         std::vector<uint32_t> offsets_32bit;
@@ -704,13 +704,13 @@ struct _potential_node {
 
         ret = fbuf_util::pack_type_array<uint32_t>(
             buf, buf_off, offsets_32bit);
-        if (ret.has_value() == false) goto _read_body_fail;
+        if (ret != 0) goto _read_body_fail;
     }
 
     //store the file end byte
     ctrl_byte = fbuf_util::_file_end;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret.has_value() == false) goto _read_body_fail;
+    if (ret != 0) goto _read_body_fail;
 
     _UNLOCK(-1)
     return 0;
@@ -724,7 +724,7 @@ struct _potential_node {
 [[nodiscard]] int sc::ptrscan::_process_body(
     const std::vector<cm_byte> & buf, off_t hdr_off, const mc_vm_map & map) {
 
-    std::optional<int> ret;
+    int ret;
     std::optional<std::pair<uint32_t, std::vector<off_t>>> inprog_chain;
 
     off_t buf_off = 0;
@@ -738,7 +738,7 @@ struct _potential_node {
 
     //process the start of the header
     ret = this->handle_body_start(buf, hdr_off, buf_off);
-    if (ret.has_value() == false) goto _process_body_fail;
+    if (ret != 0) goto _process_body_fail;
 
     //associate each read pathname to a vm_obj node if one is present
     for (auto iter = this->ser_pathnames.begin();
@@ -786,7 +786,7 @@ struct _potential_node {
 [[nodiscard]] int sc::ptrscan::_read_body(
     const std::vector<cm_byte> & buf, off_t hdr_off) {
 
-    std::optional<int> ret;
+    int ret;
     std::optional<std::pair<uint32_t, std::vector<off_t>>> inprog_chain;
 
     off_t buf_off = 0;
@@ -797,7 +797,7 @@ struct _potential_node {
 
     //process the start of the header
     ret = this->handle_body_start(buf, hdr_off, buf_off);
-    if (ret.has_value() == false) goto _read_body_fail;
+    if (ret != 0) goto _read_body_fail;
 
 
     //fetch each chain
@@ -853,7 +853,7 @@ sc::ptrscan::ptrscan()
 
 [[nodiscard]] int sc::ptrscan::scan(
                     sc::opt & opts,
-                    sc::opt_ptrscan & opts_ptrscan,
+                    sc::opt_ptr & opts_ptr,
                     sc::map_area_set & ma_set,
                     worker_pool & w_pool,
                     const cm_byte flags) {
@@ -883,7 +883,7 @@ sc::ptrscan::ptrscan()
     }
 
     //lock ptrscan options
-    ret = opts_ptrscan._lock();
+    ret = opts_ptr._lock();
     if (ret != 0) {
         run_err = false;
         goto _scan_unlock_opts;
@@ -893,14 +893,14 @@ sc::ptrscan::ptrscan()
     ret = ma_set._lock();
     if (ret != 0) {
         run_err = false;
-        goto _scan_unlock_opts_ptrscan;
+        goto _scan_unlock_opts_ptr;
     }
 
     //check all necessary options have been set
-    if (opts_ptrscan.get_target_addr().has_value() == false
-        || opts_ptrscan.get_alignment().has_value() == false
-        || opts_ptrscan.get_max_obj_sz().has_value() == false
-        || opts_ptrscan.get_max_depth().has_value() == false) {
+    if (opts_ptr.get_target_addr().has_value() == false
+        || opts_ptr.get_alignment().has_value() == false
+        || opts_ptr.get_max_obj_sz().has_value() == false
+        || opts_ptr.get_max_depth().has_value() == false) {
 
         sc_errno = SC_ERR_OPT_MISSING;
         run_err = true;
@@ -908,12 +908,12 @@ sc::ptrscan::ptrscan()
     }
 
     //setup the worker pool
-    ret = w_pool._setup(opts, opts_ptrscan, *this, ma_set, flags);
+    ret = w_pool._setup(opts, opts_ptr, *this, ma_set, flags);
     if (ret != 0) goto _scan_unlock_all;
 
 
     //for every depth level
-    for (int i = 0; i < opts_ptrscan.get_max_depth().value(); ++i) {
+    for (int i = 0; i < opts_ptr.get_max_depth().value(); ++i) {
 
         //scan the selected address space once
         ret = w_pool._single_run();
@@ -932,8 +932,8 @@ sc::ptrscan::ptrscan()
     ret = ma_set._unlock();
     if (ret != 0) run_err = true;
 
-    _scan_unlock_opts_ptrscan:
-    ret = opts_ptrscan._unlock();
+    _scan_unlock_opts_ptr:
+    ret = opts_ptr._unlock();
     if (ret != 0) run_err = true;
 
     _scan_unlock_opts:
@@ -947,7 +947,7 @@ sc::ptrscan::ptrscan()
 
 
 [[nodiscard]] int sc::ptrscan::verify(
-        sc::opt & opts, const sc::opt_ptrscan & opts_ptrscan) {
+        sc::opt & opts, const sc::opt_ptr & opts_ptr) {
 
     bool valid;
 
@@ -956,7 +956,7 @@ sc::ptrscan::ptrscan()
     _LOCK(-1)
 
     //check a target address is provided
-    if (opts_ptrscan.get_target_addr().has_value() == false) {
+    if (opts_ptr.get_target_addr().has_value() == false) {
         sc_errno = SC_ERR_OPT_MISSING;
         goto _verify_fail;
     }
@@ -983,7 +983,7 @@ sc::ptrscan::ptrscan()
     for (int i = 0; i < this->chains.size(); ++i) {
 
         //delete this chain if it fails verification
-        valid = is_chain_valid(opts_ptrscan.get_target_addr().value(),
+        valid = is_chain_valid(opts_ptr.get_target_addr().value(),
                                this->chains[i],
                                *((mc_session *) opts.get_sessions()[0]));
         if (valid == false) {

@@ -66,7 +66,7 @@ void _opt_helper::teardown(args & opt_args) {
     CHECK_EQ(ret, 0);
 
     //reset ptrscan options
-    ret = opt_args.opts_ptrscan.reset();
+    ret = opt_args.opts_ptr.reset();
     CHECK_EQ(ret, 0);
 
     //reset map area set

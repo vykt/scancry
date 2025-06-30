@@ -304,37 +304,37 @@ sc::opt::opt(const opt && opts)
 
 
 /*
- *  --- [OPT_PTRSCAN | PUBLIC] ---
+ *  --- [OPT_PTR | PUBLIC] ---
  */
 
-sc::opt_ptrscan::opt_ptrscan()
+sc::opt_ptr::opt_ptr()
  : _opt_scan(),
    smart_scan(true) {}
 
 
-sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan & opts_ptrscan)
+sc::opt_ptr::opt_ptr(const opt_ptr & opts_ptr)
  : _opt_scan(),
-   target_addr(opts_ptrscan.target_addr),
-   alignment(opts_ptrscan.alignment),
-   max_obj_sz(opts_ptrscan.max_obj_sz),
-   max_depth(opts_ptrscan.max_depth),
-   static_areas(opts_ptrscan.static_areas),
-   preset_offsets(opts_ptrscan.preset_offsets),
-   smart_scan(opts_ptrscan.smart_scan) {}
+   target_addr(opts_ptr.target_addr),
+   alignment(opts_ptr.alignment),
+   max_obj_sz(opts_ptr.max_obj_sz),
+   max_depth(opts_ptr.max_depth),
+   static_areas(opts_ptr.static_areas),
+   preset_offsets(opts_ptr.preset_offsets),
+   smart_scan(opts_ptr.smart_scan) {}
 
 
-sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
+sc::opt_ptr::opt_ptr(const opt_ptr && opts_ptr)
  : _opt_scan(),
-   target_addr(opts_ptrscan.target_addr),
-   alignment(opts_ptrscan.alignment),
-   max_obj_sz(opts_ptrscan.max_obj_sz),
-   max_depth(opts_ptrscan.max_depth),
-   static_areas(opts_ptrscan.static_areas),
-   preset_offsets(opts_ptrscan.preset_offsets),
-   smart_scan(opts_ptrscan.smart_scan) {}
+   target_addr(opts_ptr.target_addr),
+   alignment(opts_ptr.alignment),
+   max_obj_sz(opts_ptr.max_obj_sz),
+   max_depth(opts_ptr.max_depth),
+   static_areas(opts_ptr.static_areas),
+   preset_offsets(opts_ptr.preset_offsets),
+   smart_scan(opts_ptr.smart_scan) {}
 
 
-[[nodiscard]] int sc::opt_ptrscan::reset() {
+[[nodiscard]] int sc::opt_ptr::reset() {
 
     _LOCK(-1)
     this->target_addr = std::nullopt;
@@ -351,7 +351,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 //getters & setters
-[[nodiscard]] int sc::opt_ptrscan::set_target_addr(
+[[nodiscard]] int sc::opt_ptr::set_target_addr(
     const std::optional<uintptr_t> target_addr) noexcept {
 
     _LOCK(-1)
@@ -363,13 +363,13 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] std::optional<uintptr_t>
-    sc::opt_ptrscan::get_target_addr() const noexcept {
+    sc::opt_ptr::get_target_addr() const noexcept {
 
     return this->target_addr;
 }
 
 
-[[nodiscard]] int sc::opt_ptrscan::set_alignment(
+[[nodiscard]] int sc::opt_ptr::set_alignment(
     const std::optional<off_t> alignment) noexcept {
 
     _LOCK(-1)
@@ -381,13 +381,13 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] std::optional<off_t>
-    sc::opt_ptrscan::get_alignment() const noexcept {
+    sc::opt_ptr::get_alignment() const noexcept {
 
     return this->alignment;
 }
 
 
-[[nodiscard]] int sc::opt_ptrscan::set_max_obj_sz(
+[[nodiscard]] int sc::opt_ptr::set_max_obj_sz(
     const std::optional<off_t> max_obj_sz) noexcept {
 
     _LOCK(-1)
@@ -399,13 +399,13 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] std::optional<off_t>
-    sc::opt_ptrscan::get_max_obj_sz() const noexcept {
+    sc::opt_ptr::get_max_obj_sz() const noexcept {
 
     return this->max_obj_sz;
 }
 
 
-[[nodiscard]] int sc::opt_ptrscan::set_max_depth(
+[[nodiscard]] int sc::opt_ptr::set_max_depth(
     const std::optional<int> max_depth) noexcept {
 
     _LOCK(-1)
@@ -417,13 +417,13 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] std::optional<int>
-    sc::opt_ptrscan::get_max_depth() const noexcept {
+    sc::opt_ptr::get_max_depth() const noexcept {
 
     return this->max_depth;
 }
 
 
-[[nodiscard]] int sc::opt_ptrscan::set_static_areas(
+[[nodiscard]] int sc::opt_ptr::set_static_areas(
     const std::optional<std::vector<const cm_lst_node *>> & static_areas) {
 
     _LOCK(-1)
@@ -440,13 +440,13 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] const std::optional<std::unordered_set<const cm_lst_node *>>
-    & sc::opt_ptrscan::get_static_areas() const {
+    & sc::opt_ptr::get_static_areas() const {
 
     return this->static_areas;
 }
 
 
-[[nodiscard]] int sc::opt_ptrscan::set_preset_offsets(
+[[nodiscard]] int sc::opt_ptr::set_preset_offsets(
     const std::optional<std::vector<off_t>> & preset_offsets) {
 
     _LOCK(-1)
@@ -458,14 +458,14 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] const std::optional<std::vector<off_t>>
-    & sc::opt_ptrscan::get_preset_offsets() const {
+    & sc::opt_ptr::get_preset_offsets() const {
 
     return this->preset_offsets;
 }
 
 
 [[nodiscard]] int
-    sc::opt_ptrscan::set_smart_scan(const bool enable) noexcept {
+    sc::opt_ptr::set_smart_scan(const bool enable) noexcept {
 
     _LOCK(-1)
     this->smart_scan = enable;
@@ -476,7 +476,7 @@ sc::opt_ptrscan::opt_ptrscan(const opt_ptrscan && opts_ptrscan)
 
 
 [[nodiscard]] bool
-    sc::opt_ptrscan::get_smart_scan() const noexcept {
+    sc::opt_ptr::get_smart_scan() const noexcept {
 
     return this->smart_scan;        
 }
@@ -1039,14 +1039,14 @@ cm_byte sc_opt_get_access(const sc_opt opts) {
 
 
 /*
- *  --- [OPT_PTRSCAN | EXTERNAL] ---
+ *  --- [OPT_PTR | EXTERNAL] ---
  */
 
-//new class opt_ptrscan
-sc_opt_ptrscan sc_new_opt_ptrscan() {
+//new class opt_ptr
+sc_opt_ptr sc_new_opt_ptr() {
 
     try {
-        return new sc::opt_ptrscan();
+        return new sc::opt_ptr();
 
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
@@ -1055,13 +1055,13 @@ sc_opt_ptrscan sc_new_opt_ptrscan() {
 };
 
 
-sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan) {
+sc_opt_ptr sc_copy_opt_ptr(const sc_opt_ptr opts_ptr) {
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     try {
-        return new sc::opt_ptrscan(*o);
+        return new sc::opt_ptr(*o);
         
     } catch (const std::exception & excp) {
         exception_sc_errno(excp);
@@ -1071,10 +1071,10 @@ sc_opt_ptrscan sc_copy_opt_ptrscan(const sc_opt_ptrscan opts_ptrscan) {
 
 
 //delete class opt
-int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan) {
+int sc_del_opt_ptr(sc_opt_ptr opts_ptr) {
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     try {
         delete o;
@@ -1087,14 +1087,14 @@ int sc_del_opt_ptrscan(sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-//reset class opt_ptrscan
-int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan) {
+//reset class opt_ptr
+int sc_opt_ptr_reset(sc_opt_ptr opts_ptr) {
 
     int ret;
 
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     try {
         ret = o->reset();
@@ -1107,14 +1107,14 @@ int sc_opt_ptr_reset(sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_target_addr(sc_opt_ptr opts_ptr,
                                    const uintptr_t target_addr) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //perform the set
     if (target_addr == 0x0) ret = o->set_target_addr(std::nullopt);
@@ -1123,10 +1123,10 @@ int sc_opt_ptr_set_target_addr(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
+uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptr opts_ptr) {
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //return NULL if optional is not set or there is an error
     const std::optional<uintptr_t> & target_addr
@@ -1141,14 +1141,14 @@ uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_alignment(sc_opt_ptr opts_ptr,
                                  const off_t alignment) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //perform the set
     if (alignment == 0x0) ret = o->set_alignment(std::nullopt);
@@ -1157,10 +1157,10 @@ int sc_opt_ptr_set_alignment(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptr_get_alignment(const sc_opt_ptr opts_ptr) {
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //return NULL if optional is not set or there is an error
     const std::optional<off_t> & alignment
@@ -1175,14 +1175,14 @@ off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_obj_sz(sc_opt_ptr opts_ptr,
                                   const off_t max_obj_sz) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
     
     //perform the set
     if (max_obj_sz == 0x0) ret = o->set_max_obj_sz(std::nullopt);
@@ -1191,10 +1191,10 @@ int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
+off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptr opts_ptr) {
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //return NULL if optional is not set or there is an error
     const std::optional<off_t> & max_obj_sz
@@ -1209,14 +1209,14 @@ off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_max_depth(sc_opt_ptr opts_ptr,
                                   const int max_depth) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
     
     //perform the set
     if (max_depth == 0x0) ret = o->set_max_depth(std::nullopt);
@@ -1225,10 +1225,10 @@ int sc_opt_ptr_set_max_depth(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
+int sc_opt_ptr_get_max_depth(const sc_opt_ptr opts_ptr) {
     
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //return NULL if optional is not set or there is an error
     const std::optional<int> & max_depth
@@ -1243,19 +1243,19 @@ int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan opts_ptrscan) {
 }
 
 
-int sc_opt_ptr_set_static_areas(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_static_areas(sc_opt_ptr opts_ptr,
                                     const cm_vct * static_areas) {
 
     //call generic setter
-    return _vector_setter<sc::opt_ptrscan,
+    return _vector_setter<sc::opt_ptr,
                           const cm_lst_node *,
                           const cm_lst_node *>(
-        opts_ptrscan, static_areas,
-        &sc::opt_ptrscan::set_static_areas, std::nullopt);
+        opts_ptr, static_areas,
+        &sc::opt_ptr::set_static_areas, std::nullopt);
 }
 
 
-int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_static_areas(const sc_opt_ptr opts_ptr,
                                     cm_vct * static_areas) {
 
     /*
@@ -1269,11 +1269,11 @@ int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
     int ret;
 
     //call generic setter
-    ret = _unordered_set_getter<sc::opt_ptrscan,
+    ret = _unordered_set_getter<sc::opt_ptr,
                                 const cm_lst_node *,
                                 const cm_lst_node *>(
-        opts_ptrscan, static_areas,
-        &sc::opt_ptrscan::get_static_areas, std::nullopt);
+        opts_ptr, static_areas,
+        &sc::opt_ptr::get_static_areas, std::nullopt);
     if (ret != 0) return -1;
 
     //sort the returned vector
@@ -1289,34 +1289,34 @@ int sc_opt_ptr_get_static_areas(const sc_opt_ptrscan opts_ptrscan,
 }
 
 
-int sc_opt_ptr_set_preset_offsets(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_preset_offsets(sc_opt_ptr opts_ptr,
                                       const cm_vct * preset_offsets) {
 
     //call generic setter
-    return _vector_setter<sc::opt_ptrscan, off_t, off_t>(
-        opts_ptrscan, preset_offsets,
-        &sc::opt_ptrscan::set_preset_offsets, std::nullopt);
+    return _vector_setter<sc::opt_ptr, off_t, off_t>(
+        opts_ptr, preset_offsets,
+        &sc::opt_ptr::set_preset_offsets, std::nullopt);
 }
 
 
-int sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_get_preset_offsets(const sc_opt_ptr opts_ptr,
                                       cm_vct * preset_offsets) {
 
     //call generic getter
-    return _vector_getter<sc::opt_ptrscan, off_t, off_t>(
-        opts_ptrscan, preset_offsets,
-        &sc::opt_ptrscan::get_preset_offsets, std::nullopt);        
+    return _vector_getter<sc::opt_ptr, off_t, off_t>(
+        opts_ptr, preset_offsets,
+        &sc::opt_ptr::get_preset_offsets, std::nullopt);        
 }
 
 
-int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
+int sc_opt_ptr_set_smart_scan(sc_opt_ptr opts_ptr,
                                   const bool enable) {
 
     int ret;
 
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //perform the set
     ret = o->set_smart_scan(enable);
@@ -1324,10 +1324,10 @@ int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan opts_ptrscan,
 }
 
 
-bool sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan opts_ptrscan) {
+bool sc_opt_ptr_get_smart_scan(const sc_opt_ptr opts_ptr) {
 
     //cast opaque handle into class
-    sc::opt_ptrscan * o = static_cast<sc::opt_ptrscan *>(opts_ptrscan);
+    sc::opt_ptr * o = static_cast<sc::opt_ptr *>(opts_ptr);
 
     //call getter
     return o->get_smart_scan();

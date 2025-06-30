@@ -473,10 +473,12 @@ static void _c_print_set(
 
     cm_lst_node * area_node;
     mc_vm_area * area;
-    char str_buf[5];
 
 
-    std::cout << " --- [" << heading << "] --- " << std::endl << std::hex;
+    subtitle("set dump", heading);
+
+    //use hex conversion
+    std::cout << std::hex;
 
     //for every area
     for (int i = 0; i < sorted_area_nodes->len; ++i) {
@@ -484,16 +486,7 @@ static void _c_print_set(
         ret = cm_vct_get(sorted_area_nodes, i, &area_node);
         CHECK_EQ(ret, 0);
         area = MC_GET_NODE_AREA(area_node);
-        mc_access_to_str(area->access, str_buf);
-
-        /*
-         *  Format: <start_addr> - <end_addr> - <perms> - <basename:12>
-         */
-        std::cout << std::hex;
-        std::cout << "0x" << area->start_addr << " - 0x" << area->end_addr;
-        std::cout << " | " << std::string(str_buf);
-        std::cout << " | " << std::left << std::setw(10);
-        std::cout << std::string(area->basename).substr(0, 12) << std::endl; 
+        _memcry_helper::print_area(area);
 
     } //end for every area
 

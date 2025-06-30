@@ -47,25 +47,25 @@ inline const constexpr char * test_c_opt_subtests[] = {
 };
 
 
-//C++ interface opt_ptrscan class tests
-inline const constexpr int test_cc_opt_ptrscan_subtests_num = 9;
-inline const constexpr char * test_cc_opt_ptrscan_subtests[] = {
-    "test_cc_sc_opt_ptrscan",
-    "test_cc_sc_opt_ptr_target_addr",
-    "test_cc_sc_opt_ptr_alignment",
-    "test_cc_sc_opt_ptr_max_obj_sz",
-    "test_cc_sc_opt_ptr_max_depth",
-    "test_cc_sc_opt_ptr_static_areas",
-    "test_cc_sc_opt_ptr_preset_offsets",
-    "test_cc_sc_opt_ptr_smart_scan",
-    "test_cc_sc_opt_ptr_reset"
+//C++ interface opt_ptr class tests
+inline const constexpr int test_cc_opt_ptr_subtests_num = 9;
+inline const constexpr char * test_cc_opt_ptr_subtests[] = {
+    "test_cc_opt_ptr",
+    "test_cc_opt_ptr_target_addr",
+    "test_cc_opt_ptr_alignment",
+    "test_cc_opt_ptr_max_obj_sz",
+    "test_cc_opt_ptr_max_depth",
+    "test_cc_opt_ptr_static_areas",
+    "test_cc_opt_ptr_preset_offsets",
+    "test_cc_opt_ptr_smart_scan",
+    "test_cc_opt_ptr_reset"
 };
 
 
-//C interface opt_ptrscan class tests
-inline const constexpr int test_c_opt_ptrscan_subtests_num = 9;
-inline const constexpr char * test_c_opt_ptrscan_subtests[] = {
-    "test_c_sc_opt_ptrscan",
+//C interface opt_ptr class tests
+inline const constexpr int test_c_opt_ptr_subtests_num = 9;
+inline const constexpr char * test_c_opt_ptr_subtests[] = {
+    "test_c_sc_opt_ptr",
     "test_c_sc_opt_ptr_target_addr",
     "test_c_sc_opt_ptr_alignment",
     "test_c_sc_opt_ptr_max_obj_sz",
@@ -115,7 +115,47 @@ inline const constexpr char * test_cc_worker_pool_subtests[] = {
 inline const constexpr int test_c_worker_pool_subtests_num = 2;
 inline const constexpr char * test_c_worker_pool_subtests[] = {
     "test_c_worker_pool",
-    "test_cc_worker_pool_free_workers"
+    "test_c_worker_pool_free_workers"
+};
+
+
+//C++ interface ptrscan tests
+inline const constexpr int test_cc_serialiser_subtests_num = 4;
+inline const constexpr char * test_cc_serialiser_subtests[] = {
+    "test_cc_serialiser",
+    "test_cc_serialiser_save_scan",
+    "test_cc_serialiser_load_scan",
+    "test_cc_serialiser_read_headers"
+};
+
+
+//C interface ptrscan tests
+inline const constexpr int test_c_serialiser_subtests_num = 4;
+inline const constexpr char * test_c_serialiser_subtests[] = {
+    "test_c_serialiser",
+    "test_c_serialiser_save_scan",
+    "test_c_serialiser_load_scan",
+    "test_c_serialiser_read_headers"
+};
+
+
+//C++ interface ptrscan tests
+inline const constexpr int test_cc_ptrscan_subtests_num = 5;
+inline const constexpr char * test_cc_ptrscan_subtests[] = {
+    "test_cc_ptrscan",
+    "test_cc_ptrscan_process_addr",
+    "test_cc_save_load_body",
+    "test_cc_ptrscan_scan",
+    "test_cc_ptrscan_verify",
+};
+
+
+//C interface ptrscan tests
+inline const constexpr int test_c_ptrscan_subtests_num = 3;
+inline const constexpr char * test_c_ptrscan_subtests[] = {
+    "test_c_ptrscan_scan",
+    "test_c_ptrscan_verify",
+    "test_c_ptrscan_get_chains"
 };
 
 
@@ -127,8 +167,8 @@ inline const constexpr char * test_c_worker_pool_subtests[] = {
 void add_cc_opt(doctest::Context & context);
 void add_c_opt(doctest::Context & context);
 
-void add_cc_opt_ptrscan(doctest::Context & context);
-void add_c_opt_ptrscan(doctest::Context & context);
+void add_cc_opt_ptr(doctest::Context & context);
+void add_c_opt_ptr(doctest::Context & context);
 
 void add_cc_map_area_set(doctest::Context & context);
 void add_c_map_area_set(doctest::Context & context);

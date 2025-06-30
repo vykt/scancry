@@ -33,18 +33,18 @@ void add_c_opt(doctest::Context & context) {
 }
 
 
-//add C++ interface `opt_ptrscan` class tests
-void add_cc_opt_ptrscan(doctest::Context & context) {
-    _add_filters(test_cc_opt_ptrscan_subtests,
-                 test_cc_opt_ptrscan_subtests_num, context);
+//add C++ interface `opt_ptr` class tests
+void add_cc_opt_ptr(doctest::Context & context) {
+    _add_filters(test_cc_opt_ptr_subtests,
+                 test_cc_opt_ptr_subtests_num, context);
     return;
 }
 
 
-//add C interface `opt_ptrscan` class tests
-void add_c_opt_ptrscan(doctest::Context & context) {
-    _add_filters(test_c_opt_ptrscan_subtests,
-                 test_c_opt_ptrscan_subtests_num, context);
+//add C interface `opt_ptr` class tests
+void add_c_opt_ptr(doctest::Context & context) {
+    _add_filters(test_c_opt_ptr_subtests,
+                 test_c_opt_ptr_subtests_num, context);
     return;
 }
 
@@ -73,9 +73,25 @@ void add_cc_worker_pool(doctest::Context & context) {
 }
 
 
-//add C interface `map_area_set` tests
+//add C interface `worker_pool` tests
 void add_c_worker_pool(doctest::Context & context) {
     _add_filters(test_c_worker_pool_subtests,
                  test_c_worker_pool_subtests_num, context);
+    return;
+}
+
+
+//add C++ interface `ptrscan` tests
+void add_cc_ptrscan(doctest::Context & context) {
+    _add_filters(test_cc_ptrscan_subtests,
+                 test_cc_ptrscan_subtests_num, context);
+    return;
+}
+
+
+//add C interface `ptrscan` tests
+void add_c_ptrscan(doctest::Context & context) {
+    _add_filters(test_c_ptrscan_subtests,
+                 test_c_ptrscan_subtests_num, context);
     return;
 }

@@ -403,27 +403,27 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
 
 /*
- *  --- [TESTS - OPT_PTRSCAN] ---
+ *  --- [TESTS - OPT_PTR] ---
  */
 
-TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
+TEST_CASE(test_cc_opt_ptr_subtests[0]) {
 
     int ret;
 
 
-    //test 0: construct opt_ptrscan classes
+    //test 0: construct opt_ptr classes
 
     //call regular constructor
-    sc::opt_ptrscan o;
+    sc::opt_ptr o;
 
     //apply lock to check copy & move constructors reset it
     ret = o._lock();
     CHECK_EQ(ret, 0);
 
     //call copy & move constructors
-    sc::opt_ptrscan o_copy(o);
+    sc::opt_ptr o_copy(o);
     CHECK_EQ(o_copy._get_lock(), false);
-    sc::opt_ptrscan o_move(std::move(o));
+    sc::opt_ptr o_move(std::move(o));
     CHECK_EQ(o_move._get_lock(), false);
 
     //reset lock
@@ -432,56 +432,56 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
 
     //test 1: set & get `target_addr`
-    SUBCASE(test_cc_opt_ptrscan_subtests[1]) {
-        title(CC, "opt_ptrscan", "Set & get `target_addr`");
+    SUBCASE(test_cc_opt_ptr_subtests[1]) {
+        title(CC, "opt_ptr", "Set & get `target_addr`");
 
-        _cc_opt_val_test<sc::opt_ptrscan, uintptr_t>(
+        _cc_opt_val_test<sc::opt_ptr, uintptr_t>(
                             o, 0x1000,
-                            &sc::opt_ptrscan::set_target_addr,
-                            &sc::opt_ptrscan::get_target_addr);
+                            &sc::opt_ptr::set_target_addr,
+                            &sc::opt_ptr::get_target_addr);
 
     } //end test
 
 
     //test 2: set & get `alignment`
-    SUBCASE(test_cc_opt_ptrscan_subtests[2]) {
-        title(CC, "opt_ptrscan", "Set & get `alignment`");
+    SUBCASE(test_cc_opt_ptr_subtests[2]) {
+        title(CC, "opt_ptr", "Set & get `alignment`");
 
-        _cc_opt_val_test<sc::opt_ptrscan, off_t>(
+        _cc_opt_val_test<sc::opt_ptr, off_t>(
                             o, 0x4,
-                            &sc::opt_ptrscan::set_alignment,
-                            &sc::opt_ptrscan::get_alignment);
+                            &sc::opt_ptr::set_alignment,
+                            &sc::opt_ptr::get_alignment);
 
     } //end test
 
 
     //test 3: set & get `max_obj_sz`
-    SUBCASE(test_cc_opt_ptrscan_subtests[3]) {
-        title(CC, "opt_ptrscan", "Set & get `max_obj_sz`");
+    SUBCASE(test_cc_opt_ptr_subtests[3]) {
+        title(CC, "opt_ptr", "Set & get `max_obj_sz`");
 
-        _cc_opt_val_test<sc::opt_ptrscan, off_t>(
+        _cc_opt_val_test<sc::opt_ptr, off_t>(
                             o, 0x4,
-                            &sc::opt_ptrscan::set_max_obj_sz,
-                            &sc::opt_ptrscan::get_max_obj_sz);
+                            &sc::opt_ptr::set_max_obj_sz,
+                            &sc::opt_ptr::get_max_obj_sz);
 
     } //end test
 
 
     //test 4: set & get `max_depth`
-    SUBCASE(test_cc_opt_ptrscan_subtests[4]) {
-        title(CC, "opt_ptrscan", "Set & get `max_depth`");
+    SUBCASE(test_cc_opt_ptr_subtests[4]) {
+        title(CC, "opt_ptr", "Set & get `max_depth`");
 
-        _cc_opt_val_test<sc::opt_ptrscan, int>(
+        _cc_opt_val_test<sc::opt_ptr, int>(
                             o, 0x4,
-                            &sc::opt_ptrscan::set_max_depth,
-                            &sc::opt_ptrscan::get_max_depth);
+                            &sc::opt_ptr::set_max_depth,
+                            &sc::opt_ptr::get_max_depth);
 
     } //end test
 
 
     //test 5: set & get `static_areas`
-    SUBCASE(test_cc_opt_ptrscan_subtests[5]) {
-        title(CC, "opt_ptrscan", "Set & get `static_areas`");
+    SUBCASE(test_cc_opt_ptr_subtests[5]) {
+        title(CC, "opt_ptr", "Set & get `static_areas`");
 
         /*
          *  Test implemented directly.
@@ -527,8 +527,8 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
 
 
     //test 6: set & get `preset_offsets`
-    SUBCASE(test_cc_opt_ptrscan_subtests[6]) {
-        title(CC, "opt_ptrscan", "Set & get `preset_offsets`");
+    SUBCASE(test_cc_opt_ptr_subtests[6]) {
+        title(CC, "opt_ptr", "Set & get `preset_offsets`");
 
         std::vector<off_t> preset_offsets = {
             0x40,
@@ -536,28 +536,28 @@ TEST_CASE(test_cc_opt_ptrscan_subtests[0]) {
             0x100
         };
 
-        _cc_vector_test<sc::opt_ptrscan, off_t>(
+        _cc_vector_test<sc::opt_ptr, off_t>(
                             o, preset_offsets,
-                            &sc::opt_ptrscan::set_preset_offsets,
-                            &sc::opt_ptrscan::get_preset_offsets);
+                            &sc::opt_ptr::set_preset_offsets,
+                            &sc::opt_ptr::get_preset_offsets);
 
     } //end test
 
     
     //test 7: set & get `smart_scan`
-    SUBCASE(test_cc_opt_ptrscan_subtests[7]) {
-        title(CC, "opt_ptrscan", "Set & get `smart_scan`");
+    SUBCASE(test_cc_opt_ptr_subtests[7]) {
+        title(CC, "opt_ptr", "Set & get `smart_scan`");
 
-        _cc_val_test<sc::opt_ptrscan, bool>(
+        _cc_val_test<sc::opt_ptr, bool>(
                             o, true,
-                            &sc::opt_ptrscan::set_smart_scan,
-                            &sc::opt_ptrscan::get_smart_scan);
+                            &sc::opt_ptr::set_smart_scan,
+                            &sc::opt_ptr::get_smart_scan);
 
     } //end test
 
 
     //test 8: reset
-    SUBCASE(test_cc_opt_ptrscan_subtests[8]) {
+    SUBCASE(test_cc_opt_ptr_subtests[8]) {
 
         //TODO: Implement.
 
@@ -1045,31 +1045,31 @@ TEST_CASE(test_c_opt_subtests[0]) {
 
 
 /*
- *  --- [TESTS - OPT_PTRSCAN] ---
+ *  --- [TESTS - OPT_PTR] ---
  */
 
-TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
+TEST_CASE(test_c_opt_ptr_subtests[0]) {
 
     int ret;
-    sc_opt_ptrscan o, o_copy;
+    sc_opt_ptr o, o_copy;
 
 
-    //test 0: create sc_opt_ptrscans
+    //test 0: create sc_opt_ptrs
 
     //call constructor
-    o = sc_new_opt_ptrscan();
+    o = sc_new_opt_ptr();
     REQUIRE_NE(o, nullptr);
 
     //call copy constructor
-    o_copy = sc_copy_opt_ptrscan(o);
+    o_copy = sc_copy_opt_ptr(o);
     REQUIRE_NE(o_copy, nullptr);
 
 
     //test 1: set & get `target_addr`
-    SUBCASE(test_c_opt_ptrscan_subtests[1]) {
-        title(C, "sc_opt_ptrscan", "Set & get `target_addr`");
+    SUBCASE(test_c_opt_ptr_subtests[1]) {
+        title(C, "sc_opt_ptr", "Set & get `target_addr`");
 
-        _c_opt_test<sc_opt_ptrscan, uintptr_t>(
+        _c_opt_test<sc_opt_ptr, uintptr_t>(
                             o, 0x1000, 0,
                             sc_opt_ptr_set_target_addr,
                             sc_opt_ptr_get_target_addr,
@@ -1079,9 +1079,9 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
 
     //test 2: set & get `alignment`
-    SUBCASE(test_c_opt_ptrscan_subtests[2]) {
+    SUBCASE(test_c_opt_ptr_subtests[2]) {
 
-        _c_opt_test<sc_opt_ptrscan, off_t>(
+        _c_opt_test<sc_opt_ptr, off_t>(
                             o, 0x4, 0,
                             sc_opt_ptr_set_alignment,
                             sc_opt_ptr_get_alignment,
@@ -1091,10 +1091,10 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
 
     //test 3: set & get `max_obj_sz`
-    SUBCASE(test_c_opt_ptrscan_subtests[3]) {
-        title(C, "sc_opt_ptrscan", "Set & get `max_obj_sz`");
+    SUBCASE(test_c_opt_ptr_subtests[3]) {
+        title(C, "sc_opt_ptr", "Set & get `max_obj_sz`");
 
-        _c_opt_test<sc_opt_ptrscan, off_t>(
+        _c_opt_test<sc_opt_ptr, off_t>(
                             o, 0x4, 0,
                             sc_opt_ptr_set_max_obj_sz,
                             sc_opt_ptr_get_max_obj_sz,
@@ -1104,10 +1104,10 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
 
     //test 4: set & get `max_depth`
-    SUBCASE(test_c_opt_ptrscan_subtests[4]) {
-        title(C, "sc_opt_ptrscan", "Set & get `max_depth`");
+    SUBCASE(test_c_opt_ptr_subtests[4]) {
+        title(C, "sc_opt_ptr", "Set & get `max_depth`");
 
-        _c_opt_test<sc_opt_ptrscan, int>(
+        _c_opt_test<sc_opt_ptr, int>(
                             o, 0x4, 0,
                             sc_opt_ptr_set_max_depth,
                             sc_opt_ptr_get_max_depth,
@@ -1116,8 +1116,8 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
     } //end test
 
     //test 5: set & get `static_areas`
-    SUBCASE(test_c_opt_ptrscan_subtests[5]) {
-        title(C, "sc_opt_ptrscan", "Set & get `static_areas`");
+    SUBCASE(test_c_opt_ptr_subtests[5]) {
+        title(C, "sc_opt_ptr", "Set & get `static_areas`");
 
         /*
          *  NOTE: The C interface converts the STL hashmap into an
@@ -1149,7 +1149,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
         area_node_ptrs_arr[1] = &area_nodes_arr[1];
         area_node_ptrs_arr[2] = &area_nodes_arr[2];
 
-        _c_vector_test<sc_opt_ptrscan, const cm_lst_node *>(
+        _c_vector_test<sc_opt_ptr, const cm_lst_node *>(
             o, (const cm_lst_node **) area_node_ptrs_arr,
             3, sc_opt_ptr_set_static_areas,
             sc_opt_ptr_get_static_areas, std::nullopt);
@@ -1159,7 +1159,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
     //test 6: set & get `preset_offset`
     SUBCASE(test_c_opt_subtests[6]) {
-        title(C, "sc_opt_ptrscan", "Set & get `preset_offsets`");
+        title(C, "sc_opt_ptr", "Set & get `preset_offsets`");
 
         off_t offset_arr[3] = {
             0x40,
@@ -1167,7 +1167,7 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
             0x100
         };
 
-        _c_vector_test<sc_opt_ptrscan, off_t>(
+        _c_vector_test<sc_opt_ptr, off_t>(
             o, offset_arr, 3, sc_opt_ptr_set_preset_offsets,
             sc_opt_ptr_get_preset_offsets, std::nullopt);
 
@@ -1175,10 +1175,10 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
 
     //test 7: set & get `smart_scan`
-    SUBCASE(test_c_opt_ptrscan_subtests[7]) {
-        title(C, "sc_opt_ptrscan", "Set & get `smart_scan`");
+    SUBCASE(test_c_opt_ptr_subtests[7]) {
+        title(C, "sc_opt_ptr", "Set & get `smart_scan`");
 
-        _c_val_test<sc_opt_ptrscan, bool>(
+        _c_val_test<sc_opt_ptr, bool>(
             o, true, sc_opt_ptr_set_smart_scan,
             sc_opt_ptr_get_smart_scan, std::nullopt);
 
@@ -1186,10 +1186,10 @@ TEST_CASE(test_c_opt_ptrscan_subtests[0]) {
 
 
     //test 0 (cont.): destroy the pointer scan options objects
-    int _ret = sc_del_opt_ptrscan(o);
+    int _ret = sc_del_opt_ptr(o);
     CHECK_EQ(_ret, 0);
 
-    _ret = sc_del_opt_ptrscan(o_copy);
+    _ret = sc_del_opt_ptr(o_copy);
     CHECK_EQ(_ret, 0);
 
 

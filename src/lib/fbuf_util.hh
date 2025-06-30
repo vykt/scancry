@@ -8,6 +8,9 @@
 //external libraries
 #include <cmore.h>
 
+//local headers
+#include "scancry.h"
+
 
 namespace fbuf_util {
 

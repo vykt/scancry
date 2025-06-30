@@ -29,7 +29,7 @@
 sc::serialiser::get_scan_type(sc::_scan * scan) const {
 
     if (dynamic_cast<sc::ptrscan *>(scan)) {
-        return sc::_scan_type_ptrscan;
+        return sc::scan_type_ptrscan;
     }
 
     sc_errno = SC_ERR_RTTI;
@@ -38,18 +38,18 @@ sc::serialiser::get_scan_type(sc::_scan * scan) const {
 
 
 [[nodiscard]] _SC_DBG_INLINE bool
-sc::serialiser::is_header_valid(sc::_scancry_file_hdr & hdr) const {
+sc::serialiser::is_header_valid(sc::scancry_file_hdr & hdr) const {
 
     //check file magic
     auto diff = std::memcmp(
-                    hdr.magic, sc::_scancry_magic, sc::_scancry_magic_sz);
+                    hdr.magic, sc::scancry_magic, sc::scancry_magic_sz);
     if (diff != 0) {
         sc_errno = SC_ERR_INVALID_FILE;        
         return false;
     }
 
     //check file version is compatible
-    if (hdr.version != sc::_scancry_file_ver_0) {
+    if (hdr.version != sc::scancry_file_ver_0) {
         sc_errno = SC_ERR_VERSION_FILE;
         return false;
     }
@@ -72,7 +72,7 @@ sc::serialiser::save_scan(
     std::ofstream fs;
     std::vector<cm_byte> body_buf;
 
-    struct sc::_scancry_file_hdr sc_hdr;
+    struct sc::scancry_file_hdr sc_hdr;
     std::optional<cm_byte> scan_type;
 
 
@@ -98,8 +98,8 @@ sc::serialiser::save_scan(
     }
 
     //build the header
-    std::memcpy(sc_hdr.magic, sc::_scancry_magic, sc::_scancry_magic_sz);
-    sc_hdr.version = sc::_scancry_file_ver_0;
+    std::memcpy(sc_hdr.magic, sc::scancry_magic, sc::scancry_magic_sz);
+    sc_hdr.version = sc::scancry_file_ver_0;
     sc_hdr.scan_type = scan_type.value();
 
     //write the header
@@ -142,7 +142,7 @@ sc::serialiser::load_scan(
     std::ifstream fs;
     std::vector<cm_byte> body_buf;
 
-    struct sc::_scancry_file_hdr sc_hdr;
+    struct sc::scancry_file_hdr sc_hdr;
     std::optional<cm_byte> scan_type;
 
 
@@ -191,4 +191,64 @@ sc::serialiser::load_scan(
     _save_scan_fail:
     _UNLOCK(-1)
     return -1;
+}
+
+
+[[nodiscard]] std::optional<sc::combined_file_hdr>
+sc::serialiser::read_headers(const char * file_path) {
+
+    int ret;
+    ssize_t scan_hdr_sz;
+    
+    std::ifstream fs;
+    struct sc::combined_file_hdr cmb_hdr;
+
+
+    //open an input file stream
+    fs = std::ifstream(file_path,
+                       std::ios::out | std::ios::binary);
+    if (fs.fail() == true) {
+        sc_errno = SC_ERR_FILE;
+        goto _read_headers_fail;
+    }
+
+    //read the ScanCry header
+    fs.read(reinterpret_cast<char *>(
+        &cmb_hdr.sc_hdr), sizeof(cmb_hdr.sc_hdr));
+    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.sc_hdr)) {
+        sc_errno = SC_ERR_FILE;
+        goto _read_headers_fail;
+    }
+
+    //verify the header
+    if (this->is_header_valid(cmb_hdr.sc_hdr) == false) goto _read_headers_fail;
+
+
+    //determine the size of the scan header
+    switch (cmb_hdr.sc_hdr.scan_type) {
+
+        case scan_type_ptrscan:
+            scan_hdr_sz = sizeof(cmb_hdr.ptr_hdr);
+            break;
+        default:
+            sc_errno = SC_ERR_FILE;
+            goto _read_headers_fail;
+        
+    } //end switch
+
+    //read the scan header
+    fs.read(reinterpret_cast<char *>(&cmb_hdr.ptr_hdr), scan_hdr_sz);
+    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.sc_hdr)) {
+        sc_errno = SC_ERR_FILE;
+        goto _read_headers_fail;
+    }
+
+    
+    //cleanup & return
+    fs.close();
+    return cmb_hdr;
+
+    _read_headers_fail:
+    fs.close();
+    return std::nullopt;
 }

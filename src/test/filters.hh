@@ -119,22 +119,20 @@ inline const constexpr char * test_c_worker_pool_subtests[] = {
 };
 
 
-//C++ interface ptrscan tests
+//C++ interface serialiser tests
 inline const constexpr int test_cc_serialiser_subtests_num = 4;
 inline const constexpr char * test_cc_serialiser_subtests[] = {
     "test_cc_serialiser",
-    "test_cc_serialiser_save_scan",
-    "test_cc_serialiser_load_scan",
+    "test_cc_serialiser_save_load_scan",
     "test_cc_serialiser_read_headers"
 };
 
 
-//C interface ptrscan tests
+//C interface serialiser tests
 inline const constexpr int test_c_serialiser_subtests_num = 4;
 inline const constexpr char * test_c_serialiser_subtests[] = {
     "test_c_serialiser",
-    "test_c_serialiser_save_scan",
-    "test_c_serialiser_load_scan",
+    "test_c_serialiser_save_load_scan",
     "test_c_serialiser_read_headers"
 };
 
@@ -175,3 +173,6 @@ void add_c_map_area_set(doctest::Context & context);
 
 void add_cc_worker_pool(doctest::Context & context);
 void add_c_worker_pool(doctest::Context & context);
+
+void add_cc_serialiser(doctest::Context & context);
+void add_c_serialiser(doctest::Context & context);

@@ -516,28 +516,28 @@ class ptrscan : public _scan {
  */
 
 //scancry header constants
-const constexpr int scancry_magic_sz = 4;
-const constexpr cm_byte scancry_magic[scancry_magic_sz]
+const constexpr int file_magic_sz = 4;
+const constexpr cm_byte file_magic[file_magic_sz]
                                            = {'S', 'C', 0x13, 0x37};
-const constexpr cm_byte scan_type_ptrscan = 0x00;
-const constexpr cm_byte scan_type_ptnscan = 0x01;
-const constexpr cm_byte scan_type_valscan = 0x02;
+const constexpr cm_byte scan_type_ptr = 0x00;
+const constexpr cm_byte scan_type_ptn = 0x01;
+const constexpr cm_byte scan_type_val = 0x02;
 
 //versions
-const constexpr cm_byte scancry_file_ver_0 = 0;
+const constexpr cm_byte file_ver_0 = 0;
 
 
 //ScanCry file header
 struct scancry_file_hdr {
 
-    cm_byte magic[scancry_magic_sz];
+    cm_byte magic[file_magic_sz];
     cm_byte version;
     cm_byte scan_type;
 };
 
 
 //pointer scan file header
-struct ptrscan_file_hdr {
+struct ptr_file_hdr {
 
     uint32_t pathnames_num;
     uint32_t pathnames_offset;
@@ -548,9 +548,9 @@ struct ptrscan_file_hdr {
 
 //combined ScanCry & scan header struct
 struct combined_file_hdr {
-    struct scancry_file_hdr sc_hdr;
+    struct scancry_file_hdr scancry_hdr;
     union {
-        ptrscan_file_hdr ptr_hdr;
+        ptr_file_hdr ptr_hdr;
     };
 };
 
@@ -570,7 +570,7 @@ class serialiser : public _lockable {
         [[nodiscard]] int save_scan(
             sc::_scan & scan, const sc::opt & opts);
         [[nodiscard]] int load_scan(
-            sc::_scan & scan, const sc::opt & opts, bool shallow);
+            sc::_scan & scan, const sc::opt & opts, const bool shallow);
         [[nodiscard]] std::optional<combined_file_hdr> read_headers(
             const char * file_path);
 };
@@ -608,7 +608,9 @@ typedef void * sc_worker_pool;
 
 typedef /* base */ void * sc_scan;
 
-#define SC_BAD_OBJ nullptr
+typedef void * sc_serialiser;
+
+#define SC_BAD_OBJ NULL
 
 //address range for sc_opt
 typedef struct {
@@ -622,6 +624,43 @@ enum sc_addr_width {
     AW32 = 4,
     AW64 = 8
 };
+
+
+//scancry header constants
+#define SC_FILE_MAGIC_SZ 4
+#define SC_FILE_MAGIC {'S', 'C', 0x13, 0x37}
+
+#define SC_SCAN_TYPE_PTR 0x00
+#define SC_SCAN_TYPE_PTN 0x01;
+#define SC_SCAN_TYPE_VAL 0x02;
+
+
+//ScanCry file header
+typedef struct {
+
+    cm_byte magic[SC_FILE_MAGIC_SZ];
+    cm_byte version;
+    cm_byte scan_type;
+} sc_scancry_file_hdr;
+
+
+//pointer scan file header
+typedef struct {
+
+    uint32_t pathnames_num;
+    uint32_t pathnames_offset;
+    uint32_t chains_num;
+    uint32_t chains_offset;
+} sc_ptr_file_hdr;
+
+
+//combined ScanCry & scan header struct
+typedef struct combined_file_hdr {
+    sc_scancry_file_hdr scancry_hdr;
+    union {
+        sc_ptr_file_hdr ptr_hdr;
+    };
+} sc_combined_file_hdr;
 
 
 
@@ -824,6 +863,20 @@ extern int sc_del_worker_pool(sc_worker_pool w_pool);
 //return: 0 on success, -1 on error
 extern int sc_wp_free_workers(sc_worker_pool w_pool);
 
+
+/*
+ *  --- [SERIALISER] --- 
+ */
+
+//return: 0 on success, -1 on error
+extern sc_serialiser sc_new_serialiser();
+extern int sc_del_serialiser(sc_serialiser serialiser);
+extern int sc_save_scan(sc_serialiser serialiser,
+                        sc_scan scan, const sc_opt opts);
+extern int sc_load_scan(sc_serialiser serialiser,
+                        sc_scan scan, const sc_opt opts, const bool shallow);
+extern int sc_read_headers(sc_serialiser serialiser, const char * file_path,
+                           sc_combined_file_hdr * cmb_hdr);
 
 
 #ifdef __cplusplus

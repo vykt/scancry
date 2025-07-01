@@ -81,6 +81,22 @@ void add_c_worker_pool(doctest::Context & context) {
 }
 
 
+//add C++ interface `serialiser` tests
+void add_cc_serialiser(doctest::Context & context) {
+    _add_filters(test_cc_serialiser_subtests,
+                 test_cc_serialiser_subtests_num, context);
+    return;
+}
+
+
+//add C interface `serialiser` tests
+void add_c_serialiser(doctest::Context & context) {
+    _add_filters(test_c_serialiser_subtests,
+                 test_c_serialiser_subtests_num, context);
+    return;
+}
+
+
 //add C++ interface `ptrscan` tests
 void add_cc_ptrscan(doctest::Context & context) {
     _add_filters(test_cc_ptrscan_subtests,

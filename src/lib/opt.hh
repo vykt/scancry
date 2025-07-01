@@ -9,9 +9,7 @@
 
 
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 //sc_opt - external
 sc_opt sc_new_opt(const enum sc_addr_width addr_width);
@@ -93,6 +91,4 @@ int sc_opt_ptr_set_smart_scan(sc_opt_ptr opts_ptr,
                                   const bool enable);
 bool sc_opt_ptr_get_smart_scan(const sc_opt_ptr opts_ptr);
 
-#ifdef __cplusplus
 } //extern "C"
-#endif

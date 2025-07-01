@@ -13,6 +13,9 @@
 
 namespace _scan_helper {
 
+//hexdump a buffer
+void hexdump(cm_byte * buf, size_t sz);
+
 /*
  *  NOTE: Seeing as most core code relies on dependency injection through
  *        some derivative of the `_scan` abstract class, a fixture scan
@@ -88,5 +91,6 @@ const constexpr uint32_t chains_offset    = 0xfaceb00c;
 
 //file test data
 const constexpr char * testdata = "testdata";
+const constexpr size_t testdata_sz = 9;
 
 }

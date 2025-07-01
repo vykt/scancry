@@ -63,9 +63,9 @@ int fbuf_util::pack_type(
 }
 
 //explicit instantiation - `sc::ptrscan_file_hdr`
-template int fbuf_util::pack_type<sc::ptrscan_file_hdr>(
+template int fbuf_util::pack_type<sc::ptr_file_hdr>(
     const std::vector<cm_byte> & buf,
-    off_t & buf_off, const sc::ptrscan_file_hdr & type);
+    off_t & buf_off, const sc::ptr_file_hdr & type);
 
 //explicit instantiation - `uint32_t`
 template int fbuf_util::pack_type<uint32_t>(
@@ -177,8 +177,8 @@ _SC_DBG_INLINE std::optional<T> fbuf_util::unpack_type(
 }
 
 //explicit instantiation - `sc::_ptrscan_file_hdr`
-template std::optional<sc::ptrscan_file_hdr>
-    fbuf_util::unpack_type<sc::ptrscan_file_hdr>(
+template std::optional<sc::ptr_file_hdr>
+    fbuf_util::unpack_type<sc::ptr_file_hdr>(
     const std::vector<cm_byte> & buf, off_t & buf_off);
 
 //explicit instantiation - `sc::_ptrscan_file_hdr`

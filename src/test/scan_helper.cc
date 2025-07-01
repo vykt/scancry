@@ -1,5 +1,7 @@
 //standard template library
 #include <vector>
+#include <iostream>
+#include <iomanip>
 
 //C standard library
 #include <cstdlib>
@@ -18,10 +20,43 @@
 
 
 
-//globals
-
-
 //helpers
+
+/*
+ *  NOTE: Dump buffer contents 16 bytes per line.
+ */
+void _scan_helper::hexdump(cm_byte * buf, size_t sz) {
+
+    const constexpr int line_bytes = 16;
+    int line_num = ((sz - 1) / 16) + 1;
+    off_t buf_off = 0x0;
+
+    //for every line
+    std::cout << std::hex;
+    for (cm_byte * line_start = buf;
+         line_start < (line_start + (line_bytes * line_num));
+         line_start += line_bytes) {
+
+        //print buffer offset
+        std::cout << "0x" << std::setw(8)
+                  << std::setfill('0') << buf_off << ":";
+
+        //for every byte on a line
+        for (cm_byte * line_byte = line_start;
+             line_byte < (line_start + line_bytes);
+             line_byte += 1) {
+
+            //display bytes
+            std::cout << (((uintptr_t) line_byte % 2) ? "" : " ")
+                      << *line_byte;
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << std::dec;
+    return;
+}
+
 
 /*
  *  NOTE: To test if workers read memory correctly, worker thread(s) are
@@ -96,7 +131,7 @@
     int ret;
 
     off_t buf_off = 0;
-    struct sc::ptrscan_file_hdr local_hdr;
+    struct sc::ptr_file_hdr local_hdr;
     const char * testdata = _scan_helper::testdata;
 
 
@@ -110,10 +145,11 @@
     local_hdr.chains_offset    = _scan_helper::chains_offset;
     
     //allocate space in the vector for the data
-    buf.resize(sizeof(local_hdr) + strnlen(testdata, 10) + 1);
+    buf.resize(sizeof(local_hdr)
+               + strnlen(testdata, _scan_helper::testdata_sz) + 1);
 
     //store the scan header
-    ret = fbuf_util::pack_type<struct sc::ptrscan_file_hdr>(
+    ret = fbuf_util::pack_type<struct sc::ptr_file_hdr>(
         buf, buf_off, local_hdr);
     CHECK_EQ(ret, 0);
 
@@ -148,14 +184,14 @@
     const std::vector<cm_byte> & buf, off_t hdr_off) {
 
     int ret;
-    struct sc::ptrscan_file_hdr * ptrscan_hdr;
+    struct sc::ptr_file_hdr * ptrscan_hdr;
 
 
     //lock scanner
     _LOCK(-1)
 
     //check the header
-    ptrscan_hdr = (struct sc::ptrscan_file_hdr *) buf.data();
+    ptrscan_hdr = (struct sc::ptr_file_hdr *) buf.data();
     CHECK_EQ(ptrscan_hdr->chains_num, _scan_helper::chains_num);
     CHECK_EQ(ptrscan_hdr->chains_offset, _scan_helper::chains_offset);
     CHECK_EQ(ptrscan_hdr->pathnames_num, _scan_helper::pathnames_num);

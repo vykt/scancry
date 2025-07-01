@@ -25,6 +25,7 @@
 //local headers
 #include "filters.hh"
 #include "common.hh"
+#include "scan_helper.hh"
 #include "target_helper.hh"
 #include "memcry_helper.hh"
 #include "opt_helper.hh"
@@ -124,8 +125,8 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
     _memcry_helper::args mcry_args;
     _opt_helper::args opt_args(sc::AW64);
     
-    _fixture_opts fixt_opts;
-    _fixture_scan fixt_scan;
+    _scan_helper::_fixture_opts fixt_opts;
+    _scan_helper::_fixture_scan fixt_scan;
 
 
     //launch target
@@ -648,8 +649,8 @@ TEST_CASE(test_c_worker_pool_subtests[0]) {
     _memcry_helper::args mcry_args;
     _opt_helper::args opt_args(sc::AW64);
     
-    _fixture_opts fixt_opts;
-    _fixture_scan fixt_scan;
+    _scan_helper::_fixture_opts fixt_opts;
+    _scan_helper::_fixture_scan fixt_scan;
 
 
     //launch target

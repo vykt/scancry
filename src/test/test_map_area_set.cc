@@ -533,7 +533,7 @@ TEST_CASE(test_c_map_area_set_subtests[0]) {
 
     //create a option class
     sc_opt opts = sc_new_opt(test_c_addr_width);
-    REQUIRE_NE(opts, SC_BAD_OBJ);
+    REQUIRE_NE(opts, nullptr);
 
     ret = sc_opt_set_map(opts, &map);
     REQUIRE_EQ(ret, 0);

@@ -1052,7 +1052,7 @@ sc_opt_ptr sc_new_opt_ptr() {
         exception_sc_errno(excp);
         return nullptr;
     }
-};
+}
 
 
 sc_opt_ptr sc_copy_opt_ptr(const sc_opt_ptr opts_ptr) {

@@ -280,8 +280,8 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off) {
 
     //fetch the ptrscan header
-    std::optional<struct ptrscan_file_hdr> local_hdr
-        = fbuf_util::unpack_type<struct ptrscan_file_hdr>(buf, buf_off);
+    std::optional<struct ptr_file_hdr> local_hdr
+        = fbuf_util::unpack_type<struct ptr_file_hdr>(buf, buf_off);
     if (local_hdr.has_value() == false) return -1;
 
     //fetch every pathname
@@ -633,7 +633,7 @@ struct _potential_node {
     std::vector<cm_byte> & buf, const off_t hdr_off) {
 
     int ret;
-    struct sc::ptrscan_file_hdr local_hdr;
+    struct sc::ptr_file_hdr local_hdr;
 
     cm_byte ctrl_byte;
     off_t buf_off = 0;
@@ -666,7 +666,7 @@ struct _potential_node {
 
 
     //store the header
-    ret = fbuf_util::pack_type<struct ptrscan_file_hdr>(
+    ret = fbuf_util::pack_type<struct ptr_file_hdr>(
                                                 buf, buf_off, local_hdr);
     if (ret != 0) goto _read_body_fail;
     

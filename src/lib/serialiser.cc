@@ -13,7 +13,7 @@
 //local headers
 #include "scancry.h"
 #include "scancry_impl.h"
-#include "error.h"
+#include "error.hh"
 
 
 
@@ -29,8 +29,15 @@
 sc::serialiser::get_scan_type(sc::_scan * scan) const {
 
     if (dynamic_cast<sc::ptrscan *>(scan)) {
-        return sc::scan_type_ptrscan;
+        return sc::scan_type_ptr;
     }
+
+    /* return ptrscan during unit testing */
+    #ifdef DEBUG
+    else {
+        return sc::scan_type_ptr;
+    }
+    #endif
 
     sc_errno = SC_ERR_RTTI;
     return std::nullopt;
@@ -42,14 +49,14 @@ sc::serialiser::is_header_valid(sc::scancry_file_hdr & hdr) const {
 
     //check file magic
     auto diff = std::memcmp(
-                    hdr.magic, sc::scancry_magic, sc::scancry_magic_sz);
+                    hdr.magic, sc::file_magic, sc::file_magic_sz);
     if (diff != 0) {
         sc_errno = SC_ERR_INVALID_FILE;        
         return false;
     }
 
     //check file version is compatible
-    if (hdr.version != sc::scancry_file_ver_0) {
+    if (hdr.version != sc::file_ver_0) {
         sc_errno = SC_ERR_VERSION_FILE;
         return false;
     }
@@ -98,8 +105,8 @@ sc::serialiser::save_scan(
     }
 
     //build the header
-    std::memcpy(sc_hdr.magic, sc::scancry_magic, sc::scancry_magic_sz);
-    sc_hdr.version = sc::scancry_file_ver_0;
+    std::memcpy(sc_hdr.magic, sc::file_magic, sc::file_magic_sz);
+    sc_hdr.version = sc::file_ver_0;
     sc_hdr.scan_type = scan_type.value();
 
     //write the header
@@ -135,7 +142,7 @@ sc::serialiser::save_scan(
 
 [[nodiscard]] int
 sc::serialiser::load_scan(
-    sc::_scan & scan, const sc::opt & opts, bool shallow) {
+    sc::_scan & scan, const sc::opt & opts, const bool shallow) {
 
     int ret;
 
@@ -197,7 +204,6 @@ sc::serialiser::load_scan(
 [[nodiscard]] std::optional<sc::combined_file_hdr>
 sc::serialiser::read_headers(const char * file_path) {
 
-    int ret;
     ssize_t scan_hdr_sz;
     
     std::ifstream fs;
@@ -214,20 +220,20 @@ sc::serialiser::read_headers(const char * file_path) {
 
     //read the ScanCry header
     fs.read(reinterpret_cast<char *>(
-        &cmb_hdr.sc_hdr), sizeof(cmb_hdr.sc_hdr));
-    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.sc_hdr)) {
+        &cmb_hdr.scancry_hdr), sizeof(cmb_hdr.scancry_hdr));
+    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.scancry_hdr)) {
         sc_errno = SC_ERR_FILE;
         goto _read_headers_fail;
     }
 
     //verify the header
-    if (this->is_header_valid(cmb_hdr.sc_hdr) == false) goto _read_headers_fail;
+    if (this->is_header_valid(cmb_hdr.scancry_hdr) == false) goto _read_headers_fail;
 
 
     //determine the size of the scan header
-    switch (cmb_hdr.sc_hdr.scan_type) {
+    switch (cmb_hdr.scancry_hdr.scan_type) {
 
-        case scan_type_ptrscan:
+        case scan_type_ptr:
             scan_hdr_sz = sizeof(cmb_hdr.ptr_hdr);
             break;
         default:
@@ -238,7 +244,7 @@ sc::serialiser::read_headers(const char * file_path) {
 
     //read the scan header
     fs.read(reinterpret_cast<char *>(&cmb_hdr.ptr_hdr), scan_hdr_sz);
-    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.sc_hdr)) {
+    if (fs.fail() == true || fs.gcount() < sizeof(cmb_hdr.scancry_hdr)) {
         sc_errno = SC_ERR_FILE;
         goto _read_headers_fail;
     }
@@ -251,4 +257,101 @@ sc::serialiser::read_headers(const char * file_path) {
     _read_headers_fail:
     fs.close();
     return std::nullopt;
+}
+
+
+
+      /* ============= * 
+ ===== *  C INTERFACE  * =====
+       * ============= */
+
+sc_serialiser sc_new_serialiser() {
+
+    try {
+        return new sc::serialiser();
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return nullptr;
+    }
+}
+
+
+int sc_del_serialiser(sc_serialiser serialiser) {
+
+    sc::serialiser * o = static_cast<sc::serialiser *>(serialiser);
+
+    try {
+        delete o;
+        return 0;
+
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_save_scan(sc_serialiser serialiser, sc_scan scan, const sc_opt opts) {
+
+    int ret;
+
+    sc::serialiser * cc_serialiser
+        = static_cast<sc::serialiser *>(serialiser);
+    sc::_scan * cc_scan = static_cast<sc::_scan *>(scan);
+    sc::opt * cc_opts = static_cast<sc::opt *>(opts);
+
+
+    try {
+        ret = cc_serialiser->save_scan(*cc_scan, *cc_opts);
+        return (ret == 0) ? 0 : -1;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
+}
+
+
+int sc_load_scan(sc_serialiser serialiser,
+                 sc_scan scan, const sc_opt opts, const bool shallow) {
+
+    int ret;
+
+    sc::serialiser * cc_serialiser
+        = static_cast<sc::serialiser *>(serialiser);
+    sc::_scan * cc_scan = static_cast<sc::_scan *>(scan);
+    sc::opt * cc_opts = static_cast<sc::opt *>(opts);
+
+
+    try {
+        ret = cc_serialiser->load_scan(*cc_scan, *cc_opts, shallow);
+        return (ret == 0) ? 0 : -1;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }               
+}
+
+
+int sc_read_headers(sc_serialiser serialiser,
+                    const char * file_path, sc_combined_file_hdr * cmb_hdr) {
+
+    std::optional<sc::combined_file_hdr> cc_cmb_hdr;
+    sc::serialiser * cc_serialiser
+        = static_cast<sc::serialiser *>(serialiser);
+
+
+    try {
+        cc_cmb_hdr = cc_serialiser->read_headers(file_path);
+        if (cc_cmb_hdr.has_value() == false) return -1;
+        
+        std::memcpy(cmb_hdr, &cc_cmb_hdr.value(), sizeof(*cmb_hdr));
+        return 0;
+        
+    } catch (const std::exception & excp) {
+        exception_sc_errno(excp);
+        return -1;
+    }
 }

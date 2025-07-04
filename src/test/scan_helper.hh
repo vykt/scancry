@@ -91,6 +91,6 @@ const constexpr uint32_t chains_offset    = 0xfaceb00c;
 
 //file test data
 const constexpr char * testdata = "testdata";
-const constexpr size_t testdata_sz = 9;
+const constexpr size_t testdata_sz = 8;
 
 }

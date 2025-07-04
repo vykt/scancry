@@ -1,5 +1,9 @@
+//standard template library
+#include <optional>
+
 //C standard library
 #include <cstdio>
+#include <cstring>
 
 //external libraries
 #include <cmore.h>
@@ -56,7 +60,7 @@ TEST_CASE(test_cc_serialiser_subtests[0]) {
         ret = serialiser.save_scan(fix_scan, opts);
         CHECK_EQ(ret, 0);
 
-        ret = serialiser.load_scan(fix_scan, opts, false);
+        ret = serialiser.load_scan(fix_scan, opts, true);
         CHECK_EQ(ret, 0);
 
         //cleanup
@@ -78,7 +82,9 @@ TEST_CASE(test_cc_serialiser_subtests[0]) {
         CHECK_EQ(cmb_hdr.has_value(), true);
 
         //assert the ScanCry header
-        CHECK_EQ(cmb_hdr->scancry_hdr.magic, sc::file_magic);
+        CHECK_EQ(strncmp((const char *) cmb_hdr->scancry_hdr.magic,
+                         (const char *) sc::file_magic,
+                         sizeof(sc::file_magic)), 0);
         CHECK_EQ(cmb_hdr->scancry_hdr.scan_type, sc::scan_type_ptr);
         CHECK_EQ(cmb_hdr->scancry_hdr.version, sc::file_ver_0);
 
@@ -89,7 +95,7 @@ TEST_CASE(test_cc_serialiser_subtests[0]) {
                  _scan_helper::chains_offset);
         CHECK_EQ(cmb_hdr->ptr_hdr.pathnames_num,
                  _scan_helper::pathnames_num);
-        CHECK_EQ(cmb_hdr->ptr_hdr.chains_offset,
+        CHECK_EQ(cmb_hdr->ptr_hdr.pathnames_offset,
                  _scan_helper::pathnames_offset);
 
     } //end test

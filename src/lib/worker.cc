@@ -690,8 +690,9 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 
     //populate cache
-    this->opts = reinterpret_cast<sc::opt *>(&opts);
-    this->scan = reinterpret_cast<sc::_scan *>(&scan);
+    this->opts      = reinterpret_cast<sc::opt *>(&opts);
+    this->opts_scan = reinterpret_cast<sc::_opt_scan *>(&opts_scan);
+    this->scan      = reinterpret_cast<sc::_scan *>(&scan);
 
     //respawn workers
     if ((flags & sc::WORKER_POOL_KEEP_WORKERS) == false) {

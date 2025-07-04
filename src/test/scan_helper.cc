@@ -145,8 +145,7 @@ void _scan_helper::hexdump(cm_byte * buf, size_t sz) {
     local_hdr.chains_offset    = _scan_helper::chains_offset;
     
     //allocate space in the vector for the data
-    buf.resize(sizeof(local_hdr)
-               + strnlen(testdata, _scan_helper::testdata_sz) + 1);
+    buf.resize(sizeof(local_hdr) + _scan_helper::testdata_sz + 2);
 
     //store the scan header
     ret = fbuf_util::pack_type<struct sc::ptr_file_hdr>(
@@ -199,7 +198,9 @@ void _scan_helper::hexdump(cm_byte * buf, size_t sz) {
 
     //check the body
     const char * testdata = (const char *) (ptrscan_hdr + 1);
-    CHECK_EQ(testdata, _scan_helper::testdata);
+    CHECK_EQ(strcmp(testdata, _scan_helper::testdata), 0);
+    CHECK_EQ((cm_byte) *(testdata + strlen(testdata) + 1),
+             fbuf_util::_file_end);
 
     _UNLOCK(-1)
     return 0;

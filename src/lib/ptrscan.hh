@@ -75,8 +75,7 @@ class _ptrscan_tree {
     public:
         //[methods]
         //ctor
-        _ptrscan_tree()
-         : next_id(0), write_mutex(PTHREAD_MUTEX_INITIALIZER) {}
+        _ptrscan_tree(int max_depth);
         ~_ptrscan_tree() { pthread_mutex_destroy(&write_mutex); };
 
         //tree modifiers

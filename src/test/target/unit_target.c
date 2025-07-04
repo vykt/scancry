@@ -19,10 +19,10 @@
 
 //preset values
 char * names[P_LEN] = {
-    "alice",
-    "bob",
+    "aylin",
+    "boris",
     "chiara",
-    "david"
+    "dean"
 };
 
 int value_changes[P_LEN] = {1, 2, 3, 4};
@@ -55,6 +55,12 @@ typedef struct {
     entity * players[4];
 
 } game;
+
+/*
+ *  Example chain for player 2's armour:
+ *
+ *    global game+0x8 -> 0x16 -> 0x4
+ */
 
 
 //constructors

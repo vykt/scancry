@@ -120,7 +120,7 @@ inline const constexpr char * test_c_worker_pool_subtests[] = {
 
 
 //C++ interface serialiser tests
-inline const constexpr int test_cc_serialiser_subtests_num = 4;
+inline const constexpr int test_cc_serialiser_subtests_num = 3;
 inline const constexpr char * test_cc_serialiser_subtests[] = {
     "test_cc_serialiser",
     "test_cc_serialiser_save_load_scan",
@@ -129,7 +129,7 @@ inline const constexpr char * test_cc_serialiser_subtests[] = {
 
 
 //C interface serialiser tests
-inline const constexpr int test_c_serialiser_subtests_num = 4;
+inline const constexpr int test_c_serialiser_subtests_num = 3;
 inline const constexpr char * test_c_serialiser_subtests[] = {
     "test_c_serialiser",
     "test_c_serialiser_save_load_scan",
@@ -141,9 +141,9 @@ inline const constexpr char * test_c_serialiser_subtests[] = {
 inline const constexpr int test_cc_ptrscan_subtests_num = 5;
 inline const constexpr char * test_cc_ptrscan_subtests[] = {
     "test_cc_ptrscan",
-    "test_cc_ptrscan_process_addr",
-    "test_cc_save_load_body",
     "test_cc_ptrscan_scan",
+    "test_cc_ptrscan_scan_threaded",
+    "test_cc_save_load_body",
     "test_cc_ptrscan_verify",
 };
 
@@ -176,3 +176,6 @@ void add_c_worker_pool(doctest::Context & context);
 
 void add_cc_serialiser(doctest::Context & context);
 void add_c_serialiser(doctest::Context & context);
+
+void add_cc_ptrscan(doctest::Context & context);
+void add_c_ptrscan(doctest::Context & context);

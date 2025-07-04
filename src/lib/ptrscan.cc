@@ -61,6 +61,14 @@ void sc::_ptrscan_tree_node::clear() {
  *  --- [TREE | PRIVATE] ---
  */
 
+sc::_ptrscan_tree::_ptrscan_tree(int max_depth)
+ : next_id(0), write_mutex(PTHREAD_MUTEX_INITIALIZER) {
+
+    this->depth_levels.reserve(max_depth);
+    return;
+}
+
+
 void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
                                  const cm_lst_node * area_node,
                                  const int depth_level,
@@ -487,11 +495,6 @@ struct _potential_node {
      *        are considered first.
      */
 
-    /*
-     *  NOTE: `_manage_scan()` already verified the type of `opts_scan`.
-     *        It's safe to cast directly.
-     */
-
     //fetch ptrscan options & suppress warnings
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wignored-qualifiers"
@@ -646,7 +649,7 @@ struct _potential_node {
     //check the scan contains a result to serialise
     if (this->chains.empty() == true) {
         sc_errno = SC_ERR_NO_RESULT;
-        goto _read_body_fail;
+        goto _generate_body_fail;
     }
 
     //get the size of pathnames & chains
@@ -668,7 +671,7 @@ struct _potential_node {
     //store the header
     ret = fbuf_util::pack_type<struct ptr_file_hdr>(
                                                 buf, buf_off, local_hdr);
-    if (ret != 0) goto _read_body_fail;
+    if (ret != 0) goto _generate_body_fail;
     
 
     //store every pathname
@@ -676,13 +679,13 @@ struct _potential_node {
          iter != this->ser_pathnames.end(); ++iter) {
 
         ret = fbuf_util::pack_string(buf, buf_off, *iter);
-        if (ret != 0) goto _read_body_fail;
+        if (ret != 0) goto _generate_body_fail;
     }
 
     //store an additional null terminator to denote the end of pathnames
     ctrl_byte = 0x00;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret != 0) goto _read_body_fail;
+    if (ret != 0) goto _generate_body_fail;
     
 
     //store every chain
@@ -691,7 +694,7 @@ struct _potential_node {
 
         //store pathname index
         ret = fbuf_util::pack_type(buf, buf_off, iter->_get_obj_idx());
-        if (ret != 0) goto _read_body_fail;
+        if (ret != 0) goto _generate_body_fail;
 
         //store every offset & downcast to 32bit offsets
         std::vector<uint32_t> offsets_32bit;
@@ -704,18 +707,18 @@ struct _potential_node {
 
         ret = fbuf_util::pack_type_array<uint32_t>(
             buf, buf_off, offsets_32bit);
-        if (ret != 0) goto _read_body_fail;
+        if (ret != 0) goto _generate_body_fail;
     }
 
     //store the file end byte
     ctrl_byte = fbuf_util::_file_end;
     ret = fbuf_util::pack_type(buf, buf_off, ctrl_byte);
-    if (ret != 0) goto _read_body_fail;
+    if (ret != 0) goto _generate_body_fail;
 
     _UNLOCK(-1)
     return 0;
 
-    _read_body_fail:
+    _generate_body_fail:
     _UNLOCK(-1)
     return -1;
 }
@@ -910,6 +913,10 @@ sc::ptrscan::ptrscan()
     //setup the worker pool
     ret = w_pool._setup(opts, opts_ptr, *this, ma_set, flags);
     if (ret != 0) goto _scan_unlock_all;
+
+    //reseerve space in the pointer scan tree
+    this->tree_p = std::make_unique<sc::_ptrscan_tree>(
+                            opts_ptr.get_max_depth().value());
 
 
     //for every depth level

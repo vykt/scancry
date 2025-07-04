@@ -129,6 +129,7 @@ sc::serialiser::save_scan(
 
 
     fs.close();
+    _UNLOCK(-1);
     return 0;
 
     _save_scan_file_fail:
@@ -156,46 +157,59 @@ sc::serialiser::load_scan(
     //apply lock
     _LOCK(-1)
 
+    //assert an input file was provided
+    const std::optional<std::string> & in_file = opts.get_file_path_in();
+    if (in_file.has_value() == false) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _load_scan_fail;
+    }
+
     //open an input file stream
     fs = std::ifstream(opts.get_file_path_in().value(),
                         std::ios::out | std::ios::binary);
     if (fs.fail() == true) {
         sc_errno = SC_ERR_FILE;
-        goto _save_scan_fail;
+        goto _load_scan_fail;
     }
 
     //read the header
     fs.read(reinterpret_cast<char *>(&sc_hdr), sizeof(sc_hdr));
     if (fs.fail() == true || fs.gcount() < sizeof(sc_hdr)) {
         sc_errno = SC_ERR_FILE;
-        goto _save_scan_file_fail;
+        goto _load_scan_file_fail;
     }
 
     //verify the header
-    if (this->is_header_valid(sc_hdr) == false) goto _save_scan_file_fail;
+    if (this->is_header_valid(sc_hdr) == false) goto _load_scan_file_fail;
 
-    //read & process the body
+    //read the body
+    body_buf = std::vector<cm_byte>(std::istreambuf_iterator<char>(fs),
+                                    std::istreambuf_iterator<char>());
+    fs.close();
+
+    //process the body
     if (shallow) {
         ret = scan._read_body(body_buf, sizeof(sc_hdr));
-        if (ret != 0) goto _save_scan_file_fail;
+        if (ret != 0) goto _load_scan_fail;
 
     } else {
         if (opts.get_map() == nullptr) {
             sc_errno = SC_ERR_OPT_MISSING;
-            goto _save_scan_file_fail;
+            goto _load_scan_fail;
         }
         ret = scan._process_body(body_buf, sizeof(sc_hdr), *opts.get_map());
-        if(ret != 0) goto _save_scan_file_fail;
+        if(ret != 0) goto _load_scan_fail;
     }
     
 
     fs.close();
+    _UNLOCK(-1);
     return 0;
 
-    _save_scan_file_fail:
+    _load_scan_file_fail:
     fs.close();
 
-    _save_scan_fail:
+    _load_scan_fail:
     _UNLOCK(-1)
     return -1;
 }

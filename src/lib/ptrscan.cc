@@ -11,6 +11,9 @@
 
 //C standard library
 #include <cstring>
+#ifdef TRACE
+#include <cstdio>
+#endif
 
 //external libraries
 #include <cmore.h>
@@ -52,7 +55,7 @@ void sc::_ptrscan_tree_node::clear() {
 
 
 [[nodiscard]] bool sc::_ptrscan_tree_node::has_children() const noexcept {
-    return this->children.empty();
+    return !this->children.empty();
 }
 
 
@@ -64,7 +67,9 @@ void sc::_ptrscan_tree_node::clear() {
 sc::_ptrscan_tree::_ptrscan_tree(int max_depth)
  : next_id(0), write_mutex(PTHREAD_MUTEX_INITIALIZER) {
 
-    this->depth_levels.reserve(max_depth);
+    //reserve a vector for each depth level
+    this->depth_levels.resize(max_depth + 1);
+    
     return;
 }
 
@@ -80,8 +85,8 @@ void sc::_ptrscan_tree::add_node(std::shared_ptr<sc::_ptrscan_tree_node> node,
         = std::make_shared<sc::_ptrscan_tree_node>(this->next_id, area_node,
                                                    own_addr, ptr_addr, node);
 
-    //add new node to its parent
-    node->connect_child(new_node);
+    //if not the root node, add new node to its parent
+    if (node != nullptr) node->connect_child(new_node);
 
     //add new node to its depth level list
     this->depth_levels[depth_level].push_back(new_node);
@@ -122,19 +127,19 @@ void sc::_ptrscan_tree::reset() {
 
 [[nodiscard]] std::vector<
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>>>
-        ::const_reverse_iterator
-            sc::_ptrscan_tree::get_depth_level_crbegin() const noexcept {
+        ::const_iterator
+            sc::_ptrscan_tree::get_depth_level_cbegin() const noexcept {
 
-    return this->depth_levels.crbegin();
+    return this->depth_levels.cbegin();
 }
 
 
 [[nodiscard]] std::vector<
     std::vector<std::shared_ptr<sc::_ptrscan_tree_node>>>
-        ::const_reverse_iterator
-            sc::_ptrscan_tree::get_depth_level_crend() const noexcept {
+        ::const_iterator
+            sc::_ptrscan_tree::get_depth_level_cend() const noexcept {
 
-    return this->depth_levels.crend();
+    return this->depth_levels.cend();
 }
 
 
@@ -225,7 +230,7 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     area = MC_GET_NODE_AREA(area_node);
     obj_node = (area->obj_node_p == nullptr)
                ? area->last_obj_node_p : area->obj_node_p;
-    obj = MC_GET_NODE_OBJ(area->last_obj_node_p);
+    obj = MC_GET_NODE_OBJ(obj_node);
         
     return std::pair<std::string, cm_lst_node *>(obj->pathname, obj_node);
 }
@@ -351,19 +356,21 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
 
     int idx;
     off_t offset;
-    std::shared_ptr<sc::_ptrscan_tree_node> child, parent;
+
+    mc_vm_obj * obj;
+    std::shared_ptr<sc::_ptrscan_tree_node> parent;
 
 
     //for every depth level
-    for (auto iter = ++this->tree_p->get_depth_level_crbegin();
-         iter != --this->tree_p->get_depth_level_crend(); ++iter) {
+    for (auto iter = this->tree_p->get_depth_level_cbegin();
+         iter != this->tree_p->get_depth_level_cend(); ++iter) {
 
         //for every node at this depth level
         for (auto inner_iter = iter->cbegin();
              inner_iter != iter->cend(); ++inner_iter) {
 
             //fetch node
-            const std::shared_ptr<sc::_ptrscan_tree_node> node = *inner_iter;
+            std::shared_ptr<sc::_ptrscan_tree_node> node = *inner_iter;
 
             //skip this node if it is not a leaf node
             if (node->has_children() == true) continue;
@@ -372,20 +379,34 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
 
             //for each tree edge from this leaf to the root, add a chain entry
             std::vector<off_t> offsets;
-            child = node;
             do {
                 //fetch parent
-                parent = node->parent;
+                parent = node->parent.lock();
+                if (parent == nullptr) break;
 
                 //add offset
-                offset = parent->own_addr - child->ptr_addr;
+                offset = parent->own_addr - node->ptr_addr;
                 offsets.push_back(offset);
 
-            } while (parent != this->tree_p->get_root_node());
+                //advance iteration
+                node = node->parent.lock();
+
+            } while (1);
+
+            /*
+             *  TODO: Make the offset relative to the object, not 
+             *        the area.
+             */
 
             //fetch data for this chain
-            auto chain_data = this->get_chain_data(node->area_node);
+            auto chain_data = this->get_chain_data(
+                                        (*inner_iter)->area_node);
             idx = this->get_chain_idx(chain_data.first);
+
+            //add an offset from the start of the last node's object
+            obj = MC_GET_NODE_OBJ(chain_data.second);
+            offsets.insert(offsets.begin(),
+                           (*inner_iter)->own_addr - obj->start_addr);
 
             //add chain
             this->chains.emplace_back(ptrscan_chain(chain_data.second,
@@ -441,7 +462,7 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
 void sc::ptrscan::do_reset() {
     
     //reset variables
-    this->tree_p->reset();
+    if (this->tree_p.get() != nullptr) this->tree_p->reset();
     this->cur_depth_level = 0;
     
     this->ser_pathnames.clear();
@@ -489,6 +510,11 @@ struct _potential_node {
                                     const opt * const opts,
                                     const _opt_scan * const opts_scan) {
 
+    #ifdef TRACE_PTRSCAN
+    mc_vm_area * _trace_area;
+    mc_vm_obj * _trace_obj;
+    #endif
+
     /*
      *  NOTE: This function is called for each byte of memory that is
      *        scanned; it is imperative that the most common fail cases
@@ -512,7 +538,7 @@ struct _potential_node {
     */
 
     //if not enough space is left in the buffer to hold a pointer
-    /* FIXME [should be impossible, remove?]
+    /* FIXME should be impossible, remove?
     off_t required_left = (opts.addr_width == sc::AW64) ? 8 : 4;
     if (arg.buf_left < required_left) return 0;
     */
@@ -523,10 +549,25 @@ struct _potential_node {
      */
 
     //re-cache the depth level vector at the start of every area
-    if (arg.area_off == 0)
+    if (arg.area_off == 0) {
+
         this->cache.depth_level_vct =
             (std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> *)
-            &this->tree_p->get_depth_level_vct(this->cur_depth_level);
+            &this->tree_p->get_depth_level_vct(this->cur_depth_level - 1);
+
+        #ifdef TRACE_PTRSCAN
+        //log current address & depth vector being cached
+        _trace_area = MC_GET_NODE_AREA(arg.area_node);
+        _trace_obj = _trace_area->obj_node_p == nullptr
+                     ? MC_GET_NODE_OBJ(_trace_area->last_obj_node_p)
+                     : MC_GET_NODE_OBJ(_trace_area->obj_node_p);
+
+        std::printf("[SCRY] caching depth layer %d: %s - 0x%lx\n",
+                    this->cur_depth_level,
+                    _trace_obj->basename,
+                    _trace_area->start_addr);
+        #endif
+    }
 
     /*
      *  NOTE: `new_nodes` stores nodes that will be added by the end of
@@ -549,6 +590,15 @@ struct _potential_node {
     if (opts->addr_width == sc::AW64)
         potential_ptr = *((uint64_t *) arg.cur_byte);
 
+    #ifdef TRACE_PTRSCAN
+    #if 0 
+    //log target address & potential pointer combination
+    std::printf(
+        "[SCRY][depth %d] arg.addr: 0x%lx, pot._ptr: 0x%lx\n",
+        this->cur_depth_level, arg.addr, potential_ptr);
+    #endif
+    #endif
+
 
     /*
      *  NOTE: Iteration over each potential parent node begins now.
@@ -570,13 +620,23 @@ struct _potential_node {
 
 
         //else this is a match
+        #ifdef TRACE_PTRSCAN
+        //log a new match
+        std::printf(
+            "[SCRY][depth %d] match found (before misc. checks):\n",
+            this->cur_depth_level);
+        std::printf("  - potential_ptr: 0x%lx\n", potential_ptr);
+        std::printf("  - parent's addr: 0x%lx\n", now_node->own_addr);
+        #endif
 
         //check the offset is correct, if one applies
         auto presets = opts_ptr->get_preset_offsets();
-        if (presets.has_value() && presets->size() <= this->cur_depth_level)
+        if (presets.has_value()
+            && presets->size() <= this->cur_depth_level) {
             if (potential_ptr != (now_node->own_addr
                     - (*presets)[this->cur_depth_level])) continue;
-        
+        }
+
         //if this is a smart scan, manipulate the new node container
         if (opts_ptr->get_smart_scan() == true) {
 
@@ -590,6 +650,13 @@ struct _potential_node {
 
         }
 
+        #ifdef TRACE_PTRSCAN
+        //log that other checks passed
+        std::printf("[SCRY] adding new node:\n");
+        std::printf("  - arg.addr:      0x%lx\n", arg.addr);
+        std::printf("  - potential_ptr: 0x%lx\n", potential_ptr);
+        #endif
+
         //add this node to the new node container
         new_nodes.push_back(_potential_node(arg.addr, potential_ptr,
                                             now_node, arg.area_node));
@@ -598,7 +665,7 @@ struct _potential_node {
 
 
     /*
-     *  NOTE: Adding nodes all at once at tne end also minimises
+     *  NOTE: Adding nodes all at once at the end minimises
      *        mutex thrashing.
      */
 
@@ -869,6 +936,14 @@ sc::ptrscan::ptrscan()
 
     int ret;
     bool run_err = false;
+    
+    cm_lst_node * area_node;
+    uintptr_t target_addr;
+
+    #ifdef TRACE_PTRSCAN
+    int _trace_idx;
+    std::shared_ptr<_ptrscan_tree_node> _trace_parent;
+    #endif
 
 
     //lock the scanner
@@ -914,17 +989,72 @@ sc::ptrscan::ptrscan()
     ret = w_pool._setup(opts, opts_ptr, *this, ma_set, flags);
     if (ret != 0) goto _scan_unlock_all;
 
-    //reseerve space in the pointer scan tree
+    /*
+     *  NOTE: Index 0 is the target address. If the user requests a
+     *        max depth of 3, 3 layers of scans must be run. The
+     *        target address gets its own layer at index 0, meaning
+     *        `max_depth + 1` vectors are necessary.
+     */
+
+    //reserve space in the pointer scan tree
     this->tree_p = std::make_unique<sc::_ptrscan_tree>(
                             opts_ptr.get_max_depth().value());
 
 
+    /*
+     *  NOTE: For the time being, this code re-finds the appropriate 
+     *        area for the target address. However it's becoming 
+     *        painfully evident that this work should be done in terms 
+     *        of rich pointers that bundle an address with an area and
+     *        an object.
+     */
+
+    //setup the root node
+    target_addr = opts_ptr.get_target_addr().value();
+    area_node = mc_get_area_by_addr(opts.get_map(), target_addr, nullptr);
+    this->add_node(nullptr, area_node, target_addr, 0x0);
+    ++this->cur_depth_level;
+
     //for every depth level
     for (int i = 0; i < opts_ptr.get_max_depth().value(); ++i) {
+
+        #ifdef TRACE_PTRSCAN
+        std::printf("[SCRY] running depth: %d/%d\n",
+                    this->cur_depth_level,
+                    opts_ptr.get_max_depth().value());
+        #endif
 
         //scan the selected address space once
         ret = w_pool._single_run();
         if (ret != 0) goto _scan_unlock_all;
+
+        #ifdef TRACE_PTRSCAN
+        //get this layer of tree nodes
+        const std::vector<std::shared_ptr<_ptrscan_tree_node>> &depth_level_vct
+            = this->tree_p->get_depth_level_vct(this->cur_depth_level - 1);
+
+        std::printf("[SCRY] nodes at depth level %d: \n",
+                    this->cur_depth_level);
+
+        //log each node
+        _trace_idx = 0;
+        for (auto iter = depth_level_vct.cbegin();
+             iter != depth_level_vct.cend(); ++iter) {
+
+            std::printf("  - node %d:\n", _trace_idx);
+
+            //print own & pointer address
+            std::printf("    > own_addr: 0x%lx\n", (*iter)->own_addr);
+            std::printf("    > ptr_addr: 0x%lx\n", (*iter)->ptr_addr);
+
+            //print parent if one is present
+            _trace_parent = (*iter)->parent.lock();
+            if (_trace_parent != nullptr) {
+                std::printf("    > parent:   0x%lx\n",
+                            _trace_parent->own_addr);
+            }
+        }
+        #endif
 
         //increment current depth
         ++this->cur_depth_level;

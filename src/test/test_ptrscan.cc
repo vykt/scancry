@@ -104,6 +104,8 @@ static uintptr_t _set_target(sc::opt_ptr & opts_ptr, mc_session & session,
 
     //get the given player's armour address
     target_addr = _walk_ptrchain(session, area->start_addr, offs);
+    std::cout << "target address: 0x" << std::hex << target_addr
+              << std::dec << std::endl;
 
     ret = opts_ptr.set_target_addr(target_addr);
     CHECK_EQ(ret, 0);
@@ -112,15 +114,10 @@ static uintptr_t _set_target(sc::opt_ptr & opts_ptr, mc_session & session,
 }
 
 
-static void _print_chains(const std::vector<sc::ptrscan_chain> & chains,
-                          std::string header) {
+static void _print_chains(const std::vector<sc::ptrscan_chain> & chains) {
 
     std::optional<const cm_lst_node *> obj_node;
     mc_vm_obj * obj;
-
-
-    //print header
-    subtitle("pointer chains", header);
 
     //for every pointer chain
     for (auto iter = chains.cbegin(); iter != chains.cend(); ++iter) {
@@ -131,7 +128,7 @@ static void _print_chains(const std::vector<sc::ptrscan_chain> & chains,
         const std::vector<off_t> & offs = iter->get_offsets();
 
         //print this entry
-        std::cout << obj->basename << ": " << std::hex;
+        std::cout << obj->basename << ":" << std::hex;
         for (auto off_iter = offs.cbegin();
              off_iter != offs.cend(); ++off_iter) {
 
@@ -184,6 +181,13 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
     ret = opts.set_map(&mcry_args.map);
     CHECK_EQ(ret, 0);
 
+    //TODO DEBUG scan only the `[heap]`
+    /*std::vector<const cm_lst_node *> excl_objs;
+    cm_lst_node * obj_node
+        = mc_get_obj_by_basename(&mcry_args.map, "[heap]");
+    excl_objs.push_back(obj_node);
+    ret = opts.set_exclusive_objs(excl_objs);
+    *///TODO END DEBUG
 
     //setup ptrscan options
     ret = opts_ptr.set_alignment(4);
@@ -214,6 +218,10 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
 
         //first test: scan for player 2's armour
 
+        //dump map
+        subtitle("target - player 2's armour", "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
         //set the target address to player 2's armour
         std::vector<off_t> offs_0 = {
             game_off,
@@ -233,15 +241,20 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
             = ptrscan.get_chains();
 
         //display results
-        _print_chains(chains_0, "Player 2's armour pointer chains");
+        subtitle("target - player 2's armour", "pointer chains");
+        _print_chains(chains_0);
 
-
+    
         //second test: scan for player 1's name
+
+        //dump map
+        subtitle("target - player 1's name", "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 1's name
         std::vector<off_t> offs_1 = {
             game_off,
-            entity_off * 1,
-            stats_off,
-            armour_off
+            entity_off * 0
         };
         target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
                                   mcry_args.map, offs_1);
@@ -255,8 +268,9 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
             = ptrscan.get_chains();
 
         //display results
-        _print_chains(chains_1, "Player 2's armour pointer chains");
-
+        subtitle("target - player 1's name", "pointer chains");
+        _print_chains(chains_1);
+    
 
     } //end test
 

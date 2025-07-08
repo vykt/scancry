@@ -36,17 +36,25 @@ HEADER=scancry.h
 
 
 #[set build options]
-ifeq ($(build),verbose_debug)
-	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG -DVERBOSE_DEBUG
-	FLAGS_TEST += -DDEBUG -DVERBOSE_DEBUG
- 	LDFLAGS    += -static-libasan
-else ifeq ($(build),debug)
+ifeq ($(build),debug)
 	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG
 	FLAGS_TEST += -DDEBUG
  	LDFLAGS    += -static-libasan
 else
 	CFLAGS += -O2
 endif
+
+#[enable tracing]
+ifeq ($(trace_worker),on)
+	FLAGS      += -DTRACE -DTRACE_WORKER
+	FLAGS_TEST += -DTRACE -DTRACE_WORKER
+endif
+
+ifeq ($(trace_ptrscan),on)
+	FLAGS      += -DTRACE -DTRACE_PTRSCAN
+	FLAGS_TEXT += -DTRACE -DTRACE_PTRSCAN
+endif
+
 
 
 #[set static analysis options]

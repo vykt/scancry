@@ -79,3 +79,27 @@ void _memcry_helper::print_area(mc_vm_area * area) {
     }
     std::cout << std::endl; 
 }
+
+
+void _memcry_helper::print_map(mc_vm_map * map) {
+
+    char str_buf[5];
+    cm_lst_node * area_node;
+    mc_vm_area * area;
+
+
+    //for every area
+    area_node = map->vm_areas.head;
+    for (int i = 0; i < map->vm_areas.len; ++i) {
+
+        //fetch area
+        area = MC_GET_NODE_AREA(area_node);
+
+        //dump area
+        _memcry_helper::print_area(area);        
+
+        //fetch next area
+        area_node = area_node->next;
+    }
+    
+}

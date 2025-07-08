@@ -31,7 +31,7 @@ class _ptrscan_tree_node {
         const uintptr_t own_addr;
         const uintptr_t ptr_addr;
 
-        const std::shared_ptr<_ptrscan_tree_node> parent;
+        const std::weak_ptr<_ptrscan_tree_node> parent;
     
         //[methods]
         //ctor
@@ -93,12 +93,12 @@ class _ptrscan_tree {
             & get_depth_level_vct(int level) const noexcept;
         [[nodiscard]] std::vector<
             std::vector<std::shared_ptr<_ptrscan_tree_node>>>
-                ::const_reverse_iterator
-                    get_depth_level_crbegin() const noexcept;
+                ::const_iterator
+                    get_depth_level_cbegin() const noexcept;
         [[nodiscard]] std::vector<
             std::vector<std::shared_ptr<_ptrscan_tree_node>>>
-                ::const_reverse_iterator
-                    get_depth_level_crend() const noexcept;
+                ::const_iterator
+                    get_depth_level_cend() const noexcept;
         [[nodiscard]] const std::shared_ptr<
             _ptrscan_tree_node> get_root_node() const;
 };

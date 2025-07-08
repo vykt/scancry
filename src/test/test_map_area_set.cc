@@ -179,11 +179,11 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
         /*
          *  Here it should be sufficient to check the size of the set is 
-         *  the same as the number of areas in the MemCry map. I'm well
-         *  aware this check can mistakenly pass in creative ways, but it
-         *  is still a good heuristic.
+         *  the same as the number of areas in the MemCry map minus
+         * `[vvar]`. I'm well aware this check can mistakenly pass in
+         *  creative ways, but it is still a good heuristic.
          */
-        CHECK_EQ(area_nodes.size(), map.vm_areas.len);
+        CHECK_EQ(area_nodes.size(), map.vm_areas.len - 1);
         
         //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes);
@@ -342,6 +342,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
 
         //first test: omit objs & omit areas        
 
+        //omit the main executable and the `[stack]` area
         ret = opts.set_omit_objs(
             std::vector<const cm_lst_node *>({main_node}));
         CHECK_EQ(ret, 0);
@@ -353,7 +354,7 @@ TEST_CASE(test_cc_map_area_set_subtests[0]) {
         CHECK_EQ(ret, 0);
 
         auto area_nodes_1 = ma_set.get_area_nodes();
-        CHECK_EQ(area_nodes_1.size(), map.vm_areas.len - 6);
+        CHECK_EQ(area_nodes_1.size(), map.vm_areas.len - 7);
         
         //convert hashmap to a sorted vector
         sorted_area_nodes = _hashmap_to_sorted_vector(area_nodes_1);

@@ -24,5 +24,6 @@ struct args {
 void setup(args & mcry_args, pid_t pid, int session_num);
 void teardown(args & mcry_args);
 void print_area(mc_vm_area * area);
+void print_map(mc_vm_map * map);
 
 }

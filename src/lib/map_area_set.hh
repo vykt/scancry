@@ -18,8 +18,9 @@
 namespace map_meta {
 
     //trying to read/write from some backing objects can hang
-    inline constexpr const int pathname_blacklist_len = 3;
+    inline constexpr const int pathname_blacklist_len = 4;
     inline constexpr const char * pathname_blacklist[pathname_blacklist_len] = {
+        "[vvar]",
         "/dev",
         "/memfd",
         "/run"

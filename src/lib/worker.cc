@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstring>
 #include <ctime>
-#ifdef VERBOSE_DEBUG
+#ifdef TRACE
 #include <cstdio>
 #endif
 
@@ -98,9 +98,23 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     mc_vm_area * area;
     off_t addr_off;
 
+    #ifdef TRACE_WORKER
+    mc_vm_obj * _trace_obj;
+    #endif
+
 
     //fetch this area
     area = MC_GET_NODE_AREA(arg.area_node);
+
+    #ifdef TRACE_WORKER
+    //log object & area starting address of current buffer read
+    _trace_obj = nullptr;
+    if (area->obj_node_p != nullptr) _trace_obj
+        = MC_GET_NODE_OBJ(area->obj_node_p);
+    std::printf("[SCRY] buffer from: %s - 0x%lx\n",
+                (_trace_obj == nullptr)
+                ? "N/A" : _trace_obj->basename, area->start_addr);
+    #endif
 
     /*
      *  The read buffer is one page in size; the minimum size of a vm_area
@@ -132,13 +146,16 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
         read_sz = std::clamp(left_sz, buf_min_sz, buf_real_sz);
         buf_off = (*this->opts)->addr_width;
         addr_off = (*this->opts)->addr_width;
-
-        #ifdef VERBOSE_DEBUG
-        std::printf("\n[SCRY] area_sz: 0x%lx | area_off: 0x%lx | left_sz: 0x%lx | buf_real_sz: 0x%lx | read_sz: 0x%lx\n",
-                    area_sz, arg.area_off, left_sz, buf_real_sz, read_sz);
-        #endif
-
     }
+    
+    #ifdef TRACE_WORKER
+    //log buffer reading parameters
+    std::printf("  - area_sz:     0x%lx\n", area_sz);
+    std::printf("  - area_off:    0x%lx\n", arg.area_off);
+    std::printf("  - left_sz:     0x%lx\n", left_sz);
+    std::printf("  - buf_real_sz: 0x%lx\n", buf_real_sz);
+    std::printf("  - read_sz:     0x%lx\n", read_sz);
+    #endif
 
     //perform the read
     ret = mc_read(this->session, arg.addr + addr_off,
@@ -146,15 +163,6 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     if (ret != 0) {
         return -1;
     }
-
-    #ifdef VERBOSE_DEBUG
-    std::printf(
-        "[SCRY] scan_area_idx: %d | addr + addr_buf: 0x%lx | buf_off: 0x%lx | read_sz: 0x%lx\n",
-        this->scan_area_index,
-        arg.addr + addr_off,
-        buf_off,
-        read_sz);
-    #endif
 
     //reset `_scan_arg` state related to the read buffer
     arg.buf_left = this->session->page_size;
@@ -328,6 +336,11 @@ void sc::_worker::main() {
 
     int ret;
     off_t buf_adv;
+
+    #ifdef TRACE_WORKER
+    int _trace_iter;
+    mc_vm_obj * _trace_obj;
+    #endif
     
 
     //increment alive count
@@ -341,6 +354,11 @@ void sc::_worker::main() {
         ret = this->release_wait();
         if (ret != 0) this->exit(true);
 
+        #ifdef TRACE_WORKER
+        std::printf("[SCRY][worker %d] worker released\n",
+                    this->scan_area_index);
+        #endif
+
         /*
          *  NOTE: Need an exit bit check here too incase a worker has
          *        an empty scan area set.
@@ -353,8 +371,24 @@ void sc::_worker::main() {
             = this->scan_area_sets[this->scan_area_index];
 
         //for every area in this worker's scan set
+        #ifdef TRACE_WORKER
+        //log scan set size
+        std::printf("[SCRY][worker  %d] scan set size: %lu\n",
+                    this->scan_area_index,
+                    scan_set.size());
+        _trace_iter = 0;
+        #endif
+        
         for (auto area_iter = scan_set.begin();
              area_iter != scan_set.end(); ++area_iter) {
+
+            #ifdef TRACE_WORKER
+            std::printf("[SCRY][worker %d] scanning area %d/%ld\n",
+                        this->scan_area_index,
+                        _trace_iter,
+                        scan_set.size());
+            ++_trace_iter;
+            #endif
 
             //react to flags
             this->exit_flag_handle();
@@ -362,6 +396,17 @@ void sc::_worker::main() {
 
             //fetch this scan area
             mc_vm_area * area = MC_GET_NODE_AREA((*area_iter));
+
+            #ifdef TRACE_WORKER
+            //log next area to be scanned by this worker
+            _trace_obj = nullptr;
+            if (area->obj_node_p != nullptr)
+                _trace_obj = MC_GET_NODE_OBJ(area->obj_node_p);
+            std::printf("[SCRY][worker %d] processing area: %s - 0x%lx\n",
+                        this->scan_area_index,
+                        _trace_obj == nullptr
+                        ? "N/A" : _trace_obj->basename, area->start_addr);
+            #endif
 
             //create a new `_scan_arg`
             struct _scan_arg scan_arg =
@@ -641,7 +686,7 @@ const constexpr useconds_t _single_run_sleep_interval_usec = 10000;
 
 
     //wait for threads to be ready
-    while ((this->concur.flags | _worker_flag_release_ready) == false) {
+    while ((this->concur.flags & _worker_flag_release_ready) == false) {
         usleep(_single_run_sleep_interval_usec);
     }
 

@@ -544,7 +544,74 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
         subtitle("target - player 2's armour", "deep read pointer chains");
         _print_chains(chains_2);
 
-        //TODO add assertions, they're reasonable here
+    } //end test
+
+
+    SUBCASE(test_cc_ptrscan_subtests[4]) {
+        title(CC, "ptrscan", "Verify scan results");
+
+        //setup serialiser
+        sc::serialiser serialiser;
+
+        ret = opts.set_file_path_out(test_file);
+        CHECK_EQ(ret, 0);
+        ret = opts.set_file_path_in(test_file);
+        CHECK_EQ(ret, 0);
+
+        //setup sessions
+        std::vector<const mc_session *> session_ptrs = {
+            &mcry_args.sessions[0]
+        };
+        ret = opts.set_sessions(session_ptrs);
+        CHECK_EQ(ret, 0);
+
+
+        //only test: scan for player 2's armour, save & load the scan
+
+        //dump map
+        subtitle("target - player 2's armour", "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 2's armour
+        std::vector<off_t> offs_0 = {
+            game_off,
+            entity_off * 1,
+            stats_off,
+            armour_off
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_0);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+
+        //fetch the scan results - original
+        const std::vector<struct sc::ptrscan_chain> & chains_0
+            = ptrscan.get_chains();
+
+        //display results - original
+        subtitle("target - player 2's armour", "original pointer chains");
+        _print_chains(chains_0);
+
+        //save scan results
+        ret = serialiser.save_scan(ptrscan, opts);
+        CHECK_EQ(ret, 0);
+
+        //load scan results
+        ret = serialiser.load_scan(ptrscan, opts, false);
+        CHECK_EQ(ret, 0);
+
+        //verify chains
+        ret = ptrscan.verify(opts, opts_ptr);
+        CHECK_EQ(ret, 0);
+
+        //display results
+        const std::vector<struct sc::ptrscan_chain> & chains_1
+            = ptrscan.get_chains();
+        subtitle("target - player 2's armour", "verified pointer chains");
+        _print_chains(chains_1);
 
     } //end test
 

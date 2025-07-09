@@ -451,13 +451,17 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     addr = obj->start_addr;
 
     //for every offset
-    for (auto iter = chain.get_offsets().begin();
-         iter != chain.get_offsets().end(); ++iter) {
+    const std::vector<off_t> & offs = chain.get_offsets();
+    for (int i = 0; i < offs.size(); ++i) {
 
         //read next address
-        addr += *iter;
-        ret = mc_read(&session, addr, (cm_byte *) &addr, sizeof(addr));
-        if (ret != 0) return false;
+        addr += offs[i];
+
+        //do not dereference the last pointer
+        if (i < (offs.size() - 1)) {
+            ret = mc_read(&session, addr, (cm_byte *) &addr, sizeof(addr));
+            if (ret != 0) return false;
+        }
     }
 
     return (addr == target_addr) ? true : false;

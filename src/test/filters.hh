@@ -143,15 +143,16 @@ inline const constexpr char * test_cc_ptrscan_subtests[] = {
     "test_cc_ptrscan",
     "test_cc_ptrscan_scan",
     "test_cc_ptrscan_scan_threaded",
-    "test_cc_save_load_body",
+    "test_cc_ptrscan_save_load",
     "test_cc_ptrscan_verify",
 };
 
 
 //C interface ptrscan tests
-inline const constexpr int test_c_ptrscan_subtests_num = 3;
+inline const constexpr int test_c_ptrscan_subtests_num = 4;
 inline const constexpr char * test_c_ptrscan_subtests[] = {
     "test_c_ptrscan_scan",
+    "test_c_ptrscan_save_load",
     "test_c_ptrscan_verify",
     "test_c_ptrscan_get_chains"
 };

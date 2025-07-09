@@ -73,6 +73,36 @@ static uintptr_t _walk_ptrchain(mc_session & session, uintptr_t start_addr,
     return addr;
 }
 
+
+static void _set_static_areas(sc::opt_ptr & opts_ptr, mc_vm_map * map) {
+
+    int ret;
+    cm_lst_node * area_node, * obj_node;
+    mc_vm_obj * obj;
+    std::vector<const cm_lst_node *> static_areas;
+
+    
+    //build static areas - unit target's rw- area
+    obj_node = mc_get_obj_by_basename(map,
+                                      _target_helper::target_name);
+    obj = MC_GET_NODE_OBJ(obj_node);
+    area_node = obj->vm_area_node_ps.head->prev;
+    static_areas.push_back(area_node);
+
+    //build static areas - `[heap]` area
+    obj_node = mc_get_obj_by_basename(map, "[heap]");
+    obj = MC_GET_NODE_OBJ(obj_node);
+    area_node = obj->vm_area_node_ps.head;
+    static_areas.push_back(area_node);
+
+    //set static areas
+    ret = opts_ptr.set_static_areas(static_areas);
+    CHECK_EQ(ret, 0);
+
+    return;
+}
+
+
 /*
  *  NOTE: The offset of `game_off` depends on the build of `unit_target`.
  *        If tests fail, verify this offset is correct.
@@ -82,6 +112,7 @@ const constexpr off_t game_off   = 0xb0; //NOTE: Depends on build
 const constexpr off_t entity_off = sizeof(uintptr_t);
 const constexpr off_t stats_off  = 0x10;
 const constexpr off_t pos_off    = 0x14;
+const constexpr off_t health_off = 0x0;
 const constexpr off_t armour_off = 0x4;
 
 
@@ -118,17 +149,26 @@ static void _print_chains(const std::vector<sc::ptrscan_chain> & chains) {
 
     std::optional<const cm_lst_node *> obj_node;
     mc_vm_obj * obj;
+    std::string pathname, basename;
 
     //for every pointer chain
     for (auto iter = chains.cbegin(); iter != chains.cend(); ++iter) {
 
-        //get relevant fields
+        //fetch basename
         obj_node = iter->get_obj_node();
-        obj = MC_GET_NODE_OBJ(obj_node.value());
+        if (obj_node.has_value()) {
+            obj = MC_GET_NODE_OBJ(obj_node.value());
+            basename = obj->basename;
+        } else {
+            pathname = iter->get_pathname().value();
+            basename = mc_pathname_to_basename(pathname.c_str());
+        }
+
+        //fetch offsets
         const std::vector<off_t> & offs = iter->get_offsets();
 
         //print this entry
-        std::cout << obj->basename << ":" << std::hex;
+        std::cout << basename << ":" << std::hex;
         for (auto off_iter = offs.cbegin();
              off_iter != offs.cend(); ++off_iter) {
 
@@ -153,7 +193,9 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
 
     pid_t pid;
     uintptr_t target_addr;
+
     _memcry_helper::args mcry_args;
+    
 
     sc::opt opts(sc::AW64);
     sc::opt_ptr opts_ptr;
@@ -174,7 +216,7 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
     CHECK_NE(pid, 0);
 
     //setup MemCry
-    _memcry_helper::setup(mcry_args, pid, 2);
+    _memcry_helper::setup(mcry_args, pid, 8);
 
 
     //setup generic options
@@ -198,7 +240,6 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
 
     ret = opts_ptr.set_max_obj_sz(0x20);
     CHECK_EQ(ret, 0);
-
 
     //setup a scan on the entire map
     ret = ma_set.update_set(opts);
@@ -270,10 +311,242 @@ TEST_CASE(test_cc_ptrscan_subtests[0]) {
         //display results
         subtitle("target - player 1's name", "pointer chains");
         _print_chains(chains_1);
-    
+
+
+        //third test: specify preset offsets & static areas
+
+        //dump map
+        subtitle("target - player 3's health", "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 3's health
+        std::vector<off_t> offs_2 = {
+            game_off,
+            entity_off * 2,
+            stats_off
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_2);
+
+        //set preset offsets
+        std::vector<off_t> preset_offs = {0x10};
+        ret = opts_ptr.set_preset_offsets(preset_offs);
+        CHECK_EQ(ret, 0);
+
+        //set static areas
+        _set_static_areas(opts_ptr, &mcry_args.map);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+        //fetch the scan results
+        const std::vector<struct sc::ptrscan_chain> & chains_2
+            = ptrscan.get_chains();
+
+        //display results
+        subtitle("target - player 3's health", "pointer chains");
+        _print_chains(chains_2);
+
 
     } //end test
 
+
+    SUBCASE(test_cc_ptrscan_subtests[2]) {
+        title(CC, "ptrscan", "Perform pointer scans (threaded)");
+
+        //setup sessions
+        std::vector<const mc_session *> session_ptrs = {
+            &mcry_args.sessions[0],
+            &mcry_args.sessions[1],
+            &mcry_args.sessions[2],
+            &mcry_args.sessions[3],
+            &mcry_args.sessions[4],
+            &mcry_args.sessions[5],
+            &mcry_args.sessions[6],
+            &mcry_args.sessions[7]
+            
+        };
+        ret = opts.set_sessions(session_ptrs);
+        CHECK_EQ(ret, 0);
+
+
+        //first test: scan for player 4's armour
+
+        //dump map
+        subtitle("target - player 4's armour (threaded)",
+                 "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 4's armour
+        std::vector<off_t> offs_0 = {
+            game_off,
+            entity_off * 3,
+            stats_off,
+            armour_off
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_0);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+        //fetch the scan results
+        const std::vector<struct sc::ptrscan_chain> & chains_0
+            = ptrscan.get_chains();
+
+        //display results
+        subtitle("target - player 4's armour (threaded)",
+                 "pointer chains");
+        _print_chains(chains_0);
+
+
+        //second test: scan for player 2's name
+
+        //dump map
+        subtitle("target - player 2's name (threaded)",
+                 "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 2's name
+        std::vector<off_t> offs_1 = {
+            game_off,
+            entity_off * 1
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_1);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+        //fetch the scan results
+        const std::vector<struct sc::ptrscan_chain> & chains_1
+            = ptrscan.get_chains();
+
+        //display results
+        subtitle("target - player 2's name (threaded)", "pointer chains");
+        _print_chains(chains_1);
+
+
+        //third test: specify preset offsets & static areas
+
+        //dump map
+        subtitle("target - player 1's health (threaded)",
+                 "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 1's health
+        std::vector<off_t> offs_2 = {
+            game_off,
+            entity_off * 0,
+            stats_off,
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_2);
+
+        //set preset offsets
+        std::vector<off_t> preset_offs = {0x10, 0x0};
+        ret = opts_ptr.set_preset_offsets(preset_offs);
+        CHECK_EQ(ret, 0);
+
+        //set static areas
+        _set_static_areas(opts_ptr, &mcry_args.map);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+        //fetch the scan results
+        const std::vector<struct sc::ptrscan_chain> & chains_2
+            = ptrscan.get_chains();
+
+        //display results
+        subtitle("target - player 1's health (threaded)", "pointer chains");
+        _print_chains(chains_2);
+
+    } //end test
+
+
+    SUBCASE(test_cc_ptrscan_subtests[3]) {
+        title(CC, "ptrscan", "Save & load scan results");
+
+        //setup serialiser
+        sc::serialiser serialiser;
+
+        ret = opts.set_file_path_out(test_file);
+        CHECK_EQ(ret, 0);
+        ret = opts.set_file_path_in(test_file);
+        CHECK_EQ(ret, 0);
+
+        //setup sessions
+        std::vector<const mc_session *> session_ptrs = {
+            &mcry_args.sessions[0]
+        };
+        ret = opts.set_sessions(session_ptrs);
+        CHECK_EQ(ret, 0);
+
+
+        //only test: scan for player 2's armour, save & load the scan
+
+        //dump map
+        subtitle("target - player 2's armour", "target memory map");
+        _memcry_helper::print_map(&mcry_args.map);
+
+        //set the target address to player 2's armour
+        std::vector<off_t> offs_0 = {
+            game_off,
+            entity_off * 1,
+            stats_off,
+            armour_off
+        };
+        target_addr = _set_target(opts_ptr, mcry_args.sessions[0],
+                                  mcry_args.map, offs_0);
+
+        //perform the scan
+        ret = ptrscan.scan(opts, opts_ptr, ma_set, wpool, 0x0);
+        CHECK_EQ(ret, 0);
+
+
+        //fetch the scan results - original
+        const std::vector<struct sc::ptrscan_chain> & chains_0
+            = ptrscan.get_chains();
+
+        //display results - original
+        subtitle("target - player 2's armour", "original pointer chains");
+        _print_chains(chains_0);
+
+        //save scan results
+        ret = serialiser.save_scan(ptrscan, opts);
+        CHECK_EQ(ret, 0);
+
+
+        //load scan results - shallow
+        ret = serialiser.load_scan(ptrscan, opts, true);
+        CHECK_EQ(ret, 0);
+
+        //display results - shallow        
+        const std::vector<struct sc::ptrscan_chain> & chains_1
+            = ptrscan.get_chains();
+        subtitle(
+            "target - player 2's armour", "shallow read pointer chains");
+        _print_chains(chains_1);
+
+
+        //load scan results - deep
+        ret = serialiser.load_scan(ptrscan, opts, false);
+        CHECK_EQ(ret, 0);
+
+        //display results - deep
+        const std::vector<struct sc::ptrscan_chain> & chains_2
+            = ptrscan.get_chains();
+        subtitle("target - player 2's armour", "deep read pointer chains");
+        _print_chains(chains_2);
+
+        //TODO add assertions, they're reasonable here
+
+    } //end test
 
 
     //free workers

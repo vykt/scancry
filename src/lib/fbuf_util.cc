@@ -135,12 +135,24 @@ std::optional<std::string> fbuf_util::unpack_string(
     _CHECK_BUF(sizeof(cm_byte), std::nullopt);
     cur_byte = (cm_byte *) buf.data() + buf_off;
 
-    //keep adding characters until encountering a null terminator
-    while (cur_byte != 0x00 && buf_left > 0) {
+    //if buffer run out, return an error
+    if (buf_left <= 0) return std::nullopt;
 
-        str.push_back(*cur_byte);
+    //handle empty strings
+    if (*cur_byte == 0x00) {
+
         end = false;
         _UPDATE(sizeof(cm_byte));
+
+    //handle non-empty strings
+    } else {
+    
+        do {
+            str.push_back(*cur_byte);
+            end = false;
+            _UPDATE(sizeof(cm_byte));
+        
+        } while ((*cur_byte != 0x00) && (buf_left > 0));
     }
 
     return (end == true) ? std::nullopt
@@ -165,7 +177,7 @@ _SC_DBG_INLINE std::optional<T> fbuf_util::unpack_type(
     cur_byte = (cm_byte *) buf.data() + buf_off;
 
     //assert that the buffer has enough space to fit an instance of type T
-    if (buf_left < sizeof(T)) {
+    if (buf_left >= sizeof(T)) {
 
         //read an instance of type T
         type = *((T *) cur_byte);
@@ -215,20 +227,20 @@ _SC_DBG_INLINE std::optional<std::vector<T>> fbuf_util::unpack_type_array(
         _UPDATE(sizeof(T));
         end = false;
 
-        //assert the delimiter denotes either a `next element` or `end of array`
-        if ((*cur_byte != fbuf_util::_array_delim)
-            && (*cur_byte != fbuf_util::_array_end)) {
+        //on element delimeter
+        if (*cur_byte == fbuf_util::_array_delim) {
+            _UPDATE(sizeof(cm_byte));
 
+        //on end of array
+        } else if (*cur_byte == fbuf_util::_array_end) {
+            _UPDATE(sizeof(cm_byte));
+            break;
+
+        //on malformed array
+        } else {
             sc_errno = SC_ERR_INVALID_FILE;
-            return std::nullopt;
+            return std::nullopt;   
         }
-        _UPDATE(sizeof(cm_byte));
-    }
-
-    //check the buffer didn't abruptly end halfway through an entry
-    if ((buf_left % 5) != 0) {
-        sc_errno = SC_ERR_INVALID_FILE;
-        return std::nullopt;
     }
 
     return (end == true) ? std::nullopt

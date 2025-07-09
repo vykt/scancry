@@ -1,7 +1,35 @@
-1) Add an exclude address ranges constraint
+- Make the release build actually build.
 
-2) Both the pointer scanner and pattern scanner need to be able to only
-   scan every Nth address. There needs to be an additional callback in
-   the `_scan` interface that fetches the next i given the current i.
+- Shallow read pointer chains should include both a basename and
+  a pathname. Don't use std::string, do what memcry does.
 
-3) Instead of using std::function in the worker, use templates.
+- STL fstreams are a fucking disaster, just mmap() and typecast.
+	> While refactoring, make sure exceptions wont leak file
+	  descriptors, etc.
+
+- Go add rich pointers to memcry and pass around rich pointers.
+	> a rich pointer should include:
+		- raw foreign pointer
+		- area node
+		- area offset
+		- object node
+		- object offset
+		- whether rich pointer is still valid
+	> register rich pointers with a mc_vm_map, so that on map updates 
+	  they can be updated or invalidated
+
+- Go add a way to fetch an area's object to memcry, be it real or last
+  object. Migrate tracing to use this.
+
+- Remove all STL:
+	> streams
+	> strings
+
+- Try to remove all STL:
+	> hashmaps (use cmore's red-black tree instead)
+	> smart pointers (why are we using them in the first place?)
+	> vectors (again, use cmore)
+
+- Update tests to be more QA style instead of unreliable assertions.
+
+- Purge all other bloated STL components.

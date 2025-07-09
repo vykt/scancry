@@ -157,6 +157,14 @@ sc::serialiser::load_scan(
     //apply lock
     _LOCK(-1)
 
+    //reset the scan
+    ret = scan.reset();
+    if (ret != 0) {
+        /* `goto` would bypass `in_file` initialisation */
+        _UNLOCK(-1);
+        return -1;
+    }
+
     //assert an input file was provided
     const std::optional<std::string> & in_file = opts.get_file_path_in();
     if (in_file.has_value() == false) {

@@ -282,7 +282,7 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     }
 
     //end of each chain contains a continue/end byte
-    chains_sz += this->chains.size();
+    //chains_sz += this->chains.size(); FIXME: Remove?
 
     return std::pair<size_t, size_t>(pathnames_sz, chains_sz);
 }
@@ -306,7 +306,12 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
         if (pathname.has_value() == false) return -1;
 
         //if there are no more strings, stop
-        if (pathname->empty()) break;
+        if (pathname->empty()) {
+
+            //skip second null byte
+            buf_off += 1;
+            break;
+        }
 
         //otherwise add this pathname to the pathnames vector
         this->ser_pathnames.push_back(pathname.value());
@@ -333,7 +338,7 @@ void sc::ptrscan::add_node(std::shared_ptr<sc::_ptrscan_tree_node> parent_node,
     //fetch the chain array
     std::optional<std::vector<uint32_t>> chain_arr
         = fbuf_util::unpack_type_array<uint32_t>(buf, buf_off);        
-    if (obj_idx.has_value() == false) return std::nullopt;
+    if (chain_arr.has_value() == false) return std::nullopt;
 
     //convert on-disk `uint32_t` to `off_t`
     for (auto iter = chain_arr->begin();
@@ -631,10 +636,24 @@ struct _potential_node {
 
         //check the offset is correct, if one applies
         auto presets = opts_ptr->get_preset_offsets();
+        
         if (presets.has_value()
-            && presets->size() <= this->cur_depth_level) {
+            && (presets->size() > this->cur_depth_level)) {
+
+            #ifdef TRACE_PTRSCAN
+            std::printf("[SCRY][depth %d] preset offsets length: %lu using idx: %d\n",
+                        this->cur_depth_level,
+                        presets->size(), this->cur_depth_level - 1);
+            
+            std::printf("[SCRY][depth %d] preset offset: 0x%lx, comparison val: 0x%lx\n",
+                        this->cur_depth_level,
+                        (*presets)[this->cur_depth_level -1],
+                        now_node->own_addr
+                        - (*presets)[this->cur_depth_level -1]);
+            #endif
+            
             if (potential_ptr != (now_node->own_addr
-                    - (*presets)[this->cur_depth_level])) continue;
+                    - (*presets)[this->cur_depth_level - 1])) continue;
         }
 
         //if this is a smart scan, manipulate the new node container
@@ -765,6 +784,7 @@ struct _potential_node {
 
         //store every offset & downcast to 32bit offsets
         std::vector<uint32_t> offsets_32bit;
+        offsets_32bit.resize(iter->get_offsets().size());
         std::transform(iter->get_offsets().cbegin(),
                        iter->get_offsets().cend(),
                        offsets_32bit.begin(),
@@ -848,6 +868,7 @@ struct _potential_node {
     return 0;
 
     _process_body_fail:
+    sc_errno = SC_ERR_INVALID_FILE;
     _UNLOCK(-1)
     return -1;
 }
@@ -895,6 +916,7 @@ struct _potential_node {
     return 0;
 
     _read_body_fail:
+    sc_errno = SC_ERR_INVALID_FILE;
     _UNLOCK(-1)
     return -1;
 }

@@ -1,15 +1,6 @@
 #ifndef SCANCRY_IMPL_H
 #define SCANCRY_IMPL_H
 
-//standard template library
-#ifdef __cplusplus
-#include <new>
-#include <optional>
-#include <memory>
-#include <vector>
-#include <functional>
-#endif
-
 //system headers
 #include <unistd.h>
 
@@ -43,36 +34,63 @@
 namespace sc {
 
 
-//concisely lock/unlock a lockable class
-#define _LOCK(badret)                                         \
-    { int _lock_ret = this->_lock();                          \
-        if (_lock_ret != 0) {                                 \
-            return badret;                                    \
-        }                                                     \
-    }                                                         \
+//concisely read lock a lockable class
+#define _LOCK_READ(bad_ret)                  \
+    { int _lock_rd_ret = this->_lock_read(); \
+        if (_lock_rd_ret != 0) {             \
+            return bad_ret;                  \
+        }                                    \
+    }                                        \
 
-#define _UNLOCK(badret)                                                 \
-    { int _lock_ret = this->_unlock();                                  \
-    if (_lock_ret != 0) return badret; } \
+//concisely write lock a lockable class
+#define _LOCK_WRITE(bad_ret)                  \
+    { int _lock_wr_ret = this->_lock_write(); \
+        if (_lock_wr_ret != 0) {              \
+            return bad_ret;                   \
+        }                                     \
+    }                                         \
+
+//concisely unlock a lockable class
+#define _UNLOCK { this->_unlock(); }
 
 
-//allows a class to be locked (prevent modification)
+//allow a class to be locked (prevent modification)
 class _lockable {
 
     _SC_DBG_PRIVATE:
-        //lock
-        pthread_mutex_t in_use_lock;
-        bool in_use;
+        //read & write lock
+        pthread_rwlock_t lock;
 
     public:
-        _lockable() : in_use_lock(PTHREAD_MUTEX_INITIALIZER), in_use(false) {}
-        ~_lockable();
+        _lockable() : lock(PTHREAD_RWLOCK_INITIALIZER) {}
+        _lockable(const _lockable & lockable);
+        _lockable(_lockable && lockable) = delete;
         
         //lock operations
-        [[nodiscard]] int _lock() noexcept;
-        [[nodiscard]] int _unlock() noexcept;
-        [[nodiscard]] bool _get_lock() const noexcept;
+        [[nodiscard]] int _lock_read() noexcept;
+        [[nodiscard]] int _lock_write() noexcept;
+        void _unlock() noexcept;
 };
+
+
+//allow a class constructor to fail without throwing an exception
+class _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        //fail flag
+        bool ctor_failed;
+
+    public:
+        _ctor_failable() : ctor_failed(false) {}
+
+        //getter
+        [[nodiscard]] bool _get_ctor_failed() const noexcept;
+        void _set_ctor_failed(const bool failed) noexcept;
+};
+
+
+//unset value for `map_area_constraints::access`
+const constexpr cm_byte _access_unset = CM_BYTE_MAX - 1;
 
 
 //defined in `scancry.h`
@@ -136,23 +154,31 @@ class _scan : public _lockable {
         /*
          *  NOTE: This function returns the next iteration buffer offset.
          */
-        /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE off_t
-                _process_addr(
-                    const struct _scan_arg arg, const opt * const opts,
-                    const _opt_scan * const opts_scan) = 0;
+
+        /* internal */ [[nodiscard]]
+            virtual _SC_DBG_INLINE off_t _process_addr(
+                const struct _scan_arg arg, const opt * const opts,
+                const _opt_scan * const opts_scan) = 0;
 
         /*
          *  NOTE: _generate_body() is responsible for including the 
          *        file end byte (`fbuf_util::_file_end`).
          */
 
-        /* internal */ [[nodiscard]] virtual int _generate_body(
-                std::vector<cm_byte> & buf, off_t hdr_off) = 0;
-        /* internal */ [[nodiscard]] virtual int _process_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off,
+        /* internal */ [[nodiscard]]
+            virtual int _generate_body(
+                cm_vct /* <cm_byte> */ & buf, const off_t hdr_off) = 0;
+                
+        /* internal */ [[nodiscard]]
+            virtual int _process_body(
+                const cm_byte * file_map,
+                const off_t hdr_off,
                 const mc_vm_map & map) = 0;
-        /* internal */ [[nodiscard]] virtual int _read_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off) = 0;
+
+        /* internal */ [[nodiscard]]
+            virtual int _read_body(
+                const cm_byte * file_map,
+                const off_t hdr_off) = 0;
 
         [[nodiscard]] virtual int reset() = 0;
 };
@@ -220,13 +246,14 @@ class _worker {
          */
         
         //[attributes]
-        const std::vector<std::vector<const cm_lst_node *>> & scan_area_sets;
-        const int scan_area_index;
+        const cm_vct /* <cm_vct<const cm_lst_node *>> */ & scan_area_sets;
+        const int scan_area_sets_idx;
         const mc_session * session;
 
         /*
          *  Pointers to the worker manager's cache.
          */
+
         sc::opt ** const opts;
         sc::_opt_scan ** const opts_scan;
         sc::_scan ** scan;
@@ -235,19 +262,21 @@ class _worker {
         struct _worker_concurrency & concur;
 
         //read buffer
-        std::vector<cm_byte> buf;
+        cm_byte * buf;
 
         //[methods]
-        void exit_flag_handle();
-        [[nodiscard]] int read_buffer_smart(struct _scan_arg & arg) noexcept;
-        void do_under_mutex(pthread_mutex_t & mutex, std::function<void()> cb);
+        [[nodiscard]] int read_buffer_smart(
+                              struct _scan_arg & arg) noexcept;
+        void do_under_mutex(pthread_mutex_t & mutex,
+                            void (* callback)(void *));
         void do_under_mutex_critical(pthread_mutex_t & mutex,
-                                     const std::string & msg,
-                                     std::function<void()> cb);
-
+                                     void (* callback)(void *),
+                                     const char * msg);
+                                    
         //synchronisation
         [[nodiscard]] int release_wait();
         [[nodiscard]] int layer_wait() noexcept;
+        void exit_flag_handle();
         void exit(bool is_error);
 
     public:
@@ -256,8 +285,8 @@ class _worker {
         _worker(sc::opt ** const opts,
                 sc::_opt_scan ** const opts_scan,
                 sc::_scan ** scan,
-                const std::vector<std::vector<const cm_lst_node *>>
-                    & scan_area_sets,
+                const cm_vct
+                    /* <cm_vct<const cm_lst_node *>> */ & scan_area_sets,
                 const int scan_area_index,
                 const mc_session * session,
                 struct sc::_worker_concurrency & concur);
@@ -276,7 +305,8 @@ class _sa_sort_entry {
 
     public:
          //[methods]
-        _sa_sort_entry(const size_t size, const cm_lst_node * area_node)
+        _sa_sort_entry(const size_t size,
+                       const cm_lst_node * area_node)
          : size(size),
            area_node((cm_lst_node *) area_node) {}
     
@@ -292,12 +322,36 @@ class _ptrscan_tree_node;
 //pointer scanner cache
 struct _ptrscan_cache {
 
-    std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> * depth_level_vct;
-    std::vector<cm_byte> serial_buf;
+    cm_vct /* <sc::_ptrscan_tree_node> */ * depth_level_vct;
 
     _ptrscan_cache()
-     : depth_level_vct(nullptr),
-       serial_buf({}) {}
+     : depth_level_vct(nullptr) {}
+};
+
+
+//pointer chain data
+struct _ptrscan_chain_data {
+
+    const char * pathname;
+    const cm_lst_node * area_node;
+
+    _ptrscan_chain_data(const char * pathname,
+                        const cm_lst_node * area_node) 
+     : pathname(pathname),
+       area_node(area_node) {}
+};
+
+
+//size of pathnames & chains in save file
+struct _ptrscan_fbuf_data_sz {
+
+    const size_t pathnames_sz;
+    const size_t chains_sz;
+
+    _ptrscan_fbuf_data_sz(const size_t pathnames_sz,
+                          const size_t chains_sz)
+     : pathnames_sz(pathnames_sz),
+       chains_sz(chains_sz) {}
 };
 
 

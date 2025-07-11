@@ -1,19 +1,6 @@
 #ifndef SCANCRY_H
 #define SCANCRY_H
 
-//standard template library
-#ifdef __cplusplus
-#include <optional>
-#include <memory>
-#include <vector>
-#include <list>
-#include <unordered_set>
-#include <string>
-#include <fstream>
-#include <functional>
-#include <type_traits>
-#endif
-
 //C standard library
 #include <stddef.h>
 
@@ -46,6 +33,152 @@ namespace sc {
  *  --- [CLASSES] ---
  */
 
+/*
+ *  NOTE: This is a single address range, used when specifying address
+ *        range based constraints.
+ */
+
+class addr_range {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        uintptr_t start_addr;
+        uintptr_t end_addr;
+
+    public:
+        //[methods]
+        //ctor
+        addr_range(uintptr_t start_addr, uintptr_t end_addr)
+         : start_addr(start_addr), end_addr(end_addr) {}
+
+        //getters
+        [[nodiscard]] uintptr_t get_start_addr() noexcept;
+        [[nodiscard]] uintptr_t get_end_addr() noexcept;
+};
+
+
+/*
+ *  NOTE: Constraints included in this class are used to populate a
+ *        `map_area_set`. Instances of `map_area_set` represent some
+ *        subset of a MemCry target map.
+ */
+
+class map_area_opt : public _lockable, public _ctor_failable {
+
+    _SC_DBG_PRIVATE:    
+        //[attributes]
+        cm_vct /* <const cm_lst_node *> */ omit_areas;
+        cm_vct /* <const cm_lst_node *> */ omit_objs;
+        cm_vct /* <const cm_lst_node *> */ exclusive_areas;
+        cm_vct /* <const cm_lst_node *> */ exclusive_objs;
+        cm_vct /* <sc::addr_range> */ omit_addr_ranges;
+        cm_vct /* <sc::addr_range> */ exclusive_addr_ranges;
+        cm_byte access;
+
+    public:
+        //[methods]
+        //internal
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_omit_areas_mut() noexcept;
+            
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_omit_objs_mut() noexcept;
+
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_exclusive_areas_mut() noexcept;
+
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_exclusive_objs_mut() noexcept;
+
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_omit_addr_ranges_mut() noexcept;
+
+        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
+            _get_exclusive_addr_ranges_mut() noexcept;
+
+        //ctors & dtor
+        map_area_opt();
+        map_area_opt(sc::map_area_opt & ma_opts);
+        map_area_opt(sc::map_area_opt && ma_opts) = delete;
+        ~map_area_opt();
+
+        //reset
+        [[nodiscard]] int reset() noexcept;
+
+        //getters & setters
+        [[nodiscard]] int set_omit_areas(
+            const cm_vct /* <const cm_lst_node *> */ & omit_areas) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_omit_areas() noexcept;
+
+        [[nodiscard]] int set_omit_objs(
+            const cm_vct /* <const cm_lst_node *> */ & omit_objs) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_omit_objs() noexcept;
+
+        [[nodiscard]] int set_exclusive_areas(
+            const cm_vct /* <const cm_lst_node *> */ & exclusive_areas) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_exclusive_areas() noexcept;
+
+        [[nodiscard]] int set_exclusive_objs(
+            const cm_vct /* <const cm_lst_node *> */ & exclusive_objs) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_exclusive_objs() noexcept;
+
+        [[nodiscard]] int set_omit_addr_ranges(
+            const cm_vct /* <sc::addr_range> */ & addr_ranges) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_omit_addr_ranges() noexcept;
+
+        [[nodiscard]] int set_exclusive_addr_ranges(
+            const cm_vct /* <sc::addr_range> */ & addr_ranges) noexcept;
+        [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
+            get_exclusive_addr_ranges() noexcept;
+
+        [[nodiscard]] int set_access(const cm_byte access) noexcept;
+        [[nodiscard]] cm_byte get_access() noexcept;
+};
+
+
+/*
+ *  NOTE: This class represents a subset of a MemCry target map. They
+ *        are used to determine which memory areas to scan, which
+ *        memory areas to treat as `static` during pointer scans, and
+ *        more.
+ */
+
+class map_area_set : public _lockable, public _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        //[attributes]
+        cm_rbt /* <const cm_lst_node * : nullptr> */ set;
+
+    public:
+        //[methods]
+        //internal
+        /* internal */ [[nodiscard]] cm_rbt /* <const cm_lst_node *> */ &
+            _get_set_mut() noexcept;
+
+        //ctors & dtor
+        map_area_set();
+        map_area_set(sc::map_area_set & ma_set);
+        map_area_set(sc::map_area_set && ma_set) = delete;
+        ~map_area_set();
+
+        //reset
+        [[nodiscard]] int reset() noexcept;
+
+        //populate
+        [[nodiscard]] int update_set(
+            sc::map_area_opt & ma_opts, const mc_vm_map & map) noexcept;
+
+        //getters & setters
+        [[nodiscard]] const cm_rbt /* <const cm_lst_node *> */ &
+            get_set() noexcept;
+};
+
+
 //architecture address width enum
 enum addr_width {
     AW32 = 4,
@@ -54,189 +187,123 @@ enum addr_width {
 
 
 /*
- *  Configuration options for all scan types.
+ *  NOTE: This class defines generic configuration options relevant to
+ *        all scan types.
  */
+
 class opt : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
+
         //save & load file paths
-        std::optional<std::string> file_path_out;
-        std::optional<std::string> file_path_in;
+        const char * file_pathname_out;
+        const char * file_pathname_in;
 
         /*
          *  NOTE: The number of threads used during scans is determined 
-         *        by the number of sessions. Each thread requires its
-         *        own session (because each thread needs its own seek
-         *        position).
+         *        by the number of provided sessions.
          */
         
-        //MemCry sessions
-        std::vector<const mc_session *> sessions;
-
-        //MemCry memory map of target
+        //sessions
+        cm_vct /* <const mc_session *> */ sessions;
+        
+        //map of the target
         mc_vm_map * map;
 
-        /*
-         *  NOTE: The following attributes define constraints to apply
-         *        to a `mc_vm_map`. For example, `omit_objs` will not
-         *        include any objects in this vector in the scan.
-         *        Constraints can be applied at object and area
-         *        granularity.
-         *
-         *        omit_*      - Do not include these areas/objects in
-         *                      the scan.
-         *        exclusive_* - Only scan these areas/objects (union set).
-         */
+        //address width of the target
+        const enum addr_width addr_width;
 
-        //scan constraints
-        std::optional<
-            std::vector<const cm_lst_node *>> omit_areas;
-        std::optional<
-            std::vector<const cm_lst_node *>> omit_objs;
-        std::optional<
-            std::vector<const cm_lst_node *>> exclusive_areas;
-        std::optional<
-            std::vector<const cm_lst_node *>> exclusive_objs;
-        std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>>
-                omit_addr_ranges;
-        std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>>
-                exclusive_addr_ranges;
-        std::optional<cm_byte> access;
+        //areas a scan will be performed on
+        sc::map_area_set scan_set;
 
     public:
-        //[attributes]
-        const enum addr_width addr_width;
-    
         //[methods]
-        //ctor
+        //ctors & dtor
         opt(enum addr_width _addr_width);
         opt(const opt & opts);
         opt(const opt && opts);
+        ~opt();
 
         //reset
         [[nodiscard]] int reset();
 
-        /*
-         *  NOTE: Using `internal` pseudo-keyword here instead of using
-         *        C++'s `friend` keyword. Given the internal complexity
-         *        of core ScanCry classes it is imperative that every
-         *        class is accessed through the provided interface only.
-         *        using `friend` would throw away the safety that has
-         *        been so carefully nurtured.
-         */
-
         //getters & setters
-        [[nodiscard]] int set_file_path_out(
-            const std::optional<std::string> & file_path_out);
-        [[nodiscard]] const std::optional<std::string> &
-            get_file_path_out() const;
+        [[nodiscard]] int set_file_pathname_out(
+            const char * file_pathname_out) noexcept;
+        [[nodiscard]] const char * get_file_pathname_out() const noexcept;
 
-        [[nodiscard]] int set_file_path_in(
-            const std::optional<std::string> & file_path_in);
-        [[nodiscard]] const std::optional<std::string> &
-            get_file_path_in() const;
+        [[nodiscard]] int set_file_pathname_in(
+            const char * file_pathname_in) noexcept;
+        [[nodiscard]] const char * get_file_pathname_in() const noexcept;
 
         [[nodiscard]] int set_sessions(
-            const std::vector<mc_session const *> & sessions);
-        [[nodiscard]] const std::vector<mc_session const *> &
-            get_sessions() const;
+            const cm_vct /* <const mc_session *> */ & sessions) noexcept;
+        [[nodiscard]] const cm_vct /* <const mc_session *> */ &
+            get_sessions() const noexcept;
 
         [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
-        [[nodiscard]] mc_vm_map * get_map() const noexcept;
+        [[nodiscard]] const mc_vm_map * get_map() const noexcept;
 
-        [[nodiscard]] int set_omit_areas(
-            const std::optional<std::vector<const cm_lst_node *>> & omit_areas);
-        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
-                get_omit_areas() const;
+        [[nodiscard]] int set_addr_width(
+            const enum addr_width addr_width) noexcept;
+        [[nodiscard]] enum addr_width get_addr_width() const noexcept;
 
-        [[nodiscard]] int set_omit_objs(
-            const std::optional<std::vector<const cm_lst_node *>> & omit_objs);
-        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
-                get_omit_objs() const;
-
-        [[nodiscard]] int set_exclusive_areas(
-            const std::optional<std::vector<const cm_lst_node *>> &
-                exclusive_areas);
-        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
-            get_exclusive_areas() const;
-
-        [[nodiscard]] int set_exclusive_objs(
-            const std::optional<std::vector<const cm_lst_node *>> &
-                exclusive_objs);
-        [[nodiscard]] const std::optional<std::vector<const cm_lst_node *>> &
-            get_exclusive_objs() const;
-
-        [[nodiscard]] int set_omit_addr_ranges(const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_ranges);
-        [[nodiscard]] const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> &
-                get_omit_addr_ranges() const;
-
-        [[nodiscard]] int set_exclusive_addr_ranges(const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_ranges);
-        [[nodiscard]] const std::optional<
-            std::vector<std::pair<uintptr_t, uintptr_t>>> &
-                get_exclusive_addr_ranges() const;
-
-        [[nodiscard]] int set_access(
-            const std::optional<cm_byte> access) noexcept;
-        [[nodiscard]] std::optional<cm_byte> get_access() const noexcept;
+        [[nodiscard]] int set_scan_set(
+            const sc::map_area_set & scan_set) noexcept;
+        [[nodiscard]] const sc::map_area_set & get_scan_set() const noexcept;
 };
 
 
-
 /*
- *  Configuration options only applicable to pointer scans.
+ *  NOTE: This class defines configuration options only applicable to
+ *        pointer scans.
  */
+
 class opt_ptr final : public _opt_scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        /* The following 4 optionals are _not_ optional, they must be set. */
-        std::optional<uintptr_t> target_addr;
-        std::optional<off_t> alignment;
-        std::optional<off_t> max_obj_sz;
-        std::optional<int> max_depth;
+
+        //address to scan for
+        uintptr_t target_addr;
+
+        //pointer alignment in bytes
+        off_t alignment;
+
+        //maximum structure size to accept
+        off_t max_obj_sz;
+
+        //number of iterations to perform (time grows exponentially)
+        int max_depth;
+
+        //areas to treat as terminal nodes (areas holding static globals)
+        sc::map_area_set static_set;
+
+        //required first N offsets
+        cm_vct /* <off_t> */ preset_offsets;
 
         /*
-         *  NOTE: `static_areas` define areas to treat as terminal nodes.
-         *        If a pointer resides in a static area, it is guaranteed
-         *        to be a leaf node; all future pointers to this node will
-         *        be rejected.
-         */
-        std::optional<std::unordered_set<const cm_lst_node *>> static_areas;
-
-        /*
-         *  NOTE: `preset_offsets` define the first n required offsets
-         *        in the ptrscan tree.
+         *  NOTE: With `smart_scan` enabled, every potential pointer
+         *        will be treated as pointing only to nodes to which it's
+         *        offset is smallest.
          *
-         *        For example: your target address is `foo`, and you know
-         *        the offset of `foo` from its struct `bar` is 0x100. The
-         *        offset of `bar` from its container `baz` is 0x400. You
-         *        can provide a `preset_offsets` vector of {0x100, 0x400}
-         *        to only accept 0x100 as the first depth level offset,
-         *        and 0x400 as the second depth level offset.
-         */
-        std::optional<std::vector<off_t>> preset_offsets;
-
-        /*
-         *  NOTE: With `smart_scan` on, every potential pointer will be 
-         *        treated as pointing only to nodes to which it's offset
-         *        is smallest.
+         *        For example: imagine 4 objects of size 0x40 each are
+         *        allocated inside an array. With `max_obj_sz` of 0x100,
+         *        a potential pointer to the start of the array will
+         *        technically point to each object in this array.
          *
-         *        For example: imagine 4 objects of size 0x40 each allocated
-         *        inside an array. With `max_obj_sz` of 0x100, a potential
-         *        pointer to the start of the array will technically point
-         *        to each object in the array. With `smart_scan` set to
-         *        true, it will only point to the first object.
+         *        Enabling a smart scan will cause the potential pointer
+         *        to point only to the first object with the offset of
+         *        0x40. This will greatly reduce the amount of false
+         *        positives, but may miss some valid results.
          */
+
+        //perform a smart pointer scan
         bool smart_scan;
 
     public:
-        //ctor
+        //ctors & dtor
         opt_ptr();
         opt_ptr(const opt_ptr & opts_ptr);
         opt_ptr(const opt_ptr && opts_ptr);
@@ -247,95 +314,55 @@ class opt_ptr final : public _opt_scan {
 
         //getters & setters
         [[nodiscard]] int set_target_addr(
-            const std::optional<uintptr_t> target_addr) noexcept;
-        [[nodiscard]] std::optional<uintptr_t>
-            get_target_addr() const noexcept;
-        
-        [[nodiscard]] int set_alignment(
-            const std::optional<off_t> alignment) noexcept;
-        [[nodiscard]] std::optional<off_t>
-            get_alignment() const noexcept;
-        
-        [[nodiscard]] int set_max_obj_sz(
-            const std::optional<off_t> max_obj_sz) noexcept;
-        [[nodiscard]] std::optional<off_t>
-            get_max_obj_sz() const noexcept;
-        
-        [[nodiscard]] int set_max_depth(
-            const std::optional<int> max_depth) noexcept;
-        [[nodiscard]] std::optional<int>
-            get_max_depth() const noexcept;
-        
-        [[nodiscard]] int set_static_areas(
-            const std::optional<
-                std::vector<const cm_lst_node *>> & static_areas);
-        [[nodiscard]] const std::optional<
-            std::unordered_set<const cm_lst_node *>> &
-                get_static_areas() const;
-        
+            const uintptr_t target_addr) noexcept;
+        [[nodiscard]] uintptr_t get_target_addr() const noexcept;
+
+        [[nodiscard]] int set_alignment(const off_t alignment) noexcept;
+        [[nodiscard]] off_t get_alignment() const noexcept;
+
+        [[nodiscard]] int set_max_obj_sz(const off_t max_obj_sz) noexcept;
+        [[nodiscard]] off_t get_max_obj_sz() const noexcept;
+
+        [[nodiscard]] int set_static_set(
+            const sc::map_area_set & static_set) noexcept;
+        [[nodiscard]] const sc::map_area_set &
+            get_static_set() const noexcept;
+
         [[nodiscard]] int set_preset_offsets(
-            const std::optional<std::vector<off_t>> & preset_offsets);
-        [[nodiscard]] const std::optional<std::vector<off_t>> &
-            get_preset_offsets() const;
-        
-        [[nodiscard]] int set_smart_scan(const bool enable) noexcept;
-        [[nodiscard]] bool get_smart_scan() const noexcept;    
+            const cm_vct /* <off_t> */ & preset_offsets) noexcept;
+        [[nodiscard]] const cm_vct /* <off_t> */ &
+            get_preset_offsets() const noexcept;
+
+        [[nodiscard]] int set_smart_scan(
+            const bool smart_scan) noexcept;
+        [[nodiscard]] bool get_smart_scan() const noexcept;
 };
 
 
-/*
- *  Abstraction above `mc_vm_map`; uses constraints from the opt class
- *  to arrive at a set of areas to scan.
- */
-class map_area_set : public _lockable {
-
-    _SC_DBG_PRIVATE:
-        //[attributes]
-        std::unordered_set<const cm_lst_node *> area_nodes;
-
-    public:
-        //[methods]
-
-        //ctors
-        map_area_set();
-        map_area_set(const map_area_set & ma_set);
-        map_area_set(const map_area_set && ma_set);
-
-        //reset
-        [[nodiscard]] int reset();
-
-        //populate
-        [[nodiscard]] int update_set(opt & opts);
-
-        //getters & setters
-        [[nodiscard]] const std::unordered_set<const cm_lst_node *> &
-            get_area_nodes() const noexcept;
-};
-
-
-//flags to alter behaviour of `worker_mngr::update_workers()`
+//flags to alter behaviour of `worker_pool::update_workers()`
 const constexpr cm_byte WORKER_POOL_KEEP_WORKERS  = 0x1;
 const constexpr cm_byte WORKER_POOL_KEEP_SCAN_SET = 0x2;
 
 /*
- *  Manager of worker threads, responsible for spawning, dispatching,
- *  synchronising, and cleaning up threads. The parameters for the
- *  scan are determined by an instance of `opt` class. Once set up,
- *  `worker_mngr` is passed to some scan class instance allowing it
- *  to perform the scan.
+ *  NOTE: This is a manager of worker threads, responsible for spawning,
+ *        dispatching, synchronising, and cleaning up threads. The
+ *        number of spawned threads is determined by the number of 
+ *        sessions provided in the `opt` class instance.
  */
+
 class worker_pool : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
         //worker threads
-        std::vector<_worker> workers;
-        std::vector<pthread_t> worker_ids;
+        cm_vct /* <sc::_worker> */ workers;
+        cm_vct /* <sc::pthread_t> */ worker_ids;
 
-        //local, sorted by area size copy of the last provided `map_area_set` 
-        std::vector<sc::_sa_sort_entry> sorted_entries;
-        //a set of areas to scan for each worker
-        std::vector<std::vector<const cm_lst_node *>> scan_area_sets;
+        //local copy of the last provided scan set (`map_area_set`), sorted
+        //by area size
+        cm_vct /* <sc::_sa_sort_entry> */ sorted_entries;
+        //a scan set per worker
+        cm_vct /* <cm_vct <const cm_lst_node *>> */ worker_scan_sets;
 
         //options cache
         sc::opt * opts;
@@ -346,17 +373,17 @@ class worker_pool : public _lockable {
         struct _worker_concurrency concur;
 
         //[methods]
-        [[nodiscard]] int spawn_workers();
-        [[nodiscard]] int kill_workers();
-        [[nodiscard]] int
-            sort_by_size(const map_area_set & ma_set);
-        [[nodiscard]] int
-            update_scan_area_set(const map_area_set & ma_set);
+        [[nodiscard]] int spawn_workers() noexcept;
+        [[nodiscard]] int kill_workers() noexcept;
+        [[nodiscard]] int sort_by_size(
+            const map_area_set & scan_set) noexcept;
+        [[nodiscard]] int update_scan_area_set(
+            const map_area_set & scan_set) noexcept;
 
     public:
         //[methods]
-        //used by implementations of `_scan`
-        /* internal */ [[nodiscard]] int _single_run();
+        //perform a single pass over the scan set
+        /* internal */ [[nodiscard]] int _single_run() noexcept;
         
         //setup ahead of a scan
         /* internal */ [[nodiscard]] int _setup(
@@ -364,7 +391,7 @@ class worker_pool : public _lockable {
                                         sc::_opt_scan & opts_scan,
                                         sc::_scan & scan,
                                         const sc::map_area_set & ma_set,
-                                        const cm_byte flags);
+                                        const cm_byte flags) noexcept;
         
         //ctor & dtor
         worker_pool();
@@ -373,7 +400,7 @@ class worker_pool : public _lockable {
         ~worker_pool();
 
         //control workers
-        [[nodiscard]] int free_workers();
+        [[nodiscard]] int free_workers() noexcept;
 };
 
 
@@ -392,28 +419,27 @@ class ptrscan_chain {
     _SC_DBG_PRIVATE:
         //[attributes]
         uint32_t obj_idx;
-        std::optional<const cm_lst_node *> obj_node;
-        std::optional<std::string> pathname;
-        std::vector<off_t> offsets;
+        const cm_lst_node * obj_node;
+        const char * pathname;
+        cm_vct /* <off_t> */ offsets;
 
     public:
         //[methods]
         /* internal */ uint32_t _get_obj_idx() const noexcept;
     
-        //ctors
+        //ctors & dtor
         ptrscan_chain(const cm_lst_node * obj_node,
                       const uint32_t _obj_idx,
-                      const std::vector<off_t> & offsets);
-        ptrscan_chain(const std::string pathname,
+                      const cm_vct /* <off_t> */ & offsets);
+        ptrscan_chain(const char * pathname,
                       const uint32_t _obj_idx,
-                      const std::vector<off_t> & offsets);
+                      const cm_vct /* <off_t> */ & offsets);
+        ~ptrscan_chain();
         
         //getters & setters
-        std::optional<const cm_lst_node *> get_obj_node() const noexcept;
-        const std::optional<std::string> &
-            get_pathname() const noexcept;
-        const std::vector<off_t> & get_offsets() const noexcept;
-
+        const cm_lst_node * get_obj_node() const noexcept;
+        const char * get_pathname() const noexcept;
+        const cm_vct /* <off_t> */ & get_offsets() const noexcept;
 };
  
 
@@ -422,39 +448,43 @@ class ptrscan : public _scan {
     _SC_DBG_PRIVATE:
         //[attributes]
         //pointer scan tree
-        std::unique_ptr<_ptrscan_tree> tree_p;
+        sc::_ptrscan_tree * tree_p;
         int cur_depth_level;
 
         //flattened tree chains
-        std::vector<std::string> ser_pathnames;
-        std::vector<struct ptrscan_chain> chains;
+        cm_vct /* <const char * (alloc)> */ ser_pathnames;
+        cm_vct /* <struct ptrscan_chain> */ chains;
 
         //cache
         struct _ptrscan_cache cache;
 
         //[methods]
-        void add_node(std::shared_ptr<_ptrscan_tree_node> parent_node,
+        void add_node(_ptrscan_tree_node * parent_node,
                       const cm_lst_node * area_node,
-                      const uintptr_t own_addr, const
-                      uintptr_t ptr_addr);
+                      const uintptr_t own_addr,
+                      const uintptr_t ptr_addr);
 
-        [[nodiscard]] std::pair<std::string, cm_lst_node *>
-            get_chain_data(const cm_lst_node * const area_node) const;
-        [[nodiscard]] int get_chain_idx(const std::string & pathname);
+        [[nodiscard]] sc::_ptrscan_chain_data get_chain_data(
+            const cm_lst_node * const area_node) const noexcept;
+
+        [[nodiscard]] int get_chain_idx(const char * pathname);
 
         [[nodiscard]] bool
             is_chain_valid(const uintptr_t target_addr,
                            const struct sc::ptrscan_chain & chain,
                            mc_session & session) const;
 
-        [[nodiscard]] std::pair<size_t, size_t>
-            get_fbuf_data_sz() const;
+        [[nodiscard]] sc::_ptrscan_fbuf_data_sz
+            get_fbuf_data_sz() const noexcept;
+
+#if 0 //TODO FIXME: Just rewrite the serialiser, shit is awful (Thanks STL!)
         [[nodiscard]] int handle_body_start(
             const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
         [[nodiscard]]
             std::optional<std::pair<uint32_t, std::vector<off_t>>>
                 handle_body_chain(
                     const std::vector<cm_byte> & buf, off_t & buf_off);
+#endif
         [[nodiscard]] int flatten_tree();
 
         void do_reset();
@@ -462,23 +492,28 @@ class ptrscan : public _scan {
     public:
         //[methods]
         /* internal */ [[nodiscard]] off_t _process_addr(
-                    const struct _scan_arg arg, const opt * const opts,
-                    const _opt_scan * const opts_scan) override final;
+                    const struct _scan_arg arg,
+                    const opt * const opts,
+                    const _opt_scan * const opts_scan)
+                    noexcept override final;
 
         /* internal */ [[nodiscard]] int _generate_body(
-                    std::vector<cm_byte> & buf,
-                    const off_t hdr_off) override final;
+                    cm_vct /* <cm_byte> */ & buf,
+                    const off_t hdr_off) noexcept override final;
+#if 0 //TODO FIXME: Just rewrite the serialiser pt. 2
         /* internal */ [[nodiscard]] int _process_body(
                     const std::vector<cm_byte> & buf, off_t hdr_off,
                     const mc_vm_map & map) override final;
         /* internal */ [[nodiscard]] int _read_body(
                     const std::vector<cm_byte> & buf,
                     off_t hdr_off) override final;
+#endif
 
         //ctors
         ptrscan();
         ptrscan(const ptrscan & ptr_s) = delete;
         ptrscan(const ptrscan && ptr_s) = delete;
+        ~ptrscan();
         
         [[nodiscard]] int reset() override final;
 
@@ -496,7 +531,8 @@ class ptrscan : public _scan {
 
         //getters & setters
         [[nodiscard]]
-            const std::vector<struct ptrscan_chain> & get_chains() const;
+            const cm_vct /* <sc::ptrscan_chain> */ &
+                get_chains() const noexcept;
 };
 
 
@@ -598,49 +634,72 @@ extern "C" {
  *  --- [DATA TYPES] ---
  */
 
-//opaque types
-typedef void * sc_opt;
-typedef /* base */ void * sc_opt_scan;
-typedef void * sc_opt_ptr;
+/*
+ *  NOTE: C code should treat these as opaque handles. Using incomplete
+ *        types is preferable to using void pointers, as reassignment
+ *        across types is still treated as a warning/error
+ */
 
-typedef void * sc_map_area_set;
-typedef void * sc_worker_pool;
+//map area sets
+typedef struct sc_map_area_opt sc_map_area_opt;
+typedef struct sc_map_area_set sc_map_area_set;
 
-typedef /* base */ void * sc_scan;
+//generic options
+typedef struct sc_opt sc_opt;
 
-typedef void * sc_serialiser;
+//scan options
+typedef /* base */ struct sc_opt_scan sc_opt_scan;
+typedef struct sc_opt_ptr sc_opt_ptr;
 
-#define SC_BAD_OBJ NULL
+//scan types
+typedef /* base */ struct sc_scan sc_scan;
+typedef struct sc_ptrscan sc_ptrscan;
 
-//address range for sc_opt
+//worker pool
+typedef struct sc_worker_pool sc_worker_pool;
+
+//serialiser
+typedef struct sc_serialiser sc_serialiser;
+
+
+//address range
 typedef struct {
+
     uintptr_t min;
     uintptr_t max;
+
 } sc_addr_range;
+
+
+//map area options unset access value
+#define SC_ACCESS_UNSET CM_BYTE_MAX - 1
 
 
 //architecture address width enum
 enum sc_addr_width {
+
     AW32 = 4,
     AW64 = 8
 };
 
 
-//scancry header constants
+//scancry header magic
 #define SC_FILE_MAGIC_SZ 4
 #define SC_FILE_MAGIC {'S', 'C', 0x13, 0x37}
 
+//scancry header file type
 #define SC_SCAN_TYPE_PTR 0x00
 #define SC_SCAN_TYPE_PTN 0x01;
 #define SC_SCAN_TYPE_VAL 0x02;
 
 
-//ScanCry file header
+//scancry file header
 typedef struct {
 
     cm_byte magic[SC_FILE_MAGIC_SZ];
     cm_byte version;
     cm_byte scan_type;
+
 } sc_scancry_file_hdr;
 
 
@@ -651,10 +710,11 @@ typedef struct {
     uint32_t pathnames_offset;
     uint32_t chains_num;
     uint32_t chains_offset;
+
 } sc_ptr_file_hdr;
 
 
-//combined ScanCry & scan header struct
+//combined scancry & scan header struct
 typedef struct combined_file_hdr {
     sc_scancry_file_hdr scancry_hdr;
     union {
@@ -662,6 +722,81 @@ typedef struct combined_file_hdr {
     };
 } sc_combined_file_hdr;
 
+
+/*
+ *  NOTE: For all functions, see `sc_errno` on error.
+ */
+
+/*
+ *  --- [MAP_AREA_OPT] ---
+ */
+
+//pointer = success, NULL = error 
+extern sc_map_area_opt * sc_new_ma_opt();
+extern sc_map_area_opt * sc_copy_ma_opt(sc_map_area_opt * ma_opts);
+//0 = success, -1 = error
+extern void sc_del_ma_opt(sc_map_area_opt * ma_opts);
+extern int sc_ma_opt_reset(sc_map_area_opt * ma_opts);
+
+//setters: 0 = success, -1 = error
+//getters: pointer = success, NULL = error
+
+//omit areas
+extern int sc_ma_opt_set_omit_areas(
+    sc_map_area_opt * ma_opts, const cm_vct * omit_areas);
+extern const cm_vct * sc_ma_opt_get_omit_areas(sc_map_area_opt * ma_opts);
+
+//omit objects
+extern int sc_ma_opt_set_omit_objs(
+    sc_map_area_opt * ma_opts, const cm_vct * omit_objs);
+extern const cm_vct * sc_ma_opt_get_omit_objs(sc_map_area_opt * ma_opts);
+
+//exclusive areas
+extern int sc_ma_opt_set_exclusive_areas(
+    sc_map_area_opt * ma_opts, const cm_vct * exclusive_areas);
+extern const cm_vct * sc_ma_opt_get_exclusive_areas(sc_map_area_opt * ma_opts);
+
+//exclusive objects
+extern int sc_ma_opt_set_exclusive_objs(
+    sc_map_area_opt * ma_opts, const cm_vct * exclusive_objs);
+extern const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+
+//omit address ranges
+extern int sc_ma_opt_set_omit_addr_ranges(
+    sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges);
+extern const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+
+//exclusive address ranges
+extern int sc_ma_opt_set_exclusive_addr_ranges(
+    sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges);
+extern const cm_vct * sc_ma_opt_get_exclusive_addr_ranges(
+    sc_map_area_opt * ma_opts);
+
+//access
+//0 = success, CM_BYTE_MAX = error
+extern int sc_ma_opt_set_access(
+    sc_map_area_opt * ma_opts, const cm_byte access);
+//CM_BYTE_MAX = error, SC_ACCESS_UNSET = not set, other = success
+extern cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts);
+
+
+/*
+ *  --- [MAP_AREA_SET] ---
+ */
+
+//pointer = success, NULL = error
+extern sc_map_area_set * sc_new_ma_set();
+extern sc_map_area_set * sc_copy_ma_set(sc_map_area_set * ma_set);
+//0 = success, -1 = error
+extern void sc_del_ma_set(sc_map_area_set * ma_set);
+extern int sc_ma_set_reset(sc_map_area_set * ma_set);
+
+//0 = success, -1 = error
+extern int sc_ma_set_update_set(sc_map_area_set * ma_set,
+                                sc_map_area_opt * ma_opts,
+                                const mc_vm_map * map);
+//pointer = success, -1 = error
+extern const cm_rbt * sc_get_set(sc_map_area_set * ma_set);
 
 
 /*
@@ -828,30 +963,6 @@ extern bool sc_opt_ptr_get_smart_scan(const sc_opt_ptr opts_ptr);
 
 
 /*
- *  --- [MAP_AREA_SET] ---
- */
-
-//return: opaque handle to `map_area_set` object, or NULL on error
-extern sc_map_area_set sc_new_map_area_set();
-//return: 0 on success, -1 on error
-extern int sc_del_map_area_set(sc_map_area_set ma_set);
-extern int sc_reset_set(sc_map_area_set ma_set);
-
-//return: 0 on success, -1 on failure
-extern int sc_update_set(sc_map_area_set s_set, const sc_opt opts);
-
-/*
- * The following getter requires an unitialised CMore vector which
- * will be initialised and populated by the call. Must be manually
- * destroyed later. NOTE: Unlike the C++ interface which returns a
- * hashmap, the C interface returns a sorted vector.
- */
-
-//return: 0 on success, -1 on failure
-extern int sc_get_set(const sc_map_area_set s_set, cm_vct * area_nodes);
-
-
-/*
  *  --- [WORKER_POOL] ---
  */
 
@@ -926,12 +1037,10 @@ extern __thread int sc_errno;
 #define SC_ERR_CMORE          3200
 #define SC_ERR_MEMCRY         3201
 #define SC_ERR_PTHREAD        3202
-#define SC_ERR_EXCP           3203
-#define SC_ERR_RUN_EXCP       3204
-#define SC_ERR_DEADLOCK       3205
-#define SC_ERR_PTR_CHAIN      3206
-#define SC_ERR_RTTI           3207
-#define SC_ERR_TYPECAST       3208
+#define SC_ERR_DEADLOCK       3203
+#define SC_ERR_PTR_CHAIN      3204
+#define SC_ERR_RTTI           3205
+#define SC_ERR_TYPECAST       3206
 
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
@@ -973,10 +1082,6 @@ extern __thread int sc_errno;
     "Internal: MemCry error. See mc_perror().\n"
 #define SC_ERR_PTHREAD_MSG \
     "Internal: Pthread error.\n"
-#define SC_ERR_EXCP_MSG \
-    "Internal: An unrecoverable exception was thrown.\n"
-#define SC_ERR_RUN_EXCP_MSG \
-    "Internal: An unrecoverable runtime exception was thrown.\n"
 #define SC_ERR_DEADLOCK_MSG \
     "Internal: Pthreads encountered a deadlock.\n"
 #define SC_ERR_PTR_CHAIN_MSG \

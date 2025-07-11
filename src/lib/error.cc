@@ -25,20 +25,6 @@ __thread int sc_errno;
  *  --- [INTERNAL] ---
  */
 
-//convert an exception into a sc_errno
-void exception_sc_errno(const std::exception &excp) {
-
-    if (dynamic_cast<const std::bad_alloc *>(& excp)) {
-        sc_errno = SC_ERR_MEM;
-    } else if (dynamic_cast<const std::runtime_error *>(& excp)) {
-        sc_errno = SC_ERR_RUN_EXCP;
-    } else {
-        sc_errno = SC_ERR_EXCP;
-    }
-
-    return;
-}
-
 void print_warning(const std::string msg) {
 
     std::fprintf(stderr, "<ScanCry>[WARNING] %s\n", msg.c_str()); 
@@ -120,14 +106,6 @@ void sc_perror(const char * prefix) {
 
         case SC_ERR_PTHREAD:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_PTHREAD_MSG);
-            break;
-
-        case SC_ERR_EXCP:
-            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_EXCP_MSG);
-            break;
-
-        case SC_ERR_RUN_EXCP:
-            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_RUN_EXCP_MSG);
             break;
 
         case SC_ERR_DEADLOCK:
@@ -213,12 +191,6 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_PTHREAD:
             return SC_ERR_PTHREAD_MSG;
-
-        case SC_ERR_EXCP:
-            return SC_ERR_EXCP_MSG;
-
-        case SC_ERR_RUN_EXCP:
-            return SC_ERR_RUN_EXCP_MSG;
 
         case SC_ERR_DEADLOCK:
             return SC_ERR_DEADLOCK_MSG;

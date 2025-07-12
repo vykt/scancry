@@ -120,3 +120,44 @@ sc::_ctor_failable & sc::_ctor_failable::operator=(
     if (this != &ctor_failable) this->do_copy(ctor_failable);
     return *this;
 }
+
+
+
+/*
+ *  --- [_OPT_SCAN] ---
+ */
+
+//call parent's copy assignments
+void sc::_opt_scan::do_copy(sc::_opt_scan & opts_scan) noexcept {
+    
+    //call parent copy assignment operators
+    _lockable::operator=(opts_scan);
+    _ctor_failable::operator=(opts_scan);
+
+    return;
+}
+
+
+//constructor
+sc::_opt_scan::_opt_scan() noexcept : _lockable(), _ctor_failable() {}
+
+
+//copy constructor
+sc::_opt_scan::_opt_scan(sc::_opt_scan & opts_scan) noexcept {
+
+    this->do_copy(opts_scan);
+    return;
+}
+
+
+//destructor
+sc::_opt_scan::~_opt_scan() noexcept {}
+
+
+//copy assignment operator
+sc::_opt_scan & sc::_opt_scan::operator=(
+    sc::_opt_scan & opts_scan) noexcept {
+
+    if (this != &opts_scan) this->do_copy(opts_scan);
+    return *this;    
+}

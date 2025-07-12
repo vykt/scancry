@@ -113,14 +113,23 @@ class _ctor_failable {
  *  NOTE: This is an interface class for scan options.
  */
 
-class _opt_scan : public _lockable {
+class _opt_scan : public _lockable, public _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        //[methods]        
+        void do_copy(sc::_opt_scan & opts_scan) noexcept;
 
     public:
+        //[methods]
         //ctor
-        _opt_scan() : _lockable() {}
-        _opt_scan(_opt_scan & opts_scan) : _lockable() {};
+        _opt_scan() noexcept;
+        _opt_scan(_opt_scan & opts_scan) noexcept;
         _opt_scan(_opt_scan && opts_scan) = delete;
-        virtual ~_opt_scan() = 0;
+        virtual ~_opt_scan() noexcept = 0;
+
+        //operators
+        sc::_opt_scan & operator=(sc::_opt_scan & opts_scan) noexcept;
+        sc::_opt_scan & operator=(sc::_opt_scan && opts_scan) = delete;
 
         //reset
         [[nodiscard]] virtual int reset() = 0;

@@ -58,7 +58,14 @@ class addr_range {
 
 
 //unset values
-const constexpr cm_byte access_unset = CM_BYTE_MAX - 1;
+namespace val_unset {
+    const constexpr cm_byte access = CM_BYTE_MAX - 1;
+}
+
+//bad values
+namespace val_bad {
+    const constexpr cm_byte access = CM_BYTE_MAX;
+}
 
 class map_area_opt : public _lockable, public _ctor_failable {
 
@@ -181,7 +188,9 @@ enum addr_width {
  */
 
 //unset values
-const constexpr enum addr_width addr_width_unset = SC_UNSET;
+namespace val_unset {
+    const constexpr enum addr_width addr_width = SC_UNSET;
+}
 
 class opt : public _lockable, public _ctor_failable {
 
@@ -257,16 +266,44 @@ class opt : public _lockable, public _ctor_failable {
 };
 
 
+enum smart_scan {
+    SC_SMART_SCAN_ENABLED = 0,
+    SC_SMART_SCAN_DISABLED = 1,
+    SC_SMART_SCAN_ERROR = -1
+};
+
+
 /*
  *  NOTE: This class defines configuration options only applicable to
  *        pointer scans.
  */
 
+//unset values
+namespace val_unset {
+    const constexpr uintptr_t       target_addr = 0x0;
+}
+
+//default values
+namespace val_default {
+    const constexpr off_t           alignment  = 0x4;
+    const constexpr off_t           max_obj_sz = 0x100;
+    const constexpr int             max_depth  = 3;
+    const constexpr enum smart_scan smart_scan = SC_SMART_SCAN_ENABLED;
+}
+
+//bad values
+namespace val_bad {
+    const constexpr uintptr_t       target_addr = UINTPTR_MAX;
+    const constexpr off_t           alignment   = -1;
+    const constexpr off_t           max_obj_sz  = -1;
+    const constexpr int             max_depth   = -1;
+    const constexpr enum smart_scan smart_scan  = SC_SMART_SCAN_ERROR;
+}
+
 class opt_ptr final : public _opt_scan {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-
         //address to scan for
         uintptr_t target_addr;
 
@@ -282,7 +319,7 @@ class opt_ptr final : public _opt_scan {
         //areas to treat as terminal nodes (areas holding static globals)
         sc::map_area_set static_set;
 
-        //required first N offsets
+        //first N offsets
         cm_vct /* <off_t> */ preset_offsets;
 
         /*
@@ -302,42 +339,56 @@ class opt_ptr final : public _opt_scan {
          */
 
         //perform a smart pointer scan
-        bool smart_scan;
+        enum smart_scan smart_scan;
+
+        //[methods]
+        void do_copy(sc::opt_ptr & opts_ptr) noexcept;
 
     public:
+        //[methods]
+        /* internal */ [[nodiscard]] sc::map_area_set &
+            _get_static_set_mut() noexcept;
+    
         //ctors & dtor
-        opt_ptr();
-        opt_ptr(const opt_ptr & opts_ptr);
-        opt_ptr(const opt_ptr && opts_ptr);
-        ~opt_ptr() override final {};
+        opt_ptr() noexcept;
+        opt_ptr(opt_ptr & opts_ptr) noexcept;
+        opt_ptr(opt_ptr && opts_ptr) = delete;
+        ~opt_ptr() noexcept override final;
+
+        //operators
+        sc::opt_ptr & operator=(sc::opt_ptr & opts_ptr) noexcept;
+        sc::opt_ptr & operator=(sc::opt_ptr && opts_ptr) = delete;
 
         //reset
-        [[nodiscard]] int reset() override final;
+        [[nodiscard]] int reset() noexcept override final;
 
         //getters & setters
         [[nodiscard]] int set_target_addr(
             const uintptr_t target_addr) noexcept;
-        [[nodiscard]] uintptr_t get_target_addr() const noexcept;
+        [[nodiscard]] uintptr_t get_target_addr() noexcept;
 
         [[nodiscard]] int set_alignment(const off_t alignment) noexcept;
-        [[nodiscard]] off_t get_alignment() const noexcept;
+        [[nodiscard]] off_t get_alignment() noexcept;
 
         [[nodiscard]] int set_max_obj_sz(const off_t max_obj_sz) noexcept;
-        [[nodiscard]] off_t get_max_obj_sz() const noexcept;
+        [[nodiscard]] off_t get_max_obj_sz() noexcept;
+
+        [[nodiscard]] int set_max_depth(const int max_depth) noexcept;
+        [[nodiscard]] int get_max_depth() noexcept;
 
         [[nodiscard]] int set_static_set(
-            const sc::map_area_set & static_set) noexcept;
+            sc::map_area_set & static_set) noexcept;
         [[nodiscard]] const sc::map_area_set &
-            get_static_set() const noexcept;
+            get_static_set() noexcept;
 
         [[nodiscard]] int set_preset_offsets(
             const cm_vct /* <off_t> */ & preset_offsets) noexcept;
         [[nodiscard]] const cm_vct /* <off_t> */ &
-            get_preset_offsets() const noexcept;
+            get_preset_offsets() noexcept;
 
         [[nodiscard]] int set_smart_scan(
-            const bool smart_scan) noexcept;
-        [[nodiscard]] bool get_smart_scan() const noexcept;
+            const enum smart_scan smart_scan) noexcept;
+        [[nodiscard]] enum smart_scan get_smart_scan() noexcept;
 };
 
 
@@ -446,6 +497,9 @@ class ptrscan_chain {
  
 
 class ptrscan : public _scan {
+
+    /* FIXME: Pointer scan state needs to save options used to produce
+     *        the results, and store it to dist to be read later. */
 
     _SC_DBG_PRIVATE:
         //[attributes]

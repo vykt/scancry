@@ -22,21 +22,7 @@
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
        * =============== */
-
-/*
- *  --- [_OPT_SCAN | INTERNAL] ---
- */
-
-/*
- *  NOTE: We must provide an explicit body for the abstract destructor
- *        of `_opt_scan` so the linker can produce a valid chain of
- *        destructors to call.
- */
-
-sc::_opt_scan::~_opt_scan() {}
-
-
-
+    
 /*
  *  --- [OPT | PRIVATE] ---
  */
@@ -47,8 +33,8 @@ void sc::opt::do_copy(sc::opt & opts) noexcept {
     int ret;
 
 
-    //acquire a write lock on the source object
-    ret = opts._lock_write();
+    //acquire a read lock on the source object
+    ret = opts._lock_read();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //call parent copy assignment operators
@@ -91,7 +77,7 @@ sc::opt::opt() noexcept
    file_pathname_out(nullptr),
    file_pathname_in(nullptr),
    map(nullptr),
-   addr_width(addr_width_unset) {
+   addr_width(sc::val_unset::addr_width) {
 
     //zero out the sessions vector & the scan set red-black tree
     std::memset(&this->sessions, 0, sizeof(this->sessions));
@@ -146,7 +132,7 @@ sc::opt & sc::opt::operator=(sc::opt & opts) noexcept {
 
     //reset the map & address width
     this->map = nullptr;
-    this->addr_width = sc::addr_width_unset;
+    this->addr_width = sc::val_unset::addr_width;
 
     //reset the scan set
     ret = this->scan_set.reset();
@@ -169,189 +155,154 @@ _DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map)
 
 _DEFINE_VALUE_SETTER(sc::opt, enum sc::addr_width, addr_width)
 _DEFINE_VALUE_GETTER(sc::opt, enum sc::addr_width,
-                    sc::addr_width_unset, addr_width)
+                     sc::val_unset::addr_width, addr_width)
 
 _DEFINE_OBJ_REF_SETTER(sc::opt, sc::map_area_set, scan_set)
 _DEFINE_OBJ_REF_GETTER(sc::opt, sc::map_area_set, scan_set)
+_DEFINE_OBJ_REF_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
+
+
+/*
+ *  --- [OPT_PTR | PRIVATE] ---
+ */
+
+//perform a deep copy
+void sc::opt_ptr::do_copy(sc::opt_ptr & opts_ptr) noexcept {
+
+    int ret;
+
+
+    //acquire a read lock on the source object
+    ret = opts_ptr._lock_read();
+    if (ret != 0) { this->_set_ctor_failed(true); return; }
+
+    //call parent copy assignment operators
+    _lockable::operator=(opts_ptr);
+    _ctor_failable::operator=(opts_ptr);
+
+    //copy trivial attributes
+    this->target_addr = opts_ptr.get_target_addr();
+    this->max_obj_sz = opts_ptr.get_max_obj_sz();
+    this->max_depth = opts_ptr.get_max_depth();
+    this->smart_scan = opts_ptr.get_smart_scan();
+
+    //copy the static area set
+    this->static_set = opts_ptr._get_static_set_mut();
+    if (this->_get_ctor_failed() == true) {
+        opts_ptr._unlock();
+        return;
+    }
+
+    //copy the preset offsets vector
+    _CTOR_VCT_COPY_IF_INIT_UNLOCK(
+        this->preset_offsets, opts_ptr.get_preset_offsets(), opts_ptr)
+
+    //release the lock
+    opts_ptr._unlock();
+
+    return;
+}
+
 
 
 /*
  *  --- [OPT_PTR | PUBLIC] ---
  */
 
-sc::opt_ptr::opt_ptr()
+//constructor
+sc::opt_ptr::opt_ptr() noexcept
  : _opt_scan(),
-   smart_scan(true) {}
+   target_addr(sc::val_unset::target_addr),
+   alignment(sc::val_default::alignment),
+   max_obj_sz(sc::val_default::max_obj_sz),
+   smart_scan(sc::val_default::smart_scan) {
 
+    //zero out the preset offsets vector
+    memset(&this->preset_offsets, 0, sizeof(this->preset_offsets));
 
-sc::opt_ptr::opt_ptr(const opt_ptr & opts_ptr)
- : _opt_scan(),
-   target_addr(opts_ptr.target_addr),
-   alignment(opts_ptr.alignment),
-   max_obj_sz(opts_ptr.max_obj_sz),
-   max_depth(opts_ptr.max_depth),
-   static_areas(opts_ptr.static_areas),
-   preset_offsets(opts_ptr.preset_offsets),
-   smart_scan(opts_ptr.smart_scan) {}
-
-
-sc::opt_ptr::opt_ptr(const opt_ptr && opts_ptr)
- : _opt_scan(),
-   target_addr(opts_ptr.target_addr),
-   alignment(opts_ptr.alignment),
-   max_obj_sz(opts_ptr.max_obj_sz),
-   max_depth(opts_ptr.max_depth),
-   static_areas(opts_ptr.static_areas),
-   preset_offsets(opts_ptr.preset_offsets),
-   smart_scan(opts_ptr.smart_scan) {}
-
-
-[[nodiscard]] int sc::opt_ptr::reset() {
-
-    _LOCK(-1)
-    this->target_addr = std::nullopt;
-    this->alignment = std::nullopt;
-    this->max_obj_sz = std::nullopt;
-    this->max_depth = std::nullopt;
-    this->static_areas = std::nullopt;
-    this->preset_offsets = std::nullopt;
-    this->smart_scan = true;
-    _UNLOCK(-1)
-
-    return 0;
+    return;
 }
 
 
-//getters & setters
-[[nodiscard]] int sc::opt_ptr::set_target_addr(
-    const std::optional<uintptr_t> target_addr) noexcept {
+//copy constructor
+sc::opt_ptr::opt_ptr(sc::opt_ptr & opts_ptr) noexcept {
 
-    _LOCK(-1)
-    this->target_addr = target_addr;
-    _UNLOCK(-1)
-
-    return 0;
+    this->do_copy(opts_ptr);
+    return;
 }
 
 
-[[nodiscard]] std::optional<uintptr_t>
-    sc::opt_ptr::get_target_addr() const noexcept {
+//destructor
+sc::opt_ptr::~opt_ptr() noexcept {
 
-    return this->target_addr;
+    //destroy preset offsets
+    _CTOR_VCT_DELETE_IF_INIT(this->preset_offsets);
+
+    return;
 }
 
 
-[[nodiscard]] int sc::opt_ptr::set_alignment(
-    const std::optional<off_t> alignment) noexcept {
+//copy assignment operator
+sc::opt_ptr & sc::opt_ptr::operator=(sc::opt_ptr & opts_ptr) noexcept {
 
-    _LOCK(-1)
-    this->alignment = alignment;
-    _UNLOCK(-1)
-
-    return 0;
+    if (this != &opts_ptr) this->do_copy(opts_ptr);
+    return *this;
 }
 
 
-[[nodiscard]] std::optional<off_t>
-    sc::opt_ptr::get_alignment() const noexcept {
+//resetter
+[[nodiscard]] int sc::opt_ptr::reset() noexcept {
 
-    return this->alignment;
-}
-
-
-[[nodiscard]] int sc::opt_ptr::set_max_obj_sz(
-    const std::optional<off_t> max_obj_sz) noexcept {
-
-    _LOCK(-1)
-    this->max_obj_sz = max_obj_sz;
-    _UNLOCK(-1)
-
-    return 0;
-}
+    int ret;
 
 
-[[nodiscard]] std::optional<off_t>
-    sc::opt_ptr::get_max_obj_sz() const noexcept {
+    //acquire a write lock
+    _LOCK_WRITE(-1)
 
-    return this->max_obj_sz;
-}
+    //reset trivial attributes
+    this->target_addr = sc::val_unset::target_addr;
+    this->alignment   = sc::val_default::alignment;
+    this->max_obj_sz  = sc::val_default::max_obj_sz;
+    this->max_depth   = sc::val_default::max_depth;
+    this->smart_scan  = sc::val_default::smart_scan;
 
+    //reset preset offsets
+    common::del_vct_if_init(this->preset_offsets);
 
-[[nodiscard]] int sc::opt_ptr::set_max_depth(
-    const std::optional<int> max_depth) noexcept {
-
-    _LOCK(-1)
-    this->max_depth = max_depth;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] std::optional<int>
-    sc::opt_ptr::get_max_depth() const noexcept {
-
-    return this->max_depth;
-}
-
-
-[[nodiscard]] int sc::opt_ptr::set_static_areas(
-    const std::optional<std::vector<const cm_lst_node *>> & static_areas) {
-
-    _LOCK(-1)
-    if (static_areas.has_value()) {
-        this->static_areas = std::unordered_set<const cm_lst_node *>(
-            static_areas->begin(), static_areas->end());
-    } else {
-        this->static_areas = std::nullopt;
+    //reset the static areas set
+    ret = this->static_set.reset();
+    if (ret != 0) {
+        _UNLOCK
+        return -1;
     }
-    _UNLOCK(-1)
+
+    //release the lock
+    _UNLOCK
 
     return 0;
 }
 
 
-[[nodiscard]] const std::optional<std::unordered_set<const cm_lst_node *>>
-    & sc::opt_ptr::get_static_areas() const {
+//setters & getters
+_DEFINE_VALUE_SETTER(sc::opt_ptr, uintptr_t, target_addr)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, uintptr_t,
+                     sc::val_bad::target_addr, target_addr)
 
-    return this->static_areas;
-}
+_DEFINE_VALUE_SETTER(sc::opt_ptr, off_t, alignment)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t, sc::val_bad::alignment, alignment)
 
+_DEFINE_VALUE_SETTER(sc::opt_ptr, off_t, max_obj_sz)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t,
+                     sc::val_bad::max_obj_sz, max_obj_sz)
 
-[[nodiscard]] int sc::opt_ptr::set_preset_offsets(
-    const std::optional<std::vector<off_t>> & preset_offsets) {
+_DEFINE_VALUE_SETTER(sc::opt_ptr, int, max_depth)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, int, sc::val_bad::max_depth, max_depth)
 
-    _LOCK(-1)
-    this->preset_offsets = preset_offsets;
-    _UNLOCK(-1)
+_DEFINE_OBJ_REF_SETTER(sc::opt_ptr, sc::map_area_set, static_set)
+_DEFINE_OBJ_REF_GETTER(sc::opt_ptr, sc::map_area_set, static_set)
 
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::vector<off_t>>
-    & sc::opt_ptr::get_preset_offsets() const {
-
-    return this->preset_offsets;
-}
-
-
-[[nodiscard]] int
-    sc::opt_ptr::set_smart_scan(const bool enable) noexcept {
-
-    _LOCK(-1)
-    this->smart_scan = enable;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] bool
-    sc::opt_ptr::get_smart_scan() const noexcept {
-
-    return this->smart_scan;        
-}
+_DEFINE_VCT_SETTER(sc::opt_ptr, preset_offsets)
+_DEFINE_VCT_GETTER(sc::opt_ptr, preset_offsets)
 
 
 

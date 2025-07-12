@@ -200,8 +200,8 @@ void sc::map_area_opt::do_copy(sc::map_area_opt & ma_opts) noexcept {
     int ret;
 
 
-    //acquire a write lock on the source object
-    ret = ma_opts._lock_write();
+    //acquire a read lock on the source object
+    ret = ma_opts._lock_read();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //call parent copy assignment operators
@@ -250,7 +250,7 @@ void sc::map_area_opt::do_copy(sc::map_area_opt & ma_opts) noexcept {
 
 //constructor
 sc::map_area_opt::map_area_opt() noexcept
- : _lockable(), _ctor_failable(), access(sc::access_unset) {
+ : _lockable(), _ctor_failable(), access(sc::val_unset::access) {
 
     //zero out vectors
     std::memset(&this->omit_areas, 0, sizeof(this->omit_areas));
@@ -311,7 +311,7 @@ sc::map_area_opt & sc::map_area_opt::operator=(
     common::del_vct_if_init(this->exclusive_addr_ranges);
 
     //reset access
-    this->access = sc::access_unset;
+    this->access = sc::val_unset::access;
 
     //release the lock
     _UNLOCK
@@ -340,7 +340,7 @@ _DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_addr_ranges)
 _DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_addr_ranges)
 
 _DEFINE_VALUE_SETTER(sc::map_area_opt, cm_byte, access)
-_DEFINE_VALUE_GETTER(sc::map_area_opt, cm_byte, CM_BYTE_MAX, access)
+_DEFINE_VALUE_GETTER(sc::map_area_opt, cm_byte, sc::val_bad::access, access)
 
 
 
@@ -353,8 +353,8 @@ void sc::map_area_set::do_copy(sc::map_area_set & ma_set) noexcept {
     int ret;
 
 
-    //acquire a write lock on the source object
-    ret = ma_set._lock_write();
+    //acquire a read lock on the source object
+    ret = ma_set._lock_read();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //call parent copy assignment operators
@@ -511,7 +511,7 @@ sc::map_area_set & sc::map_area_set::operator=(
         // -- omission checks
 
         //check if permissions do not match
-        if (access != sc::access_unset) {
+        if (access != sc::val_unset::access) {
             if (!is_access(area->access, access))
                 goto _update_set_continue;
         }
@@ -882,7 +882,7 @@ cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts) {
 
     _CC_CAST_PRELUDE(map_area_opt, cm_byte, sc, ma_opts);
     ret = cc_ma_opts->get_access();
-    _CC_CAST_POSTLUDE(CM_BYTE_MAX, CM_BYTE_MAX, 0)
+    _CC_CAST_POSTLUDE(sc::val_bad::access, sc::val_bad::access, 0)
 }
 
 

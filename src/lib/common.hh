@@ -354,7 +354,7 @@
 #define _DEFINE_OBJ_REF_SETTER(namespace, type, obj)          \
 [[nodiscard]] int namespace::set_##obj(type & obj) noexcept { \
                                                               \
-    int ret;                                                  \
+    int ret, ret_val = 0;                                     \
                                                               \
                                                               \
     /* acquire a write lock */                                \
@@ -368,6 +368,7 @@
     }                                                         \
                                                               \
     this->obj = obj;                                          \
+    if (this->_get_ctor_failed() == true) ret_val = -1;       \
                                                               \
     /* release the lock on the source object */               \
     obj._unlock();                                            \
@@ -375,7 +376,7 @@
     /* release the lock */                                    \
     _UNLOCK                                                   \
                                                               \
-    return 0;                                                 \
+    return ret_val;                                           \
 }                                                             \
 
 
@@ -386,6 +387,15 @@
                                                      \
     return this->obj;                                \
 }                                                    \
+
+
+//define an object reference getter
+#define _DEFINE_OBJ_REF_GETTER_MUT(namespace, type, obj) \
+[[nodiscard]] type &                                     \
+    namespace::_get_##obj##_mut() noexcept {             \
+                                                         \
+    return this->obj;                                    \
+}                                                        \
 
 
 namespace common {

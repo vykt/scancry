@@ -5,6 +5,7 @@
 
 //C standard library
 #include <cstdlib>
+#include <cstring>
 
 //external libraries
 #include <cmore.h>
@@ -14,6 +15,7 @@
 #include "scancry.h"
 
 
+/* FIXME: Are mutable  getters necessary? */
 
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
@@ -23,6 +25,22 @@
 
 //turn a macro argument into a string
 #define STRINGIFY(value) #value
+
+
+// -- string operation macros
+
+//delete a string if its initialised
+#define _CTOR_STR_DELETE_IF_INIT(str)  \
+    common::del_str_if_init(str);      \
+
+//copy a string if its initialised; on fail, cleanup and return early
+#define _CTOR_STR_COPY_IF_INIT(dst_str, src_str)            \
+    ret = common::cpy_str_if_init(dst_str, src_str);        \
+    if (ret != 0) { this->_set_ctor_failed(true); return; } \
+
+//move a string if its initialised
+#define _CTOR_STR_MOVE_IF_INIT(dst_str, src_str) \
+    common::mov_str_if_init(dst_str, src_str);   \
 
 
 // -- vector operation macros
@@ -73,47 +91,169 @@
     common::mov_rbt_if_init(dst_rbt, src_rbt);   \
 
 
-// -- primitive setter & getter helper macros
+// -- value setter & getter helper macros
 
-//define a primitive setter
-#define _DEFINE_PRIM_SETTER(namespace, type, primitive) \
-[[nodiscard]] int namespace::set_##primitive(           \
-    const type primitive) noexcept {                    \
-                                                        \
-    int ret;                                            \
-                                                        \
-                                                        \
-    /* acquire a write lock */                          \
-    _LOCK_WRITE(-1)                                     \
-                                                        \
-    this->primitive = primitive;                        \
-                                                        \
-    /* release the lock */                              \
-    _UNLOCK                                             \
-                                                        \
-    return 0;                                           \
-}                                                       \
+//define a value setter
+#define _DEFINE_VALUE_SETTER(namespace, type, value) \
+[[nodiscard]] int namespace::set_##value(            \
+    const type value) noexcept {                     \
+                                                     \
+    int ret;                                         \
+                                                     \
+                                                     \
+    /* acquire a write lock */                       \
+    _LOCK_WRITE(-1)                                  \
+                                                     \
+    this->value = value;                             \
+                                                     \
+    /* release the lock */                           \
+    _UNLOCK                                          \
+                                                     \
+    return 0;                                        \
+}                                                    \
 
 
 //define a primitive getter
-#define _DEFINE_PRIM_GETTER(namespace, type, fail_val, primitive) \
-[[nodiscard]] type                                                \
-    namespace::get_##primitive() noexcept {                       \
-                                                                  \
-    int ret;                                                      \
-    type primitive;                                               \
-                                                                  \
-    /* acquire a read lock */                                     \
-    _LOCK_READ(fail_val)                                          \
-                                                                  \
-    primitive = this->primitive;                                  \
-                                                                  \
-    /* release the lock */                                        \
-    _UNLOCK                                                       \
-                                                                  \
-    return primitive;                                             \
-}                                                                 \
+#define _DEFINE_VALUE_GETTER(namespace, type, fail_val, value) \
+[[nodiscard]] type                                             \
+    namespace::get_##value() noexcept {                        \
+                                                               \
+    int ret;                                                   \
+    type value;                                                \
+                                                               \
+                                                               \
+    /* acquire a read lock */                                  \
+    _LOCK_READ(fail_val)                                       \
+                                                               \
+    value = this->value;                                       \
+                                                               \
+    /* release the lock */                                     \
+    _UNLOCK                                                    \
+                                                               \
+    return value;                                              \
+}                                                              \
 
+
+//define a value setter by reference
+#define _DEFINE_VALUE_REF_SETTER(namespace, type, value) \
+[[nodiscard]] int namespace::set_##value(                \
+    const type & value) noexcept {                       \
+                                                         \
+    int ret;                                             \
+                                                         \
+                                                         \
+    /* acquire a write lock */                           \
+    _LOCK_WRITE(-1)                                      \
+                                                         \
+    this->value = (type &) value;                        \
+                                                         \
+    /* release the lock */                               \
+    _UNLOCK                                              \
+                                                         \
+    return 0;                                            \
+}                                                        \
+
+
+//define a value reference getter
+#define _DEFINE_VALUE_REF_GETTER(namespace, type, fail_val, value) \
+[[nodiscard]] const type &                                         \
+    namespace::get_##value() noexcept {                            \
+                                                                   \
+    return this->value;                                            \
+}                                                                  \
+
+
+
+// -- pointer setter & getter helper macros
+
+//define a pointer setter
+#define _DEFINE_PTR_SETTER(namespace, type, ptr_field) \
+[[nodiscard]] int namespace::set_##ptr_field(          \
+    const type * ptr_field) noexcept {                 \
+                                                       \
+    int ret;                                           \
+                                                       \
+                                                       \
+    /* acquire a write lock */                         \
+    _LOCK_WRITE(-1)                                    \
+                                                       \
+    this->ptr_field = (type *) ptr_field;              \
+                                                       \
+    /* release the lock */                             \
+    _UNLOCK                                            \
+                                                       \
+    return 0;                                          \
+}                                                      \
+
+
+//define a pointer getter
+#define _DEFINE_PTR_GETTER(namespace, type, ptr_field) \
+[[nodiscard]] type *                                   \
+    namespace::get_##ptr_field() noexcept {            \
+                                                       \
+    type * ptr_field;                                  \
+                                                       \
+                                                       \
+    /* acquire a read lock */                          \
+    _LOCK_READ(nullptr)                                \
+                                                       \
+    ptr_field = this->ptr_field;                       \
+                                                       \
+    /* release the lock */                             \
+    _UNLOCK                                            \
+                                                       \
+    return ptr_field;                                  \
+}                                                      \
+
+
+// -- string setter & getter helper macros
+
+//define a string setter
+#define _DEFINE_STR_SETTER(namespace, str_field)  \
+[[nodiscard]] int namespace::set_##str_field(     \
+    const char * str_field) noexcept {            \
+                                                  \
+    int ret;                                      \
+    size_t len;                                   \
+                                                  \
+                                                  \
+    /* acquire a write lock */                    \
+    _LOCK_WRITE(-1)                               \
+                                                  \
+    len = strlen(str_field);                      \
+    this->str_field                               \
+        = static_cast<char *>(std::realloc(       \
+            (void *) this->str_field, len + 1));  \
+    if (this->str_field == nullptr) {             \
+        sc_errno = SC_ERR_MEM;                    \
+        _UNLOCK                                   \
+        return -1;                                \
+    }                                             \
+    strncpy(this->str_field, str_field, len + 1); \
+                                                  \
+    /* release the lock */                        \
+    _UNLOCK                                       \
+                                                  \
+    return 0;                                     \
+}                                                 \
+
+
+//define a string getter
+#define _DEFINE_STR_GETTER(namespace, str_field)              \
+[[nodiscard]] const char * const &                            \
+    namespace::get_##str_field() noexcept {                   \
+                                                              \
+    return const_cast<const char * const &>(this->str_field); \
+}                                                             \
+
+
+//define an internal mutable string getter
+#define _DEFINE_STR_GETTER_MUT(namespace, str_field) \
+[[nodiscard]] char *&                                \
+    namespace:;get_##str_field() noexcept {          \
+                                                     \
+    return = this->str_field;                        \
+}                                                    \
 
 
 // -- vector setter & getter helper macros
@@ -129,7 +269,7 @@
     /* acquire a write lock */                      \
     _LOCK_WRITE(-1)                                 \
                                                     \
-    _CTOR_VCT_DELETE_IF_INIT(this->vct_field);      \
+    common::del_vct_if_init(this->vct_field);       \
     ret = cm_vct_cpy(&this->vct_field, &vct_field); \
     if (ret != 0) {                                 \
         sc_errno = SC_ERR_CMORE;                    \
@@ -175,7 +315,7 @@
     /* acquire a write lock */                      \
     _LOCK_WRITE(-1)                                 \
                                                     \
-    _CTOR_RBT_DELETE_IF_INIT(this->rbt_field);      \
+    common::del_rbt_if_init(this->rbt_field);       \
     ret = cm_rbt_cpy(&this->rbt_field, &rbt_field); \
     if (ret != 0) {                                 \
         sc_errno = SC_ERR_CMORE;                    \
@@ -208,8 +348,54 @@
 }                                                    \
 
 
+// -- object settter & getter helper macros
+
+//define an object setter by reference
+#define _DEFINE_OBJ_REF_SETTER(namespace, type, obj)          \
+[[nodiscard]] int namespace::set_##obj(type & obj) noexcept { \
+                                                              \
+    int ret;                                                  \
+                                                              \
+                                                              \
+    /* acquire a write lock */                                \
+    _LOCK_WRITE(-1)                                           \
+                                                              \
+    /* acquire a read lock on the source object */            \
+    ret = obj._lock_read();                                   \
+    if (ret != 0) {                                           \
+        _UNLOCK                                               \
+        return -1;                                            \
+    }                                                         \
+                                                              \
+    this->obj = obj;                                          \
+                                                              \
+    /* release the lock on the source object */               \
+    obj._unlock();                                            \
+                                                              \
+    /* release the lock */                                    \
+    _UNLOCK                                                   \
+                                                              \
+    return 0;                                                 \
+}                                                             \
+
+
+//define an object reference getter
+#define _DEFINE_OBJ_REF_GETTER(namespace, type, obj) \
+[[nodiscard]] const type &                           \
+    namespace::get_##obj() noexcept {                \
+                                                     \
+    return this->obj;                                \
+}                                                    \
+
 
 namespace common {
+
+//string operations
+void del_str_if_init(char *& str) noexcept;
+[[nodiscard]] int cpy_str_if_init(
+    char *& dst_str, const char * src_str) noexcept;
+void mov_str_if_init(
+    char *& dst_str, char *& src_str) noexcept;
 
 //vector operations
 void del_vct_if_init(cm_vct & vct) noexcept;
@@ -354,14 +540,22 @@ int sc_##short_type##_reset(type * obj) {      \
 
 
 //C setter prelude
-#define _C_SETTER_PRELUDE(cc_type, ret_type, namespace, hdl)    \
+#define _CC_CAST_PRELUDE(cc_type, ret_type, namespace, hdl)     \
     ret_type ret;                                               \
     namespace::cc_type * cc_##hdl = (namespace::cc_type *) hdl; \
 
 //C setter postlude
-#define _C_SETTER_POSTLUDE(bad_val, bad_ret, good_ret) \
+#define _CC_CAST_POSTLUDE(bad_val, bad_ret, good_ret)  \
     return (ret == bad_val) ? bad_ret : good_ret;      \
 
 //C getter prelude
-#define _C_GETTER_PRELUDE(cc_type, namespace, hdl)    \
+#define _CC_CAST_NO_ERR_PRELUDE(cc_type, namespace, hdl)        \
     namespace::cc_type * cc_##hdl = (namespace::cc_type *) hdl; \
+
+
+//convert a vector of C objects to/from C++ objects 
+[[nodiscard]] int convert_c_data(
+    cm_vct /* <N/A> */ & dst_vct,
+    const size_t dst_data_sz,
+    const cm_vct /* <N/A> */ & src_vct,
+    int (* convert)(void * dst, const void * src));

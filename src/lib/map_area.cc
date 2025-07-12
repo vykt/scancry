@@ -180,35 +180,33 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  */
 
 //getters
-[[nodiscard]] uintptr_t sc::addr_range::get_start_addr() noexcept {
+[[nodiscard]] uintptr_t sc::addr_range::get_start_addr() const noexcept {
     return this->start_addr;
 }
 
-[[nodiscard]] uintptr_t sc::addr_range::get_end_addr() noexcept {
+[[nodiscard]] uintptr_t sc::addr_range::get_end_addr() const noexcept {
     return this->end_addr;
 }
 
 
 
 /*
- *  --- [MAP_AREA_OPT | PUBLIC] ---
+ *  --- [MAP_AREA_OPT | PRIVATE] ---
  */
 
-//constructor
-sc::map_area_opt::map_area_opt()
- : _lockable(), _ctor_failable(), access(sc::_access_unset) {}
-
-
-//copy constructor
-sc::map_area_opt::map_area_opt(
-    sc::map_area_opt & ma_opts)
- : _lockable(), _ctor_failable(), access(ma_opts.access) {
+//perform a deep copy
+void sc::map_area_opt::do_copy(sc::map_area_opt & ma_opts) noexcept {
 
     int ret;
+
 
     //acquire a write lock on the source object
     ret = ma_opts._lock_write();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
+
+    //call parent copy assignment operators
+    _lockable::operator=(ma_opts);
+    _ctor_failable::operator=(ma_opts);
 
     //copy constraint vectors
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
@@ -235,6 +233,9 @@ sc::map_area_opt::map_area_opt(
         this->exclusive_addr_ranges,
         ma_opts.get_exclusive_addr_ranges(), ma_opts)
 
+    //copy access
+    this->access = ma_opts.get_access();
+
     //release the lock
     ma_opts._unlock();
 
@@ -242,8 +243,37 @@ sc::map_area_opt::map_area_opt(
 }
 
 
+
+/*
+ *  --- [MAP_AREA_OPT | PUBLIC] ---
+ */
+
+//constructor
+sc::map_area_opt::map_area_opt() noexcept
+ : _lockable(), _ctor_failable(), access(sc::access_unset) {
+
+    //zero out vectors
+    std::memset(&this->omit_areas, 0, sizeof(this->omit_areas));
+    std::memset(&this->omit_areas, 0, sizeof(this->omit_objs));
+    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_areas));
+    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_objs));
+    std::memset(&this->omit_areas, 0, sizeof(this->omit_addr_ranges));
+    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_addr_ranges));
+
+    return;
+}
+
+
+//copy constructor
+sc::map_area_opt::map_area_opt(sc::map_area_opt & ma_opts) noexcept {
+
+    this->do_copy(ma_opts);
+    return;
+}
+
+
 //destructor
-sc::map_area_opt::~map_area_opt() {
+sc::map_area_opt::~map_area_opt() noexcept {
 
     //destroy all initialised vectors
     _CTOR_VCT_DELETE_IF_INIT(this->omit_areas)
@@ -257,6 +287,15 @@ sc::map_area_opt::~map_area_opt() {
 }
 
 
+//copy assignment operator
+sc::map_area_opt & sc::map_area_opt::operator=(
+    sc::map_area_opt & ma_opts) noexcept {
+
+    if (this != &ma_opts) this->do_copy(ma_opts);
+    return *this;
+}
+
+
 //reset the area constraints
 [[nodiscard]] int sc::map_area_opt::reset() noexcept {
 
@@ -264,15 +303,15 @@ sc::map_area_opt::~map_area_opt() {
     _LOCK_WRITE(-1);
 
     //destroy all initialised vectors
-    _CTOR_VCT_DELETE_IF_INIT(this->omit_areas);
-    _CTOR_VCT_DELETE_IF_INIT(this->omit_objs);
-    _CTOR_VCT_DELETE_IF_INIT(this->exclusive_areas);
-    _CTOR_VCT_DELETE_IF_INIT(this->exclusive_objs);
-    _CTOR_VCT_DELETE_IF_INIT(this->omit_addr_ranges);
-    _CTOR_VCT_DELETE_IF_INIT(this->exclusive_addr_ranges);
+    common::del_vct_if_init(this->omit_areas);
+    common::del_vct_if_init(this->omit_objs);
+    common::del_vct_if_init(this->exclusive_areas);
+    common::del_vct_if_init(this->exclusive_objs);
+    common::del_vct_if_init(this->omit_addr_ranges);
+    common::del_vct_if_init(this->exclusive_addr_ranges);
 
     //reset access
-    this->access = sc::_access_unset;
+    this->access = sc::access_unset;
 
     //release the lock
     _UNLOCK
@@ -284,44 +323,32 @@ sc::map_area_opt::~map_area_opt() {
 //setters & getters
 _DEFINE_VCT_SETTER(sc::map_area_opt, omit_areas)
 _DEFINE_VCT_GETTER(sc::map_area_opt, omit_areas)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, omit_areas)
 
 _DEFINE_VCT_SETTER(sc::map_area_opt, omit_objs)
 _DEFINE_VCT_GETTER(sc::map_area_opt, omit_objs)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, omit_objs)
 
 _DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_areas)
 _DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_areas)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, exclusive_areas)
 
 _DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_objs)
 _DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_objs)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, exclusive_objs)
 
 _DEFINE_VCT_SETTER(sc::map_area_opt, omit_addr_ranges)
 _DEFINE_VCT_GETTER(sc::map_area_opt, omit_addr_ranges)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, omit_addr_ranges)
 
 _DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_addr_ranges)
 _DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_addr_ranges)
-_DEFINE_VCT_GETTER_MUT(sc::map_area_opt, exclusive_addr_ranges)
 
-_DEFINE_PRIM_SETTER(sc::map_area_opt, cm_byte, access)
-_DEFINE_PRIM_GETTER(sc::map_area_opt, cm_byte, CM_BYTE_MAX, access)
+_DEFINE_VALUE_SETTER(sc::map_area_opt, cm_byte, access)
+_DEFINE_VALUE_GETTER(sc::map_area_opt, cm_byte, CM_BYTE_MAX, access)
+
 
 
 /*
- *  --- [MAP_AREA_SET | PUBLIC] ---
+ *  --- [MAP_AREA_SET | PRIVATE] ---
  */
 
-//constructor
-sc::map_area_set::map_area_set()
- : _lockable(), _ctor_failable() {}
-
-
-//copy constructor
-sc::map_area_set::map_area_set(sc::map_area_set & ma_set)
- : _lockable(), _ctor_failable() {
+void sc::map_area_set::do_copy(sc::map_area_set & ma_set) noexcept {
 
     int ret;
 
@@ -329,6 +356,10 @@ sc::map_area_set::map_area_set(sc::map_area_set & ma_set)
     //acquire a write lock on the source object
     ret = ma_set._lock_write();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
+
+    //call parent copy assignment operators
+    _lockable::operator=(ma_set);
+    _ctor_failable::operator=(ma_set);
 
     //copy the set
     _CTOR_RBT_COPY_IF_INIT_UNLOCK(
@@ -342,13 +373,46 @@ sc::map_area_set::map_area_set(sc::map_area_set & ma_set)
 }
 
 
+
+/*
+ *  --- [MAP_AREA_SET | PUBLIC] ---
+ */
+
+//constructor
+sc::map_area_set::map_area_set() noexcept
+ : _lockable(), _ctor_failable() {
+
+    //zero out the set
+    std::memset(&this->set, 0, sizeof(this->set));
+
+    return;
+}
+
+
+//copy constructor
+sc::map_area_set::map_area_set(sc::map_area_set & ma_set) noexcept {
+
+    this->do_copy(ma_set);
+    return;
+}
+
+
 //destructor
-sc::map_area_set::~map_area_set() {
+sc::map_area_set::~map_area_set() noexcept {
 
     //destroy the set
     _CTOR_RBT_DELETE_IF_INIT(this->set)
 
     return;
+}
+
+
+//copy assignment operator
+sc::map_area_set & sc::map_area_set::operator=(
+    sc::map_area_set & ma_set) noexcept {
+
+    if (this != &ma_set) this->do_copy(ma_set);
+    return *this;
 }
 
 
@@ -359,7 +423,7 @@ sc::map_area_set::~map_area_set() {
     _LOCK_WRITE(-1);
 
     //destroy the set
-    _CTOR_RBT_DELETE_IF_INIT(this->set);
+    common::del_rbt_if_init(this->set);
 
     //release the lock
     _UNLOCK
@@ -447,7 +511,7 @@ sc::map_area_set::~map_area_set() {
         // -- omission checks
 
         //check if permissions do not match
-        if (access != sc::_access_unset) {
+        if (access != sc::access_unset) {
             if (!is_access(area->access, access))
                 goto _update_set_continue;
         }
@@ -600,7 +664,6 @@ sc::map_area_set::~map_area_set() {
 
 //getters
 _DEFINE_RBT_GETTER(sc::map_area_set, set);
-_DEFINE_RBT_GETTER_MUT(sc::map_area_set, set);
 
 
 
@@ -611,12 +674,49 @@ _DEFINE_RBT_GETTER_MUT(sc::map_area_set, set);
        * ============= */
 
 /*
+ *  --- [INTERNAL] ---
+ */
+
+//convert a C address range to a C++ address range
+_SC_DBG_STATIC int _to_cc_addr_range(
+    void * void_dst, const void * void_src) {
+
+    //restore types
+    sc::addr_range * dst = static_cast<sc::addr_range *>(void_dst);
+    const sc_addr_range * src
+        = static_cast<const sc_addr_range *>(void_src);
+
+    //construct a new C++ address range
+    *dst = sc::addr_range(src->start_addr, src->end_addr);
+
+    return 0;
+}
+
+
+//convert a C++ address range to a C address range
+_SC_DBG_STATIC int _from_cc_addr_range(
+    void * void_dst, const void * void_src) {
+
+    //restore types
+    sc_addr_range * dst = static_cast<sc_addr_range *>(void_dst);
+    const sc::addr_range * src
+        = static_cast<const sc::addr_range *>(void_src);
+
+    //build a new C address range
+    dst->start_addr = src->get_start_addr();
+    dst->end_addr = src->get_end_addr();
+
+    return 0;
+}
+
+
+/*
  *  --- [MAP_AREA_OPT | EXTERNAL] ---
  */
 
 //ctors & dtor
 _DEFINE_C_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc)
-_DEFINE_C_COPY_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
+_DEFINE_C_COPY_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, src_ma_opts)
 _DEFINE_C_DTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 _DEFINE_C_RESET(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 
@@ -624,15 +724,15 @@ _DEFINE_C_RESET(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 int sc_ma_opt_set_omit_areas(
     sc_map_area_opt * ma_opts, const cm_vct * omit_areas) {
 
-    _C_SETTER_PRELUDE(map_area_opt, int, sc, ma_opts)
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
     ret = cc_ma_opts->set_omit_areas(*omit_areas);
-    _C_SETTER_POSTLUDE(-1, -1, 0)
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
 
 
 const cm_vct * sc_ma_opt_get_omit_areas(sc_map_area_opt * ma_opts) {
 
-    _C_GETTER_PRELUDE(map_area_opt, sc, ma_opts)
+    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
     return &cc_ma_opts->get_omit_areas();
 }
 
@@ -640,15 +740,15 @@ const cm_vct * sc_ma_opt_get_omit_areas(sc_map_area_opt * ma_opts) {
 int sc_ma_opt_set_omit_objs(
     sc_map_area_opt * ma_opts, const cm_vct * omit_objs) {
 
-    _C_SETTER_PRELUDE(map_area_opt, int, sc, ma_opts)
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
     ret = cc_ma_opts->set_omit_objs(*omit_objs);
-    _C_SETTER_POSTLUDE(-1, -1, 0)
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
 
 
 const cm_vct * sc_ma_opt_get_omit_objs(sc_map_area_opt * ma_opts) {
     
-    _C_GETTER_PRELUDE(map_area_opt, sc, ma_opts)
+    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
     return &cc_ma_opts->get_omit_objs();
 }
 
@@ -657,14 +757,14 @@ const cm_vct * sc_ma_opt_get_omit_objs(sc_map_area_opt * ma_opts) {
 int sc_ma_opt_set_exclusive_areas(
     sc_map_area_opt * ma_opts, const cm_vct * exclusive_areas) {
         
-    _C_SETTER_PRELUDE(map_area_opt, int, sc, ma_opts)
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
     ret = cc_ma_opts->set_omit_objs(*exclusive_areas);
-    _C_SETTER_POSTLUDE(-1, -1, 0)
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
     
 const cm_vct * sc_ma_opt_get_exclusive_areas(sc_map_area_opt * ma_opts) {
     
-    _C_GETTER_PRELUDE(map_area_opt, sc, ma_opts)
+    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
     return &cc_ma_opts->get_exclusive_areas();
 }
 
@@ -672,15 +772,15 @@ const cm_vct * sc_ma_opt_get_exclusive_areas(sc_map_area_opt * ma_opts) {
 int sc_ma_opt_set_exclusive_objs(
     sc_map_area_opt * ma_opts, const cm_vct * exclusive_objs) {
 
-    _C_SETTER_PRELUDE(map_area_opt, int, sc, ma_opts)
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
     ret = cc_ma_opts->set_omit_objs(*exclusive_objs);
-    _C_SETTER_POSTLUDE(-1, -1, 0)
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
 
 
 const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts) {
     
-    _C_GETTER_PRELUDE(map_area_opt, sc, ma_opts)
+    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
     return &cc_ma_opts->get_exclusive_objs();
 }
 
@@ -688,185 +788,126 @@ const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts) {
 int sc_ma_opt_set_omit_addr_ranges(
     sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges) {
 
-    sc_addr_range * addr_range;
-    sc::addr_range cc_addr_range(0x0, 0x0);
     cm_vct cc_omit_addr_ranges;
 
         
-    _C_SETTER_PRELUDE(map_area_opt, int, sc, ma_opts)
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
 
-    /*
-     *  NOTE: Need to convert between C and C++ address ranges.
-     */
+    //convert C address ranges to C++
+    ret = convert_c_data(cc_omit_addr_ranges,
+                         sizeof(sc::addr_range),
+                         *omit_addr_ranges,
+                         _to_cc_addr_range);    
+    if (ret != 0) return -1;
 
-    /*
-     * TODO: All of this is way too excessive, create a separate
-     *       function for converting between 2 vectors of C and C++
-     *       structures using a callback. It should handle both C <-> C++.
-     */
-
-    //allocate a new C++ address ranges vector
-    ret = cm_new_vct(&cc_omit_addr_ranges, sizeof(sc::addr_range));
-    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
-
-    //for every C address range
-    for (int i = 0; i < omit_addr_ranges->len; ++i) {
-
-        //fetch the address range
-        addr_range = (sc_addr_range *) cm_vct_get_p(omit_addr_ranges, i);
-        if (addr_range == nullptr) goto _sc_ma_opt_set_omit_addr_ranges_fail;
-
-        //construct a C++ address range
-        cc_addr_range = sc::addr_range(addr_range->min, addr_range->max);
-        ret = cm_vct_apd(&cc_omit_addr_ranges, &cc_addr_range);
-        if (ret != 0) goto _sc_ma_opt_set_omit_addr_ranges_fail;
-    }
-
-    //set the 
-    ret = cc_ma_opts->set_omit_objs(cc_omit_addr_ranges);
-    if (ret != 0) {cm_del_vct( &cc_omit_addr_ranges); return -1; }
-    
-    _C_SETTER_POSTLUDE(-1, -1, 0)
-
-    _sc_ma_opt_set_omit_addr_ranges_fail:
-    sc_errno = SC_ERR_CMORE;
-    cm_del_vct(&cc_omit_addr_ranges);
-    return -1;
+    ret = cc_ma_opts->set_omit_areas(cc_omit_addr_ranges);
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
 
     
-const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+int sc_ma_opt_get_omit_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_ranges) {
 
-//exclusive address ranges
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
+
+    const cm_vct & cc_omit_addr_ranges
+        = cc_ma_opts->get_omit_areas();
+
+    //convert C++ address ranges to C
+    ret = convert_c_data(*addr_ranges,
+                         sizeof(sc_addr_range),
+                         cc_omit_addr_ranges,
+                         _from_cc_addr_range);
+    if (ret != 0) {
+        _CTOR_VCT_DELETE_IF_INIT(*addr_ranges)
+        return -1;
+    }
+
+    _CC_CAST_POSTLUDE(-1, -1, 0)
+}
+
+
 int sc_ma_opt_set_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges);
-const cm_vct * sc_ma_opt_get_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts);
+    sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges) {
 
-//access
-//0 = success, CM_BYTE_MAX = error
+    cm_vct cc_exclusive_addr_ranges;
+
+        
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
+
+    //convert C address ranges to C++
+    ret = convert_c_data(cc_exclusive_addr_ranges,
+                         sizeof(sc::addr_range),
+                         *exclusive_addr_ranges,
+                         _to_cc_addr_range);    
+    if (ret != 0) return -1;
+
+    ret = cc_ma_opts->set_exclusive_areas(cc_exclusive_addr_ranges);
+    _CC_CAST_POSTLUDE(-1, -1, 0)
+}
+
+    
+int sc_ma_opt_get_exclusive_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_ranges) {
+
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
+
+    const cm_vct & cc_exclusive_addr_ranges
+        = cc_ma_opts->get_exclusive_areas();
+
+    //convert C++ address ranges to C
+    ret = convert_c_data(*addr_ranges,
+                         sizeof(sc_addr_range),
+                         cc_exclusive_addr_ranges,
+                         _from_cc_addr_range);
+    if (ret != 0) {
+        _CTOR_VCT_DELETE_IF_INIT(*addr_ranges)
+        return -1;
+    }
+
+    _CC_CAST_POSTLUDE(-1, -1, 0)
+}
+
+
 int sc_ma_opt_set_access(
-    sc_map_area_opt * ma_opts, const cm_byte access);
-//CM_BYTE_MAX = error, SC_ACCESS_UNSET = not set, other = success
-cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts);
+    sc_map_area_opt * ma_opts, const cm_byte access) {
+
+    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts);
+    ret = cc_ma_opts->set_access(access);
+    _CC_CAST_POSTLUDE(-1, -1, 0)
+}
+
+
+cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts) {
+
+    _CC_CAST_PRELUDE(map_area_opt, cm_byte, sc, ma_opts);
+    ret = cc_ma_opts->get_access();
+    _CC_CAST_POSTLUDE(CM_BYTE_MAX, CM_BYTE_MAX, 0)
+}
 
 
 //external - map area set
 
-//pointer = success, NULL = error
-sc_map_area_set * sc_new_ma_set();
-sc_map_area_set * sc_copy_ma_set(sc_map_area_set * ma_set);
-//0 = success, -1 = error
-void sc_del_ma_set(sc_map_area_set * ma_set);
-int sc_ma_set_reset(sc_map_area_set * ma_set);
+//ctors & dtor
+_DEFINE_C_CTOR(sc_map_area_set, map_area_set, ma_set, sc)
+_DEFINE_C_COPY_CTOR(sc_map_area_set, map_area_set, ma_set, sc, src_ma_set)
+_DEFINE_C_DTOR(sc_map_area_set, map_area_set, ma_set, sc, ma_set)
+_DEFINE_C_RESET(sc_map_area_set, map_area_set, ma_set, sc, ma_set)
 
-//0 = success, -1 = error
+
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
                                 sc_map_area_opt * ma_opts,
-                                const mc_vm_map * map);
-//pointer = success, -1 = error
-const cm_rbt * sc_get_set(sc_map_area_set * ma_set);
+                                const mc_vm_map * map) {
 
-
-/*
- *  --- [MAP_AREA_SET | EXTERNAL] ---
- */
-
-sc_map_area_set sc_new_map_area_set() {
-
-    void *         
-
-    try {
-        return new sc::map_area_set();    
-
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return nullptr;
-    }
+    _CC_CAST_PRELUDE(map_area_set, int, sc, ma_set)
+    sc::map_area_opt * cc_ma_opts = (sc::map_area_opt *) ma_opts;
+    ret = cc_ma_set->update_set(*cc_ma_opts, *map);
+    _CC_CAST_POSTLUDE(-1, -1, 0)
 }
 
 
-int sc_del_map_area_set(sc_map_area_set ma_set) {
-    
-    //cast opaque handle into class
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
+const cm_rbt * sc_get_set(sc_map_area_set * ma_set) {
 
-    try {
-        delete s;
-        return 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
-int sc_reset_set(sc_map_area_set ma_set) {
-
-    int ret;
-
-
-    //cast opaque handle into class
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
-
-    try {
-        ret = s->reset();
-        return (ret != 0) ? -1 : 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
-int sc_update_set(sc_map_area_set ma_set, const sc_opt opts) {
-
-    //cast opaque handles into classes
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
-    sc::opt * o = static_cast<sc::opt *>(opts);
-
-    try {
-
-        //update the scan set
-        std::optional<int> ret = s->update_set(*o);
-        if (ret.has_value() == false) return -1;
-        return 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
-}
-
-
-int sc_get_set(const sc_map_area_set ma_set, cm_vct * area_nodes) {
-
-    int ret;
-
-
-    //cast opaque handle into class
-    sc::map_area_set * s = static_cast<sc::map_area_set *>(ma_set);
-
-    try {
-        //get the STL unordered set
-        const std::unordered_set<const cm_lst_node *>
-        & area_set = s->get_area_nodes();
-
-        //convert the STL unordered set to a CMore vector
-        ret = c_iface::uset_to_cmore_vct<const cm_lst_node *,
-                                         const cm_lst_node *>(
-                            area_nodes,area_set, std::nullopt);
-        if (ret != 0) return -1;
-
-        //sort the CMore vector
-        c_iface::sort_area_vct(area_nodes);
-
-        return 0;
-        
-    } catch (const std::exception & excp) {
-        exception_sc_errno(excp);
-        return -1;
-    }
+    _CC_CAST_NO_ERR_PRELUDE(map_area_set, sc, ma_set)
+    return &cc_ma_set->get_set();
 }

@@ -1,10 +1,3 @@
-//standard template library
-#include <optional>
-#include <sys/types.h>
-#include <vector>
-#include <string>
-#include <functional>
-
 //C standard library
 #include <cstring>
 
@@ -21,9 +14,14 @@
 #include "scancry.h"
 #include "opt.hh"
 #include "c_iface.hh"
+#include "common.hh"
 #include "error.hh"
 
 
+
+      /* =============== * 
+ ===== *  C++ INTERFACE  * =====
+       * =============== */
 
 /*
  *  --- [_OPT_SCAN | INTERNAL] ---
@@ -34,273 +32,147 @@
  *        of `_opt_scan` so the linker can produce a valid chain of
  *        destructors to call.
  */
+
 sc::_opt_scan::~_opt_scan() {}
 
 
 
-      /* =============== * 
- ===== *  C++ INTERFACE  * =====
-       * =============== */
+/*
+ *  --- [OPT | PRIVATE] ---
+ */
+
+//perform a deep copy
+void sc::opt::do_copy(sc::opt & opts) noexcept {
+
+    int ret;
+
+
+    //acquire a write lock on the source object
+    ret = opts._lock_write();
+    if (ret != 0) { this->_set_ctor_failed(true); return; }
+
+    //call parent copy assignment operators
+    _lockable::operator=(opts);
+    _ctor_failable::operator=(opts);
+
+    //copy file pathnames
+    _CTOR_STR_COPY_IF_INIT(this->file_pathname_in,
+                           opts.get_file_pathname_in());
+    
+    _CTOR_STR_COPY_IF_INIT(this->file_pathname_out,
+                           opts.get_file_pathname_out());
+
+    //copy sessions
+    _CTOR_VCT_COPY_IF_INIT_UNLOCK(
+        this->sessions, opts.get_sessions(), opts);
+
+    //copy the map & address width
+    this->map = opts.get_map();
+    this->addr_width = opts.get_addr_width();
+
+    //copy the scan set
+    this->scan_set = opts._get_scan_set_mut();
+
+    //release the lock
+    opts._unlock();
+
+    return;
+}
+
+
 
 /*
  *  --- [OPT | PUBLIC] ---
  */
 
-sc::opt::opt(enum addr_width _addr_width)
- : _lockable(),
+//constructor
+sc::opt::opt() noexcept
+ : _lockable(), _ctor_failable(),
+   file_pathname_out(nullptr),
+   file_pathname_in(nullptr),
    map(nullptr),
-   addr_width(_addr_width) {}
+   addr_width(addr_width_unset) {
+
+    //zero out the sessions vector & the scan set red-black tree
+    std::memset(&this->sessions, 0, sizeof(this->sessions));
+    std::memset(&this->scan_set, 0, sizeof(this->scan_set));
+
+    return;
+}
 
 
-sc::opt::opt(const opt & opts)
- : _lockable(),
-   file_path_out(opts.file_path_out),
-   file_path_in(opts.file_path_in),
-   sessions(opts.sessions),
-   map(opts.map),
-   omit_areas(opts.omit_areas),
-   omit_objs(opts.omit_objs),
-   exclusive_areas(opts.exclusive_areas),
-   exclusive_objs(opts.exclusive_objs),
-   omit_addr_ranges(opts.omit_addr_ranges),
-   exclusive_addr_ranges(opts.exclusive_addr_ranges),
-   access(opts.access),
-   addr_width(opts.addr_width) {}
+//copy constructor
+sc::opt::opt(sc::opt & opts) noexcept {
+
+    this->do_copy(opts);
+    return;
+}
 
 
-sc::opt::opt(const opt && opts)
- : _lockable(),
-   file_path_out(opts.file_path_out),
-   file_path_in(opts.file_path_in),
-   sessions(opts.sessions),
-   map(opts.map),
-   omit_areas(opts.omit_areas),
-   omit_objs(opts.omit_objs),
-   exclusive_areas(opts.exclusive_areas),
-   exclusive_objs(opts.exclusive_objs),
-   omit_addr_ranges(opts.omit_addr_ranges),
-   exclusive_addr_ranges(opts.exclusive_addr_ranges),
-   access(opts.access),
-   addr_width(opts.addr_width) {}
+//destructor
+sc::opt::~opt() noexcept {
+
+    //destroy initialised file pathnames
+    _CTOR_STR_DELETE_IF_INIT(this->file_pathname_out);
+    _CTOR_STR_DELETE_IF_INIT(this->file_pathname_in);
+
+    //destroy sessions
+    _CTOR_VCT_DELETE_IF_INIT(this->sessions);
+
+    return;
+}
 
 
-[[nodiscard]] int sc::opt::reset() {
-    _LOCK(-1)
-    this->file_path_in = std::nullopt;
-    this->file_path_out = std::nullopt;
-    this->sessions.clear();
+//copy assignment operator
+sc::opt & sc::opt::operator=(sc::opt & opts) noexcept {
+
+    if (this != &opts) this->do_copy(opts);
+    return *this;
+}
+
+
+//resetter
+[[nodiscard]] int sc::opt::reset() noexcept {
+
+    int ret;
+
+
+    //reset file pathnames
+    common::del_str_if_init(this->file_pathname_in);
+    common::del_str_if_init(this->file_pathname_out);
+
+    //reset sessions
+    common::del_vct_if_init(this->sessions);
+
+    //reset the map & address width
     this->map = nullptr;
-    this->omit_areas = std::nullopt;
-    this->omit_objs = std::nullopt;
-    this->exclusive_areas = std::nullopt;
-    this->exclusive_objs = std::nullopt;
-    this->omit_addr_ranges = std::nullopt;
-    this->exclusive_addr_ranges = std::nullopt;
-    this->access = std::nullopt;
-    _UNLOCK(-1)
+    this->addr_width = sc::addr_width_unset;
 
-    return 0;
+    //reset the scan set
+    ret = this->scan_set.reset();
+    if (ret != 0) return -1;
 }
 
 
-//getters & setters
-[[nodiscard]] int sc::opt::set_file_path_out(
-    const std::optional<std::string> & file_path_out) {
+//setters & getters
+_DEFINE_STR_SETTER(sc::opt, file_pathname_out)
+_DEFINE_STR_GETTER(sc::opt, file_pathname_out)
 
-    _LOCK(-1)
-    this->file_path_out = file_path_out;
-    _UNLOCK(-1)
+_DEFINE_STR_SETTER(sc::opt, file_pathname_in)
+_DEFINE_STR_GETTER(sc::opt, file_pathname_in)
 
-    return 0;
-}
+_DEFINE_VCT_SETTER(sc::opt, sessions)
+_DEFINE_VCT_GETTER(sc::opt, sessions)
 
+_DEFINE_PTR_SETTER(sc::opt, mc_vm_map, map)
+_DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map)
 
-[[nodiscard]] const std::optional<std::string> &
-    sc::opt::get_file_path_out() const {
+_DEFINE_VALUE_SETTER(sc::opt, enum sc::addr_width, addr_width)
+_DEFINE_VALUE_GETTER(sc::opt, enum sc::addr_width,
+                    sc::addr_width_unset, addr_width)
 
-    return this->file_path_out;
-}
-
-
-[[nodiscard]] int sc::opt::set_file_path_in(
-    const std::optional<std::string> & file_path_in) {
-
-    _LOCK(-1)
-    this->file_path_in = file_path_in;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::string> &
-    sc::opt::get_file_path_in() const {
-
-    return this->file_path_in;
-}
-
-
-[[nodiscard]] int sc::opt::set_sessions(
-    const std::vector<mc_session const *> & sessions) {
-
-    _LOCK(-1)
-    this->sessions = sessions;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::vector<mc_session const *> &
-    sc::opt::get_sessions() const {
-
-    return this->sessions;
-}
-
-
-[[nodiscard]] int sc::opt::set_map(const mc_vm_map * map) noexcept {
-
-    _LOCK(-1)
-    this->map = (mc_vm_map *) map;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] mc_vm_map * sc::opt::get_map() const noexcept {
-
-    return this->map;
-}
-
-
-[[nodiscard]] int sc::opt::set_omit_areas(
-    const std::optional<std::vector<const cm_lst_node *>> & omit_areas) {
-
-    _LOCK(-1)
-    this->omit_areas = omit_areas;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
-    & sc::opt::get_omit_areas() const {
-
-    return this->omit_areas;
-}
-
-
-[[nodiscard]] int sc::opt::set_omit_objs(
-    const std::optional<std::vector<const cm_lst_node *>> & omit_objs) {
-
-    _LOCK(-1)
-    this->omit_objs = omit_objs;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
-        & sc::opt::get_omit_objs() const {
-
-    return this->omit_objs;
-}
-
-
-[[nodiscard]] int sc::opt::set_exclusive_areas(
-    const std::optional<std::vector<const cm_lst_node *>> & exclusive_areas) {
-
-    _LOCK(-1)
-    this->exclusive_areas = exclusive_areas;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
-    & sc::opt::get_exclusive_areas() const {
-
-    return this->exclusive_areas;
-}
-
-
-[[nodiscard]] int sc::opt::set_exclusive_objs(
-    const std::optional<std::vector<const cm_lst_node *>> & exclusive_objs) {
-
-    _LOCK(-1)
-    sc::opt::exclusive_objs = exclusive_objs;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<std::vector<const cm_lst_node *>>
-    & sc::opt::get_exclusive_objs() const {
-
-    return this->exclusive_objs;
-}
-
-
-[[nodiscard]] int sc::opt::set_omit_addr_ranges(const std::optional<
-    std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range) {
-
-    _LOCK(-1)
-    this->omit_addr_ranges = addr_range;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<
-    std::vector<std::pair<uintptr_t, uintptr_t>>> &
-        sc::opt::get_omit_addr_ranges() const {
-
-    return this->omit_addr_ranges;
-}
-
-
-[[nodiscard]] int sc::opt::set_exclusive_addr_ranges(const std::optional<
-    std::vector<std::pair<uintptr_t, uintptr_t>>> & addr_range) {
-
-    _LOCK(-1)
-    this->exclusive_addr_ranges = addr_range;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] const std::optional<
-    std::vector<std::pair<uintptr_t, uintptr_t>>> &
-        sc::opt::get_exclusive_addr_ranges() const {
-
-    return this->exclusive_addr_ranges;
-}
-
-
-[[nodiscard]] int sc::opt::set_access(
-    const std::optional<cm_byte> access) noexcept {
-
-    _LOCK(-1)
-    this->access = access;
-    _UNLOCK(-1)
-
-    return 0;
-}
-
-
-[[nodiscard]] std::optional<cm_byte>
-    sc::opt::get_access() const noexcept {
-
-    return this->access;
-}
-
+_DEFINE_OBJ_REF_SETTER(sc::opt, sc::map_area_set, scan_set)
+_DEFINE_OBJ_REF_GETTER(sc::opt, sc::map_area_set, scan_set)
 
 
 /*

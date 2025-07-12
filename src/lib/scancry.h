@@ -14,13 +14,6 @@
 
 
 
-/*
- *  NOTE: ScanCry should be accessible through the C ABI for cross
- *        language compatibility. While the internals make use of C++,
- *        this interface either restricts itself to C, or provides C
- *        wrappers to C++.
- */
-
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
        * =============== */
@@ -52,8 +45,8 @@ class addr_range {
          : start_addr(start_addr), end_addr(end_addr) {}
 
         //getters
-        [[nodiscard]] uintptr_t get_start_addr() noexcept;
-        [[nodiscard]] uintptr_t get_end_addr() noexcept;
+        [[nodiscard]] uintptr_t get_start_addr() const noexcept;
+        [[nodiscard]] uintptr_t get_end_addr() const noexcept;
 };
 
 
@@ -62,6 +55,10 @@ class addr_range {
  *        `map_area_set`. Instances of `map_area_set` represent some
  *        subset of a MemCry target map.
  */
+
+
+//unset values
+const constexpr cm_byte access_unset = CM_BYTE_MAX - 1;
 
 class map_area_opt : public _lockable, public _ctor_failable {
 
@@ -75,32 +72,20 @@ class map_area_opt : public _lockable, public _ctor_failable {
         cm_vct /* <sc::addr_range> */ exclusive_addr_ranges;
         cm_byte access;
 
+        //[methods]
+        void do_copy(sc::map_area_opt & ma_opts) noexcept;
+
     public:
         //[methods]
-        //internal
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_omit_areas_mut() noexcept;
-            
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_omit_objs_mut() noexcept;
-
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_exclusive_areas_mut() noexcept;
-
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_exclusive_objs_mut() noexcept;
-
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_omit_addr_ranges_mut() noexcept;
-
-        /* internal */ [[nodiscard]] cm_vct /* <const cm_lst_node *> */ &
-            _get_exclusive_addr_ranges_mut() noexcept;
-
         //ctors & dtor
-        map_area_opt();
-        map_area_opt(sc::map_area_opt & ma_opts);
+        map_area_opt() noexcept;
+        map_area_opt(sc::map_area_opt & ma_opts) noexcept;
         map_area_opt(sc::map_area_opt && ma_opts) = delete;
-        ~map_area_opt();
+        ~map_area_opt() noexcept;
+
+        //operators
+        sc::map_area_opt & operator=(sc::map_area_opt & ma_opt) noexcept;
+        sc::map_area_opt & operator=(sc::map_area_opt && ma_opt) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept;
@@ -154,17 +139,20 @@ class map_area_set : public _lockable, public _ctor_failable {
         //[attributes]
         cm_rbt /* <const cm_lst_node * : nullptr> */ set;
 
+        //[methods]
+        void do_copy(sc::map_area_set & ma_set) noexcept;
+
     public:
         //[methods]
-        //internal
-        /* internal */ [[nodiscard]] cm_rbt /* <const cm_lst_node *> */ &
-            _get_set_mut() noexcept;
-
         //ctors & dtor
-        map_area_set();
-        map_area_set(sc::map_area_set & ma_set);
+        map_area_set() noexcept;
+        map_area_set(sc::map_area_set & ma_set) noexcept;
         map_area_set(sc::map_area_set && ma_set) = delete;
-        ~map_area_set();
+        ~map_area_set() noexcept;
+
+        //operators
+        sc::map_area_set & operator=(sc::map_area_set & ma_set) noexcept;
+        sc::map_area_set & operator=(sc::map_area_set && ma_set) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept;
@@ -181,8 +169,9 @@ class map_area_set : public _lockable, public _ctor_failable {
 
 //architecture address width enum
 enum addr_width {
-    AW32 = 4,
-    AW64 = 8
+    SC_AW32  = 4,
+    SC_AW64  = 8,
+    SC_UNSET = -1
 };
 
 
@@ -191,67 +180,80 @@ enum addr_width {
  *        all scan types.
  */
 
-class opt : public _lockable {
+//unset values
+const constexpr enum addr_width addr_width_unset = SC_UNSET;
+
+class opt : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-
-        //save & load file paths
-        const char * file_pathname_out;
-        const char * file_pathname_in;
 
         /*
          *  NOTE: The number of threads used during scans is determined 
          *        by the number of provided sessions.
          */
+
+        //save & load file paths
+        char * file_pathname_out;
+        char * file_pathname_in;
         
-        //sessions
+        //sessions & map
         cm_vct /* <const mc_session *> */ sessions;
-        
-        //map of the target
         mc_vm_map * map;
 
-        //address width of the target
-        const enum addr_width addr_width;
+        //address width (32bit / 64bit)
+        enum addr_width addr_width;
 
-        //areas a scan will be performed on
+        //set of areas to scan
         sc::map_area_set scan_set;
+
+        //[methods]
+        void do_copy(sc::opt & opts) noexcept;
 
     public:
         //[methods]
+        /* internal */ [[nodiscard]] sc::map_area_set &
+            _get_scan_set_mut() noexcept;
+        
         //ctors & dtor
-        opt(enum addr_width _addr_width);
-        opt(const opt & opts);
-        opt(const opt && opts);
-        ~opt();
+        opt() noexcept;
+        opt(opt & opts) noexcept;
+        opt(opt && opts) = delete;
+        ~opt() noexcept;
+
+        //operators
+        sc::opt & operator=(sc::opt & opts) noexcept;
+        sc::opt & operator=(sc::opt && opts) = delete;
 
         //reset
-        [[nodiscard]] int reset();
+        [[nodiscard]] int reset() noexcept;
 
         //getters & setters
         [[nodiscard]] int set_file_pathname_out(
             const char * file_pathname_out) noexcept;
-        [[nodiscard]] const char * get_file_pathname_out() const noexcept;
+        [[nodiscard]] const char * const &
+            get_file_pathname_out() noexcept;
 
         [[nodiscard]] int set_file_pathname_in(
             const char * file_pathname_in) noexcept;
-        [[nodiscard]] const char * get_file_pathname_in() const noexcept;
+        [[nodiscard]] const char * const &
+            get_file_pathname_in() noexcept;
 
         [[nodiscard]] int set_sessions(
             const cm_vct /* <const mc_session *> */ & sessions) noexcept;
         [[nodiscard]] const cm_vct /* <const mc_session *> */ &
-            get_sessions() const noexcept;
+            get_sessions() noexcept;
 
         [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
-        [[nodiscard]] const mc_vm_map * get_map() const noexcept;
+        [[nodiscard]] mc_vm_map * get_map() noexcept;
 
         [[nodiscard]] int set_addr_width(
             const enum addr_width addr_width) noexcept;
-        [[nodiscard]] enum addr_width get_addr_width() const noexcept;
+        [[nodiscard]] enum addr_width get_addr_width() noexcept;
 
         [[nodiscard]] int set_scan_set(
-            const sc::map_area_set & scan_set) noexcept;
-        [[nodiscard]] const sc::map_area_set & get_scan_set() const noexcept;
+            sc::map_area_set & scan_set) noexcept;
+        [[nodiscard]] const sc::map_area_set & get_scan_set() noexcept;
 };
 
 
@@ -665,8 +667,8 @@ typedef struct sc_serialiser sc_serialiser;
 //address range
 typedef struct {
 
-    uintptr_t min;
-    uintptr_t max;
+    uintptr_t start_addr;
+    uintptr_t end_addr;
 
 } sc_addr_range;
 
@@ -764,13 +766,15 @@ extern const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
 //omit address ranges
 extern int sc_ma_opt_set_omit_addr_ranges(
     sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges);
-extern const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+//only for this getter: 0 = success, -1 = fail, deallocate vector manually
+extern int sc_ma_opt_get_omit_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_ranges);
 
 //exclusive address ranges
 extern int sc_ma_opt_set_exclusive_addr_ranges(
     sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges);
-extern const cm_vct * sc_ma_opt_get_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts);
+extern int sc_ma_opt_get_exclusive_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_ranges);
 
 //access
 //0 = success, CM_BYTE_MAX = error

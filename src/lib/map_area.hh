@@ -69,13 +69,16 @@ const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
 //omit address ranges
 int sc_ma_opt_set_omit_addr_ranges(
     sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges);
-const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+//only for this getter: 0 = success, -1 = fail, deallocate vector manually
+int sc_ma_opt_get_omit_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_ranges);
 
 //exclusive address ranges
 int sc_ma_opt_set_exclusive_addr_ranges(
     sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges);
-const cm_vct * sc_ma_opt_get_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts);
+//only for this getter: 0 = success, -1 = fail, deallocate vector manually
+int sc_ma_opt_get_exclusive_addr_ranges(
+    sc_map_area_opt * ma_opts, cm_vct * addr_range);
 
 //access
 //0 = success, CM_BYTE_MAX = error

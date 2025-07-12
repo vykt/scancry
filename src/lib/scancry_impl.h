@@ -58,13 +58,21 @@ namespace sc {
 class _lockable {
 
     _SC_DBG_PRIVATE:
-        //read & write lock
+        //[attributes]
         pthread_rwlock_t lock;
 
+        //[methods]
+        void do_copy(const sc::_lockable & lockable) noexcept;
+
     public:
-        _lockable() : lock(PTHREAD_RWLOCK_INITIALIZER) {}
-        _lockable(const _lockable & lockable);
-        _lockable(_lockable && lockable) = delete;
+        //ctors
+        _lockable() noexcept;
+        _lockable(const sc::_lockable & lockable) noexcept;
+        _lockable(sc::_lockable && lockable) = delete;
+
+        //operators
+        sc::_lockable & operator=(const sc::_lockable & lockable) noexcept;
+        sc::_lockable & operator=(const sc::_lockable && lockable) = delete;
         
         //lock operations
         [[nodiscard]] int _lock_read() noexcept;
@@ -77,11 +85,23 @@ class _lockable {
 class _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //fail flag
+        //[attributes]
         bool ctor_failed;
 
+        //[methods]
+        void do_copy(const sc::_ctor_failable & ctor_failable) noexcept;
+
     public:
-        _ctor_failable() : ctor_failed(false) {}
+        //ctors
+        _ctor_failable() noexcept;
+        _ctor_failable(const sc::_ctor_failable & ctor_failable) noexcept;
+        _ctor_failable(const sc::_ctor_failable && ctor_failable) = delete;
+
+        //operators
+        sc::_ctor_failable & operator=(
+            const sc::_ctor_failable & ctor_failable) noexcept;
+        sc::_ctor_failable & operator=(
+            const sc::_ctor_failable && ctor_failable) = delete;
 
         //getter
         [[nodiscard]] bool _get_ctor_failed() const noexcept;
@@ -89,12 +109,31 @@ class _ctor_failable {
 };
 
 
-//unset value for `map_area_constraints::access`
-const constexpr cm_byte _access_unset = CM_BYTE_MAX - 1;
+/*
+ *  NOTE: This is an interface class for scan options.
+ */
+
+class _opt_scan : public _lockable {
+
+    public:
+        //ctor
+        _opt_scan() : _lockable() {}
+        _opt_scan(_opt_scan & opts_scan) : _lockable() {};
+        _opt_scan(_opt_scan && opts_scan) = delete;
+        virtual ~_opt_scan() = 0;
+
+        //reset
+        [[nodiscard]] virtual int reset() = 0;
+};
 
 
 //defined in `scancry.h`
 class opt;
+
+
+//defined in `scancry.h`
+class map_area_set;
+class worker_pool;
 
 
 //argument passed from a worker to the `process_addr()` function
@@ -118,28 +157,6 @@ struct _scan_arg {
        buf_left(buf_left),
        cur_byte(cur_byte),
        area_node(area_node) {};
-};
-
-
-//defined in `scancry.h`
-class map_area_set;
-class worker_pool;
-
-
-/*
- *  This is an empty options class. Options for each scan class inherit
- *  from this class. Workers use a generic `_opt_scan` reference. Through
- *  RTTI the real type is recovered by the appropriate scan class.
- */
-class _opt_scan : public _lockable {
-
-    public:
-        //ctor
-        _opt_scan() : _lockable() {}
-        virtual ~_opt_scan() = 0;
-
-        //reset
-        [[nodiscard]] virtual int reset() = 0;
 };
 
 

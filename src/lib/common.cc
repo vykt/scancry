@@ -190,7 +190,6 @@ void common::mov_rbt_if_init(
     }
 
     //cleanup
-    cm_del_vct(&dst_vct);
     free(dst_data_buf);
     return 0;
 

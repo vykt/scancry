@@ -59,7 +59,7 @@ class _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
-        pthread_rwlock_t lock;
+        mutable pthread_rwlock_t lock;
 
         //[methods]
         void do_copy(const sc::_lockable & lockable) noexcept;
@@ -75,9 +75,9 @@ class _lockable {
         sc::_lockable & operator=(const sc::_lockable && lockable) = delete;
         
         //lock operations
-        [[nodiscard]] int _lock_read() noexcept;
-        [[nodiscard]] int _lock_write() noexcept;
-        void _unlock() noexcept;
+        [[nodiscard]] int _lock_read() const noexcept;
+        [[nodiscard]] int _lock_write() const noexcept;
+        void _unlock() const noexcept;
 };
 
 

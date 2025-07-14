@@ -13,6 +13,11 @@
 #include "scancry_impl.h"
 
 
+/*
+ *  FIXME: Make C++ includes only see the C++ part of this file. At the 
+ *         same time, compiling the library has to see both.
+ */
+
 
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
@@ -55,7 +60,6 @@ class addr_range {
  *        `map_area_set`. Instances of `map_area_set` represent some
  *        subset of a MemCry target map.
  */
-
 
 //unset values
 namespace val_unset {
@@ -101,35 +105,35 @@ class map_area_opt : public _lockable, public _ctor_failable {
         [[nodiscard]] int set_omit_areas(
             const cm_vct /* <const cm_lst_node *> */ & omit_areas) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_omit_areas() noexcept;
+            get_omit_areas() const noexcept;
 
         [[nodiscard]] int set_omit_objs(
             const cm_vct /* <const cm_lst_node *> */ & omit_objs) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_omit_objs() noexcept;
+            get_omit_objs() const noexcept;
 
         [[nodiscard]] int set_exclusive_areas(
             const cm_vct /* <const cm_lst_node *> */ & exclusive_areas) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_exclusive_areas() noexcept;
+            get_exclusive_areas() const noexcept;
 
         [[nodiscard]] int set_exclusive_objs(
             const cm_vct /* <const cm_lst_node *> */ & exclusive_objs) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_exclusive_objs() noexcept;
+            get_exclusive_objs() const noexcept;
 
         [[nodiscard]] int set_omit_addr_ranges(
             const cm_vct /* <sc::addr_range> */ & addr_ranges) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_omit_addr_ranges() noexcept;
+            get_omit_addr_ranges() const noexcept;
 
         [[nodiscard]] int set_exclusive_addr_ranges(
             const cm_vct /* <sc::addr_range> */ & addr_ranges) noexcept;
         [[nodiscard]] const cm_vct /* <const cm_lst_node *> */ &
-            get_exclusive_addr_ranges() noexcept;
+            get_exclusive_addr_ranges() const noexcept;
 
         [[nodiscard]] int set_access(const cm_byte access) noexcept;
-        [[nodiscard]] cm_byte get_access() noexcept;
+        [[nodiscard]] cm_byte get_access() const noexcept;
 };
 
 
@@ -170,15 +174,15 @@ class map_area_set : public _lockable, public _ctor_failable {
 
         //getters & setters
         [[nodiscard]] const cm_rbt /* <const cm_lst_node *> */ &
-            get_set() noexcept;
+            get_set() const noexcept;
 };
 
 
 //architecture address width enum
-enum addr_width {
+enum addr_width /* parity with sc_addr_width */ {
     SC_AW32  = 4,
     SC_AW64  = 8,
-    SC_UNSET = -1
+    SC_ADDR_WIDTH_UNSET = -1,
 };
 
 
@@ -189,7 +193,12 @@ enum addr_width {
 
 //unset values
 namespace val_unset {
-    const constexpr enum addr_width addr_width = SC_UNSET;
+    const constexpr enum addr_width addr_width = SC_ADDR_WIDTH_UNSET;
+}
+
+//bad values
+namespace val_bad {
+    static inline mc_vm_map * map = (mc_vm_map *) UINTPTR_MAX;
 }
 
 class opt : public _lockable, public _ctor_failable {
@@ -241,42 +250,43 @@ class opt : public _lockable, public _ctor_failable {
         [[nodiscard]] int set_file_pathname_out(
             const char * file_pathname_out) noexcept;
         [[nodiscard]] const char * const &
-            get_file_pathname_out() noexcept;
+            get_file_pathname_out() const noexcept;
 
         [[nodiscard]] int set_file_pathname_in(
             const char * file_pathname_in) noexcept;
         [[nodiscard]] const char * const &
-            get_file_pathname_in() noexcept;
+            get_file_pathname_in() const noexcept;
 
         [[nodiscard]] int set_sessions(
             const cm_vct /* <const mc_session *> */ & sessions) noexcept;
         [[nodiscard]] const cm_vct /* <const mc_session *> */ &
-            get_sessions() noexcept;
+            get_sessions() const noexcept;
 
         [[nodiscard]] int set_map(const mc_vm_map * map) noexcept;
-        [[nodiscard]] mc_vm_map * get_map() noexcept;
+        [[nodiscard]] mc_vm_map * get_map() const noexcept;
 
         [[nodiscard]] int set_addr_width(
             const enum addr_width addr_width) noexcept;
-        [[nodiscard]] enum addr_width get_addr_width() noexcept;
+        [[nodiscard]] int get_addr_width(
+            enum sc::addr_width & addr_width) const noexcept;
 
         [[nodiscard]] int set_scan_set(
             sc::map_area_set & scan_set) noexcept;
-        [[nodiscard]] const sc::map_area_set & get_scan_set() noexcept;
+        [[nodiscard]] const sc::map_area_set &
+            get_scan_set() const noexcept;
 };
 
-
-enum smart_scan {
-    SC_SMART_SCAN_ENABLED = 0,
-    SC_SMART_SCAN_DISABLED = 1,
-    SC_SMART_SCAN_ERROR = -1
-};
 
 
 /*
  *  NOTE: This class defines configuration options only applicable to
  *        pointer scans.
  */
+
+enum smart_scan /* parity with sc_smart_scan */ {
+    SC_SMART_SCAN_ENABLED = 0,
+    SC_SMART_SCAN_DISABLED = 1,
+};
 
 //unset values
 namespace val_unset {
@@ -297,7 +307,6 @@ namespace val_bad {
     const constexpr off_t           alignment   = -1;
     const constexpr off_t           max_obj_sz  = -1;
     const constexpr int             max_depth   = -1;
-    const constexpr enum smart_scan smart_scan  = SC_SMART_SCAN_ERROR;
 }
 
 class opt_ptr final : public _opt_scan {
@@ -365,50 +374,53 @@ class opt_ptr final : public _opt_scan {
         //getters & setters
         [[nodiscard]] int set_target_addr(
             const uintptr_t target_addr) noexcept;
-        [[nodiscard]] uintptr_t get_target_addr() noexcept;
+        [[nodiscard]] uintptr_t get_target_addr() const noexcept;
 
         [[nodiscard]] int set_alignment(const off_t alignment) noexcept;
-        [[nodiscard]] off_t get_alignment() noexcept;
+        [[nodiscard]] off_t get_alignment() const noexcept;
 
         [[nodiscard]] int set_max_obj_sz(const off_t max_obj_sz) noexcept;
-        [[nodiscard]] off_t get_max_obj_sz() noexcept;
+        [[nodiscard]] off_t get_max_obj_sz() const noexcept;
 
         [[nodiscard]] int set_max_depth(const int max_depth) noexcept;
-        [[nodiscard]] int get_max_depth() noexcept;
+        [[nodiscard]] int get_max_depth() const noexcept;
 
         [[nodiscard]] int set_static_set(
             sc::map_area_set & static_set) noexcept;
         [[nodiscard]] const sc::map_area_set &
-            get_static_set() noexcept;
+            get_static_set() const noexcept;
 
         [[nodiscard]] int set_preset_offsets(
             const cm_vct /* <off_t> */ & preset_offsets) noexcept;
         [[nodiscard]] const cm_vct /* <off_t> */ &
-            get_preset_offsets() noexcept;
+            get_preset_offsets() const noexcept;
 
         [[nodiscard]] int set_smart_scan(
             const enum smart_scan smart_scan) noexcept;
-        [[nodiscard]] enum smart_scan get_smart_scan() noexcept;
+        [[nodiscard]] int
+            get_smart_scan(enum smart_scan & smart_scan) const noexcept;
 };
 
-
-//flags to alter behaviour of `worker_pool::update_workers()`
-const constexpr cm_byte WORKER_POOL_KEEP_WORKERS  = 0x1;
-const constexpr cm_byte WORKER_POOL_KEEP_SCAN_SET = 0x2;
 
 /*
  *  NOTE: This is a manager of worker threads, responsible for spawning,
  *        dispatching, synchronising, and cleaning up threads. The
  *        number of spawned threads is determined by the number of 
- *        sessions provided in the `opt` class instance.
+ *        sessions provided in `sc::opt.sessions`.
  */
+
+//worker_pool::update_workers() behavioural flags
+namespace bits_worker {
+    const constexpr cm_byte keep_workers  = 0x1 << 0;
+    const constexpr cm_byte keep_scan_set = 0x1 << 1;
+}
 
 class worker_pool : public _lockable {
 
     _SC_DBG_PRIVATE:
         //[attributes]
         //worker threads
-        cm_vct /* <sc::_worker> */ workers;
+        cm_vct /* <sc const::_worker> */ workers;
         cm_vct /* <sc::pthread_t> */ worker_ids;
 
         //local copy of the last provided scan set (`map_area_set`), sorted
@@ -696,27 +708,7 @@ extern "C" {
  *        across types is still treated as a warning/error
  */
 
-//map area sets
-typedef struct sc_map_area_opt sc_map_area_opt;
-typedef struct sc_map_area_set sc_map_area_set;
-
-//generic options
-typedef struct sc_opt sc_opt;
-
-//scan options
-typedef /* base */ struct sc_opt_scan sc_opt_scan;
-typedef struct sc_opt_ptr sc_opt_ptr;
-
-//scan types
-typedef /* base */ struct sc_scan sc_scan;
-typedef struct sc_ptrscan sc_ptrscan;
-
-//worker pool
-typedef struct sc_worker_pool sc_worker_pool;
-
-//serialiser
-typedef struct sc_serialiser sc_serialiser;
-
+// -- map area options & set
 
 //address range
 typedef struct {
@@ -726,17 +718,72 @@ typedef struct {
 
 } sc_addr_range;
 
-
-//map area options unset access value
+//unset values
 #define SC_ACCESS_UNSET CM_BYTE_MAX - 1
 
+//bad values
+#define SC_ACCESS_BAD   CM_BYTE_MAX
+
+typedef struct sc_map_area_opt sc_map_area_opt;
+typedef struct sc_map_area_set sc_map_area_set;
+
+
+// -- generic options
 
 //architecture address width enum
-enum sc_addr_width {
-
-    AW32 = 4,
-    AW64 = 8
+enum sc_addr_width /* parity with sc::addr_width */ {
+    SC_AW32 = 4,
+    SC_AW64 = 8,
+    SC_ADDR_WIDTH_UNSET = -1,
+    SC_ADDR_WIDTH_BAD   = -2
 };
+
+typedef struct sc_opt sc_opt;
+
+
+// -- scan options
+
+enum sc_smart_scan /* parity with sc::smart_scan */ {
+    SC_SMART_SCAN_ENABLED = 0,
+    SC_SMART_SCAN_DISABLED = 1,
+    SC_SMART_SCAN_ERROR = -1
+};
+
+//unset values
+#define SC_ADDR_WIDTH_UNSET SC_ADDR_WIDTH_UNSET
+
+//default values
+#define SC_ALIGNMENT_DEFAULT  0x4
+#define SC_MAX_OBJ_SZ_DEFAULT 0x100
+#define SC_MAX_DEPTH_DEFAULT  3
+#define SC_SMART_SCAN_DEFAULT SC_SMART_SCAN_ENABLED
+
+//bad values
+#define SC_ADDR_WIDTH_BAD  SC_ADDR_WIDTH_BAD
+#define SC_TARGET_ADDR_BAD UINTPTR_MAX
+#define SC_ALIGNMENT_BAD   -1
+#define SC_MAX_OBJ_SZ_BAD  -1
+#define SC_MAX_DEPTH_BAD   -1
+#define SC_SMART_SCAN_BAD  SC_SMART_SCAN_ERROR
+
+typedef /* base */ struct sc_opt_scan sc_opt_scan;
+typedef struct sc_opt_ptr sc_opt_ptr;
+
+
+// -- scan types
+
+typedef /* base */ struct sc_scan sc_scan;
+typedef struct sc_ptrscan sc_ptrscan;
+
+
+// -- worker pool
+
+typedef struct sc_worker_pool sc_worker_pool;
+
+
+// -- serialiser
+
+typedef struct sc_serialiser sc_serialiser;
 
 
 //scancry header magic
@@ -787,11 +834,12 @@ typedef struct combined_file_hdr {
  *  --- [MAP_AREA_OPT] ---
  */
 
-//pointer = success, NULL = error 
+//opaque handle = success, NULL = error 
 extern sc_map_area_opt * sc_new_ma_opt();
 extern sc_map_area_opt * sc_copy_ma_opt(sc_map_area_opt * ma_opts);
-//0 = success, -1 = error
+//void return
 extern void sc_del_ma_opt(sc_map_area_opt * ma_opts);
+//0 = success, -1 = error
 extern int sc_ma_opt_reset(sc_map_area_opt * ma_opts);
 
 //setters: 0 = success, -1 = error
@@ -842,11 +890,12 @@ extern cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts);
  *  --- [MAP_AREA_SET] ---
  */
 
-//pointer = success, NULL = error
+//opaque handle = success, NULL = error
 extern sc_map_area_set * sc_new_ma_set();
 extern sc_map_area_set * sc_copy_ma_set(sc_map_area_set * ma_set);
-//0 = success, -1 = error
+//void return
 extern void sc_del_ma_set(sc_map_area_set * ma_set);
+//0 = success, -1 = error
 extern int sc_ma_set_reset(sc_map_area_set * ma_set);
 
 //0 = success, -1 = error
@@ -861,163 +910,116 @@ extern const cm_rbt * sc_get_set(sc_map_area_set * ma_set);
  *  --- [OPT] ---
  */
 
-/*
- *  To request to unset an option, pass `nullptr` for pointers
- *  or `-1` for numerical values.
- */
-
-//return: an opaque handle to a `opt` object, or NULL on error
-extern sc_opt sc_new_opt(const enum sc_addr_width addr_width);
-extern sc_opt sc_copy_opt(const sc_opt opts);
-//returns 0 on success, -1 on error
-extern int sc_del_opt(sc_opt opts);
-extern int sc_opt_reset(sc_opt opts);
-
-//return: 0 on success, -1 on error
-extern int sc_opt_set_file_path_out(sc_opt opts, const char * path);
-//returns output file path string if set, NULL if not set
-extern const char * sc_opt_get_file_path_out(const sc_opt opts);
-
-//return: 0 on success, -1 on error
-extern int sc_opt_set_file_path_in(sc_opt opts, const char * path);
-//returns an input file path string if set, NULL if not set
-extern const char * sc_opt_get_file_path_in(const sc_opt opts);
-
-/*
- * The following setter requires an initialised CMore vector (`cm_vct`)
- * holding `mc_session *`. The getter requires an unitialised CMore
- * vector which will be initialised and populated by the call. Must be
- * manually destroyed later. 
- */
-
-//all return 0 on success, -1 on error
-extern int sc_opt_set_sessions(sc_opt opts, const cm_vct * sessions);
-extern int sc_opt_get_sessions(const sc_opt opts, cm_vct * sessions);
-
+//opaque handle = success, NULL = error
+extern sc_opt * sc_new_opt();
+extern sc_opt * sc_copy_opt(const sc_opt * opts);
 //void return
-extern int sc_opt_set_map(sc_opt opts, const mc_vm_map * map);
-//returns MemCry map const pointer if set, NULL if not set
-extern mc_vm_map * sc_opt_get_map(const sc_opt opts);
+extern void sc_del_opt(sc_opt * opts);
+//0 = success, -1 = error
+extern int sc_opt_reset(sc_opt * opts);
 
-//void return
-extern int sc_opt_set_alignment(sc_opt opts, const unsigned int alignment);
-//returns alignment int if set, -1 if not set
-extern unsigned int sc_opt_get_alignment(const sc_opt opts);
+//0 = success, -1 = error
+extern int sc_opt_set_file_pathname_out(sc_opt * opts, const char * path);
+//pointer to a private string (can't fail)
+extern const char ** sc_opt_get_filename_pathname_out(const sc_opt * opts);
 
-//return: architecture byte width if set, -1 if not set
-extern enum sc_addr_width sc_opt_get_addr_width(const sc_opt opts);
+//0 = success, -1 = error
+extern int sc_opt_set_file_pathname_in(sc_opt * opts, const char * path);
+//pointer to a private string (can't fail)
+extern const char ** sc_opt_get_file_pathname_in(const sc_opt * opts);
 
 /*
- * The following setters require an initialised CMore vector (`cm_vct`)
- * holding `cm_lst_node *`. The getters require an unitialised CMore
- * vector which will be initialised and populated by the call. Must be
- * manually destroyed later. 
+ *  NOTE: The following setter requires an initialised vector. The
+ *        getter requires an unitialised vector which will be
+ *        initialised and populated by the call. On success, the
+ *        returned vector be manually destroyed. 
  */
 
-//all return 0 on success, -1 on error
-extern int sc_opt_set_omit_areas(
-                sc_opt opts, const cm_vct * omit_areas);
-extern int sc_opt_get_omit_areas(
-                const sc_opt opts, cm_vct * omit_areas);
+//0 = success, -1 = error
+extern int sc_opt_set_sessions(sc_opt * opts,
+                               const cm_vct /* <mc_session> */ * sessions);
+extern int sc_opt_get_sessions(const sc_opt * opts,
+                               cm_vct /* <mc_session> */ * sessions);
 
-//all return 0 on success, -1 on error
-extern int sc_opt_set_omit_objs(
-                sc_opt opts, const cm_vct * omit_objs);
-extern int sc_opt_get_omit_objs(
-                const sc_opt opts, cm_vct * omit_objs);
+//0 = success, -1 = error
+extern int sc_opt_set_map(sc_opt * opts, const mc_vm_map * map);
+//pointer = success, NULL = error
+extern mc_vm_map * sc_opt_get_map(const sc_opt * opts);
 
-//all return 0 on success, -1 on error
-extern int sc_opt_set_exclusive_areas(
-                sc_opt opts, const cm_vct * exclusive_areas);
-extern int sc_opt_get_exclusive_areas(
-                const sc_opt opts, cm_vct * exclusive_areas);
+//0 = success, -1 = error
+extern int sc_opt_set_alignment(sc_opt * opts, const off_t alignment);
+//alignment = success, SC_ALIGNMENT_BAD = error
+extern off_t sc_opt_get_alignment(const sc_opt opts);
 
-//all return 0 on success, -1 on error
-extern int sc_opt_set_exclusive_objs(
-                sc_opt opts, const cm_vct * exclusive_objs);
-extern int sc_opt_get_exclusive_objs(
-                const sc_opt opts, cm_vct * exclusive_objs);
+//0 = success. -1 = error
+extern int sc_opt_set_addr_width(sc_opt * opts,
+                                 const sc_addr_width addr_width);
+//address width = success, SC_ADDR_WIDTH_BAD = error
+extern enum sc_addr_width sc_opt_get_addr_width(const sc_opt * opts);
 
-//all return 0 on success, -1 on error
-extern int sc_opt_set_omit_addr_ranges(
-               sc_opt opts, const cm_vct * ranges);
-//return: sc_addr_range, both fields zero if unset
-extern int sc_opt_get_omit_addr_ranges(
-               const sc_opt opts, cm_vct * ranges);
-
-//all return 0 on success, -1 on error
-extern int sc_opt_set_exclusive_addr_ranges(
-               sc_opt opts, const cm_vct * ranges);
-//return: sc_addr_range, both fields zero if unset
-extern int sc_opt_get_exclusive_addr_ranges(
-               const sc_opt opts, cm_vct * ranges);
-
-//return: 0 on success, -1 on error
-extern int sc_opt_set_access(sc_opt opts, const cm_byte access);
-//return: access mask on success, -1 if not set
-extern cm_byte sc_opt_get_access(const sc_opt opts);
+//0 = success, -1 = error
+extern int sc_opt_set_scan_set(sc_opt * opts,
+                               const sc_map_area_opt * ma_opts);
+//map area set attribute pointer = success, NULL = error
+extern const sc_map_area_set * sc_opt_get_scan_set(const sc_opt * opts);
 
 
 /*
  *  --- [OPT_PTR] ---
  */
 
-//return: an opaque handle to a `opt_ptr` object, or NULL on error
-extern sc_opt_ptr sc_new_opt_ptr();
-extern sc_opt_ptr sc_copy_opt_ptr(const sc_opt_ptr opts_ptr);
-//returns 0 on success, -1 on error
-extern int sc_del_opt_ptr(sc_opt_ptr opts_ptr);
-extern int sc_opt_ptr_reset(sc_opt_ptr opts_ptr);
+//opaque handle = success, NULL = error
+extern sc_opt_ptr * sc_new_opt_ptr();
+extern sc_opt_ptr * sc_copy_opt_ptr(const sc_opt_ptr * opts_ptr);
+//void return
+extern void sc_del_opt_ptr(sc_opt_ptr * opts_ptr);
+//0 = success, -1 = error
+extern int sc_opt_ptr_reset(sc_opt_ptr * opts_ptr);
 
-//return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_target_addr(sc_opt_ptr opts_ptr,
+//0 = success, -1 = error
+extern int sc_opt_ptr_set_target_addr(sc_opt_ptr * opts_ptr,
                                       const uintptr_t target_addr);
-//return: target address if set, 0x0 if unset 
-extern uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptr opts_ptr);
+//target address = success, SC_TARGET_ADDR_BAD = error
+extern uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptr * opts_ptr);
 
-//return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_alignment(sc_opt_ptr opts_ptr,
-                                 const off_t alignment);
-//return: scan alignment if set, 0x0 if not set
-extern off_t sc_opt_ptr_get_alignment(const sc_opt_ptr opts_ptr);
+//0 = success, -1 = error
+extern int sc_opt_ptr_set_alignment(sc_opt_ptr * opts_ptr,
+                                    const off_t alignment);
+//alignment = success, SC_ALIGNMENT_BAD = error
+extern off_t sc_opt_ptr_get_alignment(const sc_opt_ptr * opts_ptr);
 
-//return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_max_obj_sz(sc_opt_ptr opts_ptr,
+//0 = success. -1 = error
+extern int sc_opt_ptr_set_max_obj_sz(sc_opt_ptr * opts_ptr,
                                      const off_t max_obj_sz);
-//return: max object size if set, 0x0 if not set
-extern off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptr opts_ptr);
+//max object size = success, SC_MAX_OBJ_SZ_BAD = error
+extern off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptr * opts_ptr);
 
-//return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_max_depth(sc_opt_ptr opts_ptr,
+//0 = success, -1 = error
+extern int sc_opt_ptr_set_max_depth(sc_opt_ptr * opts_ptr,
                                     const int max_depth);
-//return: max scan depth if set, 0x0 if not set
-extern int sc_opt_ptr_get_max_depth(const sc_opt_ptr opts_ptr);
+//max depth = succeess, SC_MAX_DEPTH_BAD = error
+extern int sc_opt_ptr_get_max_depth(const sc_opt_ptr * opts_ptr);
 
+//0 = success, -1 = error
+extern int sc_opt_ptr_set_static_set(sc_opt_ptr * opts_ptr,
+                                     const sc_map_area_set * static_set);
+//pointer to a private map area set (can't fail)
+extern const sc_map_area_set *
+    sc_opt_ptr_get_static_set(const sc_opt_ptr * opts_ptr);
 
-/*
- * The following setters require an initialised CMore vector (`cm_vct`)
- * holding `cm_lst_node *`. The getters require an unitialised CMore
- * vector which will be initialised and populated by the call. Must be
- * manually destroyed later. 
- */
+//0 = success, -1 = error
+extern int sc_opt_ptr_set_preset_offsets(
+    sc_opt_ptr * opts_ptr, const cm_vct * preset_offsets);
+//pointer to a private vector (can't fail)
+extern const cm_vct *
+    sc_opt_ptr_get_preset_offsets(const sc_opt_ptr * opts_ptr);
 
-//all return 0 on success, -1 on error
-extern int sc_opt_ptr_set_static_areas(sc_opt_ptr opts_ptr,
-                                       const cm_vct * static_areas);
-extern int sc_opt_ptr_get_static_areas(const sc_opt_ptr opts_ptr,
-                                       cm_vct * static_areas);
-
-//all return 0 on success, -1 on error
-extern int sc_opt_ptr_set_preset_offsets(sc_opt_ptr opts_ptr,
-                                         const cm_vct * preset_offsets);
-extern int sc_opt_ptr_get_preset_offsets(const sc_opt_ptr opts_ptr,
-                                         cm_vct * preset_offsets);
-
-//return: 0 on success, -1 on error
-extern int sc_opt_ptr_set_smart_scan(sc_opt_ptr opts_ptr,
-                                     const bool enable);
-//return: whether smart scan is enabled
-extern bool sc_opt_ptr_get_smart_scan(const sc_opt_ptr opts_ptr);
+//0 = success, -1 = fail
+extern int sc_opt_ptr_set_smart_scan(sc_opt_ptr * opts_ptr,
+                                     const enum sc_smart_scan smart_scan);
+//smart scan enum = success, SC_SMART_SCAN_BAD = errorr
+extern enum sc_smart_scan
+    sc_opt_ptr_get_smart_scan(const sc_opt_ptr * opts_ptr);
 
 
 /*

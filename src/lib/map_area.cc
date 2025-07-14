@@ -716,174 +716,45 @@ _SC_DBG_STATIC int _from_cc_addr_range(
 
 //ctors & dtor
 _DEFINE_C_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc)
-_DEFINE_C_COPY_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, src_ma_opts)
+_DEFINE_C_COPY_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 _DEFINE_C_DTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 _DEFINE_C_RESET(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
 
+
 //setters & getters
-int sc_ma_opt_set_omit_areas(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_areas) {
+_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, omit_areas)
+_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, omit_areas)
 
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-    ret = cc_ma_opts->set_omit_areas(*omit_areas);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
+_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, omit_objs)
+_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, omit_objs)
 
+_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, exclusive_areas)
+_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, exclusive_areas)
 
-const cm_vct * sc_ma_opt_get_omit_areas(sc_map_area_opt * ma_opts) {
+_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, exclusive_objs)
+_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
+                     sc, ma_opts, exclusive_objs)
 
-    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
-    return &cc_ma_opts->get_omit_areas();
-}
+_DEFINE_C_VCT_CONV_SETTER(map_area_opt, ma_opt, sc::addr_range, sc,
+                          ma_opts, omit_addr_ranges, _to_cc_addr_range)
+_DEFINE_C_VCT_CONV_GETTER(map_area_opt, ma_opt, sc_addr_range, sc,
+                          ma_opts, omit_addr_ranges, _from_cc_addr_range)
 
+_DEFINE_C_VCT_CONV_SETTER(map_area_opt, ma_opt, sc::addr_range, sc,
+                          ma_opts, exclusive_addr_ranges, _to_cc_addr_range)
+_DEFINE_C_VCT_CONV_GETTER(map_area_opt, ma_opt, sc_addr_range, sc,
+                          ma_opts, exclusive_addr_ranges, _from_cc_addr_range)
 
-int sc_ma_opt_set_omit_objs(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_objs) {
+_DEFINE_C_VALUE_SETTER(map_area_opt, ma_opt, cm_byte, sc, ma_set, access)
+_DEFINE_C_VALUE_GETTER(map_area_opt, ma_opt, cm_byte, sc, ma_set, access)
 
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-    ret = cc_ma_opts->set_omit_objs(*omit_objs);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-
-const cm_vct * sc_ma_opt_get_omit_objs(sc_map_area_opt * ma_opts) {
-    
-    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
-    return &cc_ma_opts->get_omit_objs();
-}
-
-
-//exclusive areas
-int sc_ma_opt_set_exclusive_areas(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_areas) {
-        
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-    ret = cc_ma_opts->set_omit_objs(*exclusive_areas);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-    
-const cm_vct * sc_ma_opt_get_exclusive_areas(sc_map_area_opt * ma_opts) {
-    
-    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
-    return &cc_ma_opts->get_exclusive_areas();
-}
-
-
-int sc_ma_opt_set_exclusive_objs(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_objs) {
-
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-    ret = cc_ma_opts->set_omit_objs(*exclusive_objs);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-
-const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts) {
-    
-    _CC_CAST_NO_ERR_PRELUDE(map_area_opt, sc, ma_opts)
-    return &cc_ma_opts->get_exclusive_objs();
-}
-
-
-int sc_ma_opt_set_omit_addr_ranges(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges) {
-
-    cm_vct cc_omit_addr_ranges;
-
-        
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-
-    //convert C address ranges to C++
-    ret = convert_c_data(cc_omit_addr_ranges,
-                         sizeof(sc::addr_range),
-                         *omit_addr_ranges,
-                         _to_cc_addr_range);    
-    if (ret != 0) return -1;
-
-    ret = cc_ma_opts->set_omit_areas(cc_omit_addr_ranges);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-    
-int sc_ma_opt_get_omit_addr_ranges(
-    sc_map_area_opt * ma_opts, cm_vct * addr_ranges) {
-
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-
-    const cm_vct & cc_omit_addr_ranges
-        = cc_ma_opts->get_omit_areas();
-
-    //convert C++ address ranges to C
-    ret = convert_c_data(*addr_ranges,
-                         sizeof(sc_addr_range),
-                         cc_omit_addr_ranges,
-                         _from_cc_addr_range);
-    if (ret != 0) {
-        _CTOR_VCT_DELETE_IF_INIT(*addr_ranges)
-        return -1;
-    }
-
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-
-int sc_ma_opt_set_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges) {
-
-    cm_vct cc_exclusive_addr_ranges;
-
-        
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-
-    //convert C address ranges to C++
-    ret = convert_c_data(cc_exclusive_addr_ranges,
-                         sizeof(sc::addr_range),
-                         *exclusive_addr_ranges,
-                         _to_cc_addr_range);    
-    if (ret != 0) return -1;
-
-    ret = cc_ma_opts->set_exclusive_areas(cc_exclusive_addr_ranges);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-    
-int sc_ma_opt_get_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts, cm_vct * addr_ranges) {
-
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts)
-
-    const cm_vct & cc_exclusive_addr_ranges
-        = cc_ma_opts->get_exclusive_areas();
-
-    //convert C++ address ranges to C
-    ret = convert_c_data(*addr_ranges,
-                         sizeof(sc_addr_range),
-                         cc_exclusive_addr_ranges,
-                         _from_cc_addr_range);
-    if (ret != 0) {
-        _CTOR_VCT_DELETE_IF_INIT(*addr_ranges)
-        return -1;
-    }
-
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-
-int sc_ma_opt_set_access(
-    sc_map_area_opt * ma_opts, const cm_byte access) {
-
-    _CC_CAST_PRELUDE(map_area_opt, int, sc, ma_opts);
-    ret = cc_ma_opts->set_access(access);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
-}
-
-
-cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts) {
-
-    _CC_CAST_PRELUDE(map_area_opt, cm_byte, sc, ma_opts);
-    ret = cc_ma_opts->get_access();
-    _CC_CAST_POSTLUDE(sc::val_bad::access, sc::val_bad::access, 0)
-}
 
 
 //external - map area set
@@ -896,18 +767,15 @@ _DEFINE_C_RESET(sc_map_area_set, map_area_set, ma_set, sc, ma_set)
 
 
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
-                                sc_map_area_opt * ma_opts,
-                                const mc_vm_map * map) {
+                         sc_map_area_opt * ma_opts,
+                         const mc_vm_map * map) {
 
-    _CC_CAST_PRELUDE(map_area_set, int, sc, ma_set)
+    sc::map_area_set * cc_ma_set  = (sc::map_area_set *) ma_set;
     sc::map_area_opt * cc_ma_opts = (sc::map_area_opt *) ma_opts;
-    ret = cc_ma_set->update_set(*cc_ma_opts, *map);
-    _CC_CAST_POSTLUDE(-1, -1, 0)
+    
+    return cc_ma_set->update_set(*cc_ma_opts, *map);
 }
 
 
-const cm_rbt * sc_get_set(sc_map_area_set * ma_set) {
-
-    _CC_CAST_NO_ERR_PRELUDE(map_area_set, sc, ma_set)
-    return &cc_ma_set->get_set();
-}
+//setters & getters
+_DEFINE_C_PTR_GETTER(map_area_set, ma_set, cm_rbt, sc, ma_set, set)

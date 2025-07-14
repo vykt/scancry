@@ -15,7 +15,6 @@
 #include "scancry.h"
 
 
-/* FIXME: Are mutable  getters necessary? */
 
       /* =============== * 
  ===== *  C++ INTERFACE  * =====
@@ -116,7 +115,7 @@
 //define a primitive getter
 #define _DEFINE_VALUE_GETTER(namespace, type, fail_val, value) \
 [[nodiscard]] type                                             \
-    namespace::get_##value() noexcept {                        \
+    namespace::get_##value() const noexcept {                  \
                                                                \
     int ret;                                                   \
     type value;                                                \
@@ -157,7 +156,7 @@
 //define a value reference getter
 #define _DEFINE_VALUE_REF_GETTER(namespace, type, fail_val, value) \
 [[nodiscard]] const type &                                         \
-    namespace::get_##value() noexcept {                            \
+    namespace::get_##value() const noexcept {                      \
                                                                    \
     return this->value;                                            \
 }                                                                  \
@@ -189,7 +188,7 @@
 //define a pointer getter
 #define _DEFINE_PTR_GETTER(namespace, type, ptr_field) \
 [[nodiscard]] type *                                   \
-    namespace::get_##ptr_field() noexcept {            \
+    namespace::get_##ptr_field() const noexcept {      \
                                                        \
     type * ptr_field;                                  \
                                                        \
@@ -204,6 +203,45 @@
                                                        \
     return ptr_field;                                  \
 }                                                      \
+
+
+// -- enum setter & getter helper macros
+
+//define an enum setter
+#define _DEFINE_ENUM_SETTER(namespace, type, enm) \
+[[nodiscard]] int namespace::set_##enm(           \
+    const enum type enm) noexcept {               \
+                                                    \
+    int ret;                                        \
+                                                    \
+                                                    \
+    /* acquire a write lock */                      \
+    _LOCK_WRITE(-1)                                 \
+                                                    \
+    this->enm = (enum type) enm;                \
+                                                    \
+    /* release the lock */                          \
+    _UNLOCK                                         \
+                                                    \
+    return 0;                                       \
+}                                                   \
+
+
+//define an enum getter
+#define _DEFINE_ENUM_GETTER(namespace, type, enm)                    \
+[[nodiscard]] int                                                    \
+    namespace::get_##enm(enum type & enm) const noexcept {           \
+                                                                     \
+    /* acquire a read lock */                                        \
+    _LOCK_READ(-1)                                                   \
+                                                                     \
+    enm = this->enm;                                                 \
+                                                                     \
+    /* release the lock */                                           \
+    _UNLOCK                                                          \
+                                                                     \
+    return 0;                                                        \
+}                                                                    \
 
 
 // -- string setter & getter helper macros
@@ -241,7 +279,7 @@
 //define a string getter
 #define _DEFINE_STR_GETTER(namespace, str_field)              \
 [[nodiscard]] const char * const &                            \
-    namespace::get_##str_field() noexcept {                   \
+    namespace::get_##str_field() const noexcept {             \
                                                               \
     return const_cast<const char * const &>(this->str_field); \
 }                                                             \
@@ -287,19 +325,19 @@
 //define a vector getter
 #define _DEFINE_VCT_GETTER(namespace, vct_field)  \
 [[nodiscard]] const cm_vct &                      \
-    namespace::get_##vct_field() noexcept {       \
+    namespace::get_##vct_field() const noexcept { \
                                                   \
     return this->vct_field;                       \
 }                                                 \
 
 
 //define an internal mutable vector getter
-#define _DEFINE_VCT_GETTER_MUT(namespace, vct_field) \
-[[nodiscard]] cm_vct &                               \
-    namespace::_get_##vct_field##_mut() noexcept {   \
-                                                     \
-    return this->vct_field;                          \
-}                                                    \
+#define _DEFINE_VCT_GETTER_MUT(namespace, vct_field)     \
+[[nodiscard]] cm_vct &                                   \
+    namespace::_get_##vct_field##_mut() noexcept {       \
+                                                         \
+    return this->vct_field;                              \
+}                                                        \
 
 
 // -- red-black tree setter & getter helper macros
@@ -333,19 +371,19 @@
 //define a red-black tree getter
 #define _DEFINE_RBT_GETTER(namespace, rbt_field)  \
 [[nodiscard]] const cm_rbt &                      \
-    namespace::get_##rbt_field() noexcept {       \
+    namespace::get_##rbt_field() const noexcept { \
                                                   \
     return this->rbt_field;                       \
 }                                                 \
 
 
 //define an internal mutable red-black tree getter
-#define _DEFINE_RBT_GETTER_MUT(namespace, rbt_field) \
-[[nodiscard]] cm_rbt &                               \
-    namespace::_get_##rbt_field##_mut() noexcept {   \
-                                                     \
-    return this->rbt_field;                          \
-}                                                    \
+#define _DEFINE_RBT_GETTER_MUT(namespace, rbt_field)     \
+[[nodiscard]] cm_rbt &                                   \
+    namespace::_get_##rbt_field##_mut() noexcept {       \
+                                                         \
+    return this->rbt_field;                              \
+}                                                        \
 
 
 // -- object settter & getter helper macros
@@ -383,7 +421,7 @@
 //define an object reference getter
 #define _DEFINE_OBJ_REF_GETTER(namespace, type, obj) \
 [[nodiscard]] const type &                           \
-    namespace::get_##obj() noexcept {                \
+    namespace::get_##obj() const noexcept {          \
                                                      \
     return this->obj;                                \
 }                                                    \
@@ -431,6 +469,13 @@ void mov_rbt_if_init(
       /* ============= * 
  ===== *  C INTERFACE  * =====
        * ============= */
+
+//convert a vector of C objects to/from C++ objects 
+[[nodiscard]] int convert_c_data(
+    cm_vct /* <N/A> */ & dst_vct,
+    const size_t dst_data_sz,
+    const cm_vct /* <N/A> */ & src_vct,
+    int (* convert)(void * dst, const void * src));
 
 
 // -- constructors & destructors
@@ -549,23 +594,198 @@ int sc_##short_type##_reset(type * obj) {      \
 }                                              \
 
 
-//C setter prelude
-#define _CC_CAST_PRELUDE(cc_type, ret_type, namespace, hdl)     \
-    ret_type ret;                                               \
-    namespace::cc_type * cc_##hdl = (namespace::cc_type *) hdl; \
+//define a C interface setter by value
+#define _DEFINE_C_VALUE_SETTER(hdl_type, short_hdl_type,    \
+                               type, namespace, hdl, value) \
+int sc_##short_hdl_type##_set_##value(                      \
+    sc_##hdl_type * hdl, const type value) {                \
+                                                            \
+    namespace::hdl_type * cc_##hdl                          \
+        = (namespace::hdl_type *) hdl;                      \
+                                                            \
+    return cc_##hdl->set_##value(value);                    \
+}                                                           \
 
-//C setter postlude
-#define _CC_CAST_POSTLUDE(bad_val, bad_ret, good_ret)  \
-    return (ret == bad_val) ? bad_ret : good_ret;      \
 
-//C getter prelude
-#define _CC_CAST_NO_ERR_PRELUDE(cc_type, namespace, hdl)        \
-    namespace::cc_type * cc_##hdl = (namespace::cc_type *) hdl; \
+//define a C interface getter by value
+#define _DEFINE_C_VALUE_GETTER(hdl_type, short_hdl_type,      \
+                               type, namespace, hdl, value)   \
+type sc_##short_hdl_type##_get_##value(sc_##hdl_type * hdl) { \
+                                                              \
+    namespace::hdl_type * cc_##hdl                            \
+        = (namespace::hdl_type *) hdl;                        \
+                                                              \
+    return cc_##hdl->get_##value();                           \
+}                                                             \
 
 
-//convert a vector of C objects to/from C++ objects 
-[[nodiscard]] int convert_c_data(
-    cm_vct /* <N/A> */ & dst_vct,
-    const size_t dst_data_sz,
-    const cm_vct /* <N/A> */ & src_vct,
-    int (* convert)(void * dst, const void * src));
+//define a C interface setter by value & convert between C++ & C types
+#define _DEFINE_C_VALUE_CONV_SETTER(hdl_type, short_hdl_type, \
+                                    type, cc_type, namespace, \
+                                    hdl, value, convert_cb)   \
+int sc_##short_hdl_type##_set_##value(                        \
+    sc_##hdl_type * hdl, const type value) {                  \
+                                                              \
+    int ret;                                                  \
+    cc_type cc_##value;                                       \
+    namespace::hdl_type * cc_##hdl                            \
+        = (namespace::hdl_type *) hdl;                        \
+                                                              \
+    ret = convert_cb(&cc_##value, &value);                    \
+    if (ret != 0) { sc_errno = SC_ERR_TYPECAST; return -1; }  \
+                                                              \
+    return cc_##hdl->set_##value(cc_##value);                 \
+}                                                             \
+
+
+//define a C interface getter by value & convert bwetween C++ & C types
+#define _DEFINE_C_VALUE_CONV_GETTER(hdl_type, short_hdl_type, \
+                                    type, cc_type, namespace, \
+                                    hdl, value, convert_cb,   \
+                                    bad_val, bad_ret)         \
+type sc_##short_hdl_type##_get_##value(sc_##hdl_type * hdl) { \
+                                                              \
+    int ret;                                                  \
+    type c_##value;                                           \
+    cc_type cc_##value;                                       \
+    namespace::hdl_type * cc_##hdl                            \
+        = (namespace::hdl_type *) hdl;                        \
+                                                              \
+    cc_##value = cc_##hdl->get_##value();                     \
+    if (cc_##value != bad_val) return bad_ret;                \
+                                                              \
+    ret = convert_cb(&c_##value, &cc_##value);                \
+    if (ret != 0) {                                           \
+        sc_errno = SC_ERR_TYPECAST;                           \
+        return bad_ret;                                       \
+    }                                                         \
+                                                              \
+    return c_##value;                                         \
+}                                                             \
+
+
+//define a C interface value setter by pointer
+#define _DEFINE_C_PTR_SETTER(hdl_type, short_hdl_type,  \
+                             type, namespace, hdl, ptr) \
+int sc_##short_hdl_type##_set_##ptr(                    \
+    sc_##hdl_type * hdl, const type * ptr) {            \
+                                                        \
+    namespace::hdl_type * cc_##hdl                      \
+        = (namespace::hdl_type *) hdl;                  \
+                                                        \
+    return cc_##hdl->set_##ptr(*ptr);                   \
+}                                                       \
+
+
+//define a C interface value getter by pointer
+#define _DEFINE_C_PTR_GETTER(hdl_type, short_hdl_type,              \
+                             type, namespace, hdl, ptr)             \
+const type * sc_##short_hdl_type##_get_##ptr(sc_##hdl_type * hdl) { \
+                                                                    \
+    namespace::hdl_type * cc_##hdl                                  \
+        = (namespace::hdl_type *) hdl;                              \
+                                                                    \
+    return (const type *) &cc_##hdl->get_##ptr();                   \
+}                                                                   \
+
+
+//define a C interface object setter
+#define _DEFINE_C_OBJ_SETTER(hdl_type, short_hdl_type,  \
+                             type, namespace, hdl, obj) \
+int sc_##short_hdl_type##_set_##obj(                    \
+    sc_##hdl_type * hdl, const sc_##type * obj) {            \
+                                                        \
+    namespace::hdl_type * cc_##hdl                      \
+        = (namespace::hdl_type *) hdl;                  \
+                                                        \
+    /* cast setter object */                            \
+    namespace::type * cc_##obj                          \
+        = (namespace::type *) obj;                      \
+                                                        \
+    return cc_##hdl->set_##obj(*cc_##obj);               \
+}                                                       \
+
+
+//define a C interface object getter
+#define _DEFINE_C_OBJ_GETTER(hdl_type, short_hdl_type,                   \
+                             type, namespace, hdl, obj)                  \
+const sc_##type * sc_##short_hdl_type##_get_##obj(sc_##hdl_type * hdl) { \
+                                                                         \
+    namespace::hdl_type * cc_##hdl                                       \
+        = (namespace::hdl_type *) hdl;                                   \
+                                                                         \
+    return (const sc_##type *) &cc_##hdl->get_##obj();                   \
+}                                                                        \
+
+
+//define a C interface value setter by pointer
+#define _DEFINE_C_ENUM_SETTER(hdl_type, short_hdl_type,  \
+                             type, namespace, hdl, enm)  \
+int sc_##short_hdl_type##_set_##enm(                     \
+    sc_##hdl_type * hdl, const sc_##type * enm) {        \
+                                                         \
+    namespace::hdl_type * cc_##hdl                       \
+        = (namespace::hdl_type *) hdl;                   \
+                                                         \
+    return cc_##hdl->set_##enm((namespace::type &) enm); \
+}                                                        \
+
+
+//define a C interface value getter by pointer
+#define _DEFINE_C_ENUM_GETTER(hdl_type, short_hdl_type,  \
+                              type, namespace, hdl, enm) \
+int sc_##short_hdl_type##_get_##enm(                     \
+    sc_##hdl_type * hdl, enum sc_##type enm) {           \
+                                                         \
+    namespace::hdl_type * cc_##hdl                       \
+        = (namespace::hdl_type *) hdl;                   \
+                                                         \
+    return cc_##hdl->get_##enm((namespace::type &) enm); \
+}                                                        \
+
+
+//define a C interface vector setter which converts C structures to C++
+#define _DEFINE_C_VCT_CONV_SETTER(hdl_type, short_hdl_type,    \
+                                  vct_cc_data_type, namespace, \
+                                  hdl, vct, convert_cb)        \
+int sc_##short_hdl_type##_set_##vct(                           \
+    sc_##hdl_type * hdl, const cm_vct * vct) {                 \
+                                                               \
+    int ret;                                                   \
+    cm_vct cc_##vct;                                           \
+    namespace::hdl_type * cc_##hdl                             \
+        = (namespace::hdl_type *) hdl;                         \
+                                                               \
+    /* convert C address ranges to C++ */                      \
+    ret = convert_c_data(cc_##vct,                             \
+                         sizeof(vct_cc_data_type),             \
+                         *vct,                                 \
+                         convert_cb);                          \
+    if (ret != 0) return -1;                                   \
+                                                               \
+    ret = cc_##hdl->set_##vct(cc_##vct);                       \
+    cm_del_vct(&cc_##vct);                                     \
+    return ret;                                                \
+}                                                              \
+
+
+//define a C interface vector getter (by value) which converts C
+//structures to C++
+#define _DEFINE_C_VCT_CONV_GETTER(hdl_type, short_hdl_type, \
+                                  vct_data_type, namespace, \
+                                  hdl, vct, convert_cb)     \
+int sc_##short_hdl_type##_get_##vct(                        \
+    sc_##hdl_type * hdl, cm_vct * vct) {                    \
+                                                            \
+    namespace::hdl_type * cc_##hdl                          \
+        = (namespace::hdl_type *) hdl;                      \
+                                                            \
+    const cm_vct & cc_##vct                                 \
+        = cc_##hdl->get_##vct();                            \
+                                                            \
+    /* convert C++ address ranges to C */                   \
+    return convert_c_data(*vct,                             \
+                          sizeof(vct_data_type),            \
+                          cc_##vct,                         \
+                          convert_cb);                      \
+}                                                           \

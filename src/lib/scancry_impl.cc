@@ -40,7 +40,7 @@ sc::_lockable & sc::_lockable::operator=(
 
 
 //acquire a read lock
-_SC_DBG_INLINE int sc::_lockable::_lock_read() noexcept {
+_SC_DBG_INLINE int sc::_lockable::_lock_read() const noexcept {
 
     int ret;
 
@@ -59,7 +59,7 @@ _SC_DBG_INLINE int sc::_lockable::_lock_read() noexcept {
 
 
 //acquire a write lock
-_SC_DBG_INLINE int sc::_lockable::_lock_write() noexcept {
+_SC_DBG_INLINE int sc::_lockable::_lock_write() const noexcept {
 
     int ret;
 
@@ -78,7 +78,7 @@ _SC_DBG_INLINE int sc::_lockable::_lock_write() noexcept {
 
 
 //release a read or write lock
-_SC_DBG_INLINE void sc::_lockable::_unlock() noexcept {
+_SC_DBG_INLINE void sc::_lockable::_unlock() const noexcept {
 
     pthread_rwlock_unlock(&this->lock);
     return;

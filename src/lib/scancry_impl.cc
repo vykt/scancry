@@ -139,11 +139,13 @@ void sc::_opt_scan::do_copy(sc::_opt_scan & opts_scan) noexcept {
 
 
 //constructor
-sc::_opt_scan::_opt_scan() noexcept : _lockable(), _ctor_failable() {}
+sc::_opt_scan::_opt_scan() noexcept
+ : _lockable(), _ctor_failable() {}
 
 
 //copy constructor
-sc::_opt_scan::_opt_scan(sc::_opt_scan & opts_scan) noexcept {
+sc::_opt_scan::_opt_scan(sc::_opt_scan & opts_scan) noexcept
+ : _lockable(), _ctor_failable() {
 
     this->do_copy(opts_scan);
     return;

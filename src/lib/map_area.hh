@@ -37,55 +37,55 @@ extern "C" {
 //external - map area options
 
 //pointer = success, -1 = error
-sc_map_area_opt * sc_new_ma_opt();
-sc_map_area_opt * sc_copy_ma_opt(sc_map_area_opt * ma_opts);
+sc_opt_map_area * sc_new_opt_ma();
+sc_opt_map_area * sc_copy_opt_ma(sc_opt_map_area * opts_ma);
 //0 = success, -1 = error
-void sc_del_ma_opt(sc_map_area_opt * ma_opts);
-int sc_ma_opt_reset(sc_map_area_opt * ma_opts);
+void sc_del_opt_ma(sc_opt_map_area * opts_ma);
+int sc_opt_ma_reset(sc_opt_map_area * opts_ma);
 
 //setters: 0 = success, -1 = error
 //getters: pointer = success, NULL = error
 
 //omit areas
-int sc_ma_opt_set_omit_areas(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_areas);
-const cm_vct * sc_ma_opt_get_omit_areas(sc_map_area_opt * ma_opts);
+int sc_opt_ma_set_omit_areas(
+    sc_opt_map_area * opts_ma, const cm_vct * omit_areas);
+const cm_vct * sc_opt_ma_get_omit_areas(sc_opt_map_area * opts_ma);
 
 //omit objects
-int sc_ma_opt_set_omit_objs(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_objs);
-const cm_vct * sc_ma_opt_get_omit_objs(sc_map_area_opt * ma_opts);
+int sc_opt_ma_set_omit_objs(
+    sc_opt_map_area * opts_ma, const cm_vct * omit_objs);
+const cm_vct * sc_opt_ma_get_omit_objs(sc_opt_map_area * opts_ma);
 
 //exclusive areas
-int sc_ma_opt_set_exclusive_areas(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_areas);
-const cm_vct * sc_ma_opt_get_exclusive_areas(sc_map_area_opt * ma_opts);
+int sc_opt_ma_set_exclusive_areas(
+    sc_opt_map_area * opts_ma, const cm_vct * exclusive_areas);
+const cm_vct * sc_opt_ma_get_exclusive_areas(sc_opt_map_area * opts_ma);
 
 //exclusive objects
-int sc_ma_opt_set_exclusive_objs(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_objs);
-const cm_vct * sc_ma_opt_get_exclusive_objs(sc_map_area_opt * ma_opts);
+int sc_opt_ma_set_exclusive_objs(
+    sc_opt_map_area * opts_ma, const cm_vct * exclusive_objs);
+const cm_vct * sc_opt_ma_get_exclusive_objs(sc_opt_map_area * opts_ma);
 
 //omit address ranges
-int sc_ma_opt_set_omit_addr_ranges(
-    sc_map_area_opt * ma_opts, const cm_vct * omit_addr_ranges);
+int sc_opt_ma_set_omit_addr_ranges(
+    sc_opt_map_area * opts_ma, const cm_vct * omit_addr_ranges);
 //only for this getter: 0 = success, -1 = fail, deallocate vector manually
-int sc_ma_opt_get_omit_addr_ranges(
-    sc_map_area_opt * ma_opts, cm_vct * addr_ranges);
+int sc_opt_ma_get_omit_addr_ranges(
+    sc_opt_map_area * opts_ma, cm_vct * addr_ranges);
 
 //exclusive address ranges
-int sc_ma_opt_set_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts, const cm_vct * exclusive_addr_ranges);
+int sc_opt_ma_set_exclusive_addr_ranges(
+    sc_opt_map_area * opts_ma, const cm_vct * exclusive_addr_ranges);
 //only for this getter: 0 = success, -1 = fail, deallocate vector manually
-int sc_ma_opt_get_exclusive_addr_ranges(
-    sc_map_area_opt * ma_opts, cm_vct * addr_range);
+int sc_opt_ma_get_exclusive_addr_ranges(
+    sc_opt_map_area * opts_ma, cm_vct * addr_range);
 
 //access
 //0 = success, CM_BYTE_MAX = error
-int sc_ma_opt_set_access(
-    sc_map_area_opt * ma_opts, const cm_byte access);
+int sc_opt_ma_set_access(
+    sc_opt_map_area * opts_ma, const cm_byte access);
 //CM_BYTE_MAX = error, SC_ACCESS_UNSET = not set, other = success
-cm_byte sc_ma_opt_get_access(sc_map_area_opt * ma_opts);
+cm_byte sc_opt_ma_get_access(sc_opt_map_area * opts_ma);
 
 
 //external - map area set
@@ -99,7 +99,7 @@ int sc_ma_set_reset(sc_map_area_set * ma_set);
 
 //0 = success, -1 = error
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
-                                sc_map_area_opt * ma_opts,
+                                sc_opt_map_area * opts_ma,
                                 const mc_vm_map * map);
 //pointer = success, -1 = error
 const cm_rbt * sc_get_set(sc_map_area_set * ma_set);

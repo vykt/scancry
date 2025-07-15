@@ -2,6 +2,9 @@
 #include <iostream>
 #include <iomanip>
 
+//C standard library
+#include <cstring>
+
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
@@ -14,23 +17,35 @@
 
 
 
-void _memcry_helper::setup(_memcry_helper::args & mcry_args, pid_t pid, int session_num) {
+void _memcry_helper::setup(_memcry_helper::args & mcry_args,
+                           const pid_t pid, const int session_num) {
 
     int ret;
+    mc_session * session;
 
 
-    //start MemCry sessions on the target
-    mcry_args.sessions.resize(session_num);
-    for (int i = 0; i < session_num; ++i) {
-        ret = mc_open(&mcry_args.sessions[i], PROCFS, pid);
-        CHECK_EQ(ret, 0);
+    //start memcry sessions on the target
+    ret = cm_new_vct(&mcry_args.sessions, sizeof(mc_session));
+    REQUIRE_EQ(ret, 0);
+
+    ret = cm_vct_rsz(&mcry_args.sessions, session_num);
+    REQUIRE_EQ(ret, 0);
+    
+    for (int i = 0; i < mcry_args.sessions.len; ++i) {
+
+        session = (mc_session *) cm_vct_get_p(&mcry_args.sessions, i);
+        REQUIRE_NE(session, nullptr);
+        
+        std::memset(session, 0, sizeof(*session));
+        ret = mc_open(session, PROCFS, pid);
+        REQUIRE_EQ(ret, 0);
     }
 
-    //initialise a MemCry map of the target
+    //initialise a memcry map of the target
     mc_new_vm_map(&mcry_args.map);
 
-    //populate the MemCry map
-    ret = mc_update_map(&mcry_args.sessions[0], &mcry_args.map);
+    //populate the memcry map
+    ret = mc_update_map(session, &mcry_args.map);
     REQUIRE_EQ(ret, 0);
 
     return;
@@ -40,25 +55,31 @@ void _memcry_helper::setup(_memcry_helper::args & mcry_args, pid_t pid, int sess
 void _memcry_helper::teardown(_memcry_helper::args & mcry_args) {
 
     int ret;
-    
+    mc_session * session;
+
 
     //close MemCry sessions
-    for (auto iter = mcry_args.sessions.begin();
-         iter != mcry_args.sessions.end(); ++iter) {
-        ret = mc_close(&(*iter));
-        CHECK_EQ(ret, 0);
+    for (int i = 0;  i < mcry_args.sessions.len; ++i) {
+
+        session = (mc_session *) cm_vct_get_p(&mcry_args.sessions, i);
+        REQUIRE_NE(session, nullptr);
+
+        ret = mc_close(session);
+        REQUIRE_EQ(ret, 0);
     }
-    mcry_args.sessions.resize(0);
+
+    //destroy the sessions vector
+    cm_del_vct(&mcry_args.sessions);
     
-    //destroy the MemCry map
+    //destroy the memory map
     ret = mc_del_vm_map(&mcry_args.map);
-    CHECK_EQ(ret ,0);
+    REQUIRE_EQ(ret ,0);
 
     return;
 }
 
 
-void _memcry_helper::print_area(mc_vm_area * area) {
+void _memcry_helper::print_area(const mc_vm_area * area) {
 
     char str_buf[5];
 
@@ -81,7 +102,7 @@ void _memcry_helper::print_area(mc_vm_area * area) {
 }
 
 
-void _memcry_helper::print_map(mc_vm_map * map) {
+void _memcry_helper::print_map(const mc_vm_map * map) {
 
     char str_buf[5];
     cm_lst_node * area_node;

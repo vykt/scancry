@@ -20,18 +20,15 @@
 
 namespace _opt_helper {
 
-struct args {
+    struct args {
 
-    sc::opt opts;
-    sc::opt_ptr opts_ptr;
-    sc::map_area_set ma_set;
+        sc::opt opts;
+        sc::opt_ptr opts_ptr;
+        sc::opt_map_area opts_ma; 
+    };
 
-    args(sc::addr_width aw) : opts(sc::opt(aw)) {}
-};
-
-void setup(args & opt_args,
-           _memcry_helper::args & mcry_args,
-           std::function<void()> setup_cb);
-void teardown(args & opt_args);
-
+    void setup(_opt_helper::args & opt_args,
+               const _memcry_helper::args & mcry_args,
+               std::function<void()> setup_cb);
+    void teardown(_opt_helper::args & opt_args);
 }

@@ -191,53 +191,53 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
 
 
 /*
- *  --- [MAP_AREA_OPT | PRIVATE] ---
+ *  --- [OPT_MAP_AREA | PRIVATE] ---
  */
 
 //perform a deep copy
-void sc::map_area_opt::do_copy(sc::map_area_opt & ma_opts) noexcept {
+void sc::opt_map_area::do_copy(sc::opt_map_area & opts_ma) noexcept {
 
     int ret;
 
 
     //acquire a read lock on the source object
-    ret = ma_opts._lock_read();
+    ret = opts_ma._lock_read();
     if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //call parent copy assignment operators
-    _lockable::operator=(ma_opts);
-    _ctor_failable::operator=(ma_opts);
+    _lockable::operator=(opts_ma);
+    _ctor_failable::operator=(opts_ma);
 
     //copy constraint vectors
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->omit_areas,
-        ma_opts.get_omit_areas(), ma_opts)
+        opts_ma.get_omit_areas(), opts_ma)
     
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->omit_objs,
-        ma_opts.get_omit_objs(), ma_opts)
+        opts_ma.get_omit_objs(), opts_ma)
 
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->exclusive_areas,
-        ma_opts.get_exclusive_areas(), ma_opts)
+        opts_ma.get_exclusive_areas(), opts_ma)
 
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->exclusive_objs,
-        ma_opts.get_exclusive_objs(), ma_opts)
+        opts_ma.get_exclusive_objs(), opts_ma)
 
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->omit_addr_ranges,
-        ma_opts.get_omit_addr_ranges(), ma_opts)
+        opts_ma.get_omit_addr_ranges(), opts_ma)
 
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
         this->exclusive_addr_ranges,
-        ma_opts.get_exclusive_addr_ranges(), ma_opts)
+        opts_ma.get_exclusive_addr_ranges(), opts_ma)
 
     //copy access
-    this->access = ma_opts.get_access();
+    this->access = opts_ma.get_access();
 
     //release the lock
-    ma_opts._unlock();
+    opts_ma._unlock();
 
     return;
 }
@@ -245,11 +245,11 @@ void sc::map_area_opt::do_copy(sc::map_area_opt & ma_opts) noexcept {
 
 
 /*
- *  --- [MAP_AREA_OPT | PUBLIC] ---
+ *  --- [OPT_MAP_AREA | PUBLIC] ---
  */
 
 //constructor
-sc::map_area_opt::map_area_opt() noexcept
+sc::opt_map_area::opt_map_area() noexcept
  : _lockable(), _ctor_failable(), access(sc::val_unset::access) {
 
     //zero out vectors
@@ -265,15 +265,16 @@ sc::map_area_opt::map_area_opt() noexcept
 
 
 //copy constructor
-sc::map_area_opt::map_area_opt(sc::map_area_opt & ma_opts) noexcept {
+sc::opt_map_area::opt_map_area(sc::opt_map_area & opts_ma) noexcept
+ : _lockable(), _ctor_failable() {
 
-    this->do_copy(ma_opts);
+    this->do_copy(opts_ma);
     return;
 }
 
 
 //destructor
-sc::map_area_opt::~map_area_opt() noexcept {
+sc::opt_map_area::~opt_map_area() noexcept {
 
     //destroy all initialised vectors
     _CTOR_VCT_DELETE_IF_INIT(this->omit_areas)
@@ -288,16 +289,16 @@ sc::map_area_opt::~map_area_opt() noexcept {
 
 
 //copy assignment operator
-sc::map_area_opt & sc::map_area_opt::operator=(
-    sc::map_area_opt & ma_opts) noexcept {
+sc::opt_map_area & sc::opt_map_area::operator=(
+    sc::opt_map_area & opts_ma) noexcept {
 
-    if (this != &ma_opts) this->do_copy(ma_opts);
+    if (this != &opts_ma) this->do_copy(opts_ma);
     return *this;
 }
 
 
 //reset the area constraints
-[[nodiscard]] int sc::map_area_opt::reset() noexcept {
+[[nodiscard]] int sc::opt_map_area::reset() noexcept {
 
     //acquire a write lock
     _LOCK_WRITE(-1);
@@ -321,26 +322,26 @@ sc::map_area_opt & sc::map_area_opt::operator=(
 
 
 //setters & getters
-_DEFINE_VCT_SETTER(sc::map_area_opt, omit_areas)
-_DEFINE_VCT_GETTER(sc::map_area_opt, omit_areas)
+_DEFINE_VCT_SETTER(sc::opt_map_area, omit_areas)
+_DEFINE_VCT_GETTER(sc::opt_map_area, omit_areas)
 
-_DEFINE_VCT_SETTER(sc::map_area_opt, omit_objs)
-_DEFINE_VCT_GETTER(sc::map_area_opt, omit_objs)
+_DEFINE_VCT_SETTER(sc::opt_map_area, omit_objs)
+_DEFINE_VCT_GETTER(sc::opt_map_area, omit_objs)
 
-_DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_areas)
-_DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_areas)
+_DEFINE_VCT_SETTER(sc::opt_map_area, exclusive_areas)
+_DEFINE_VCT_GETTER(sc::opt_map_area, exclusive_areas)
 
-_DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_objs)
-_DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_objs)
+_DEFINE_VCT_SETTER(sc::opt_map_area, exclusive_objs)
+_DEFINE_VCT_GETTER(sc::opt_map_area, exclusive_objs)
 
-_DEFINE_VCT_SETTER(sc::map_area_opt, omit_addr_ranges)
-_DEFINE_VCT_GETTER(sc::map_area_opt, omit_addr_ranges)
+_DEFINE_VCT_SETTER(sc::opt_map_area, omit_addr_ranges)
+_DEFINE_VCT_GETTER(sc::opt_map_area, omit_addr_ranges)
 
-_DEFINE_VCT_SETTER(sc::map_area_opt, exclusive_addr_ranges)
-_DEFINE_VCT_GETTER(sc::map_area_opt, exclusive_addr_ranges)
+_DEFINE_VCT_SETTER(sc::opt_map_area, exclusive_addr_ranges)
+_DEFINE_VCT_GETTER(sc::opt_map_area, exclusive_addr_ranges)
 
-_DEFINE_VALUE_SETTER(sc::map_area_opt, cm_byte, access)
-_DEFINE_VALUE_GETTER(sc::map_area_opt, cm_byte, sc::val_bad::access, access)
+_DEFINE_VALUE_SETTER(sc::opt_map_area, cm_byte, access)
+_DEFINE_VALUE_GETTER(sc::opt_map_area, cm_byte, access, sc::val_bad::access)
 
 
 
@@ -390,7 +391,8 @@ sc::map_area_set::map_area_set() noexcept
 
 
 //copy constructor
-sc::map_area_set::map_area_set(sc::map_area_set & ma_set) noexcept {
+sc::map_area_set::map_area_set(sc::map_area_set & ma_set) noexcept
+ : _lockable(), _ctor_failable() {
 
     this->do_copy(ma_set);
     return;
@@ -433,7 +435,7 @@ sc::map_area_set & sc::map_area_set::operator=(
 
 
 [[nodiscard]] int sc::map_area_set::update_set(
-    sc::map_area_opt & ma_opts, const mc_vm_map & map) noexcept {
+    sc::opt_map_area & opts_ma, const mc_vm_map & map) noexcept {
 
     int ret, ret_val;
     cm_rbt_node * new_node;
@@ -448,7 +450,6 @@ sc::map_area_set & sc::map_area_set::operator=(
 
     enum _constraint_match match;
     sc::addr_range addr_range(0x0, 0x0);
-    uintptr_t end_addr;
 
     /*
      *  NOTE: If an area is not included in an exclusive set, continue
@@ -463,7 +464,7 @@ sc::map_area_set & sc::map_area_set::operator=(
     _LOCK_WRITE(-1);
 
     //acquire a read lock on the map area options
-    ret = ma_opts._lock_read();
+    ret = opts_ma._lock_read();
     if (ret != 0) {
         _UNLOCK
         return -1;
@@ -479,18 +480,18 @@ sc::map_area_set & sc::map_area_set::operator=(
 
     //fetch scan constraints
     const cm_vct /* <cm_lst_node *> */ & omit_areas
-        = ma_opts.get_omit_areas(); 
+        = opts_ma.get_omit_areas(); 
     const cm_vct /* <cm_lst_node *> */ & omit_objs
-        = ma_opts.get_omit_objs(); 
+        = opts_ma.get_omit_objs(); 
     const cm_vct /* <cm_lst_node *> */ & exclusive_areas
-        = ma_opts.get_exclusive_areas(); 
+        = opts_ma.get_exclusive_areas(); 
     const cm_vct /* <cm_lst_node *> */ & exclusive_objs
-        = ma_opts.get_exclusive_objs(); 
+        = opts_ma.get_exclusive_objs(); 
     const cm_vct /* <cm_lst_node *> */ & omit_addr_ranges
-        = ma_opts.get_omit_addr_ranges(); 
+        = opts_ma.get_omit_addr_ranges(); 
     const cm_vct /* <cm_lst_node *> */ & exclusive_addr_ranges
-        = ma_opts.get_exclusive_addr_ranges(); 
-    const cm_byte access = ma_opts.get_access();
+        = opts_ma.get_exclusive_addr_ranges(); 
+    const cm_byte access = opts_ma.get_access();
 
     //determine if exclusive constraints are provided
     exclusive_constraints_used = (exclusive_areas.is_init == true)
@@ -649,13 +650,13 @@ sc::map_area_set & sc::map_area_set::operator=(
         ret_val = -1;
     }
 
-    ma_opts._unlock();
+    opts_ma._unlock();
     _UNLOCK
     return ret_val;
 
     _update_set_fail:
     _CTOR_RBT_DELETE_IF_INIT(this->set);
-    ma_opts._unlock();
+    opts_ma._unlock();
     _UNLOCK
     
     return -1;
@@ -711,69 +712,61 @@ _SC_DBG_STATIC int _from_cc_addr_range(
 
 
 /*
- *  --- [MAP_AREA_OPT | EXTERNAL] ---
+ *  --- [OPT_map_area | EXTERNAL] ---
  */
 
 //ctors & dtor
-_DEFINE_C_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc)
-_DEFINE_C_COPY_CTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
-_DEFINE_C_DTOR(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
-_DEFINE_C_RESET(sc_map_area_opt, map_area_opt, ma_opt, sc, ma_opts)
+_DEFINE_C_CTOR(opt_map_area, opt_ma, sc)
+_DEFINE_C_COPY_CTOR(opt_map_area, opt_ma, sc, opts_ma)
+_DEFINE_C_DTOR(opt_map_area, opt_ma, sc, opts_ma)
+_DEFINE_C_RESET(opt_map_area, opt_ma, sc, opts_ma)
 
 
 //setters & getters
-_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, omit_areas)
-_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, omit_areas)
+_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_areas)
+_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_areas)
 
-_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, omit_objs)
-_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, omit_objs)
+_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_objs)
+_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_objs)
 
-_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, exclusive_areas)
-_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, exclusive_areas)
+_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_areas)
+_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_areas)
 
-_DEFINE_C_PTR_SETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, exclusive_objs)
-_DEFINE_C_PTR_GETTER(map_area_opt, ma_opt, cm_vct,
-                     sc, ma_opts, exclusive_objs)
+_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct,sc, opts_ma,  exclusive_objs)
+_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_objs)
 
-_DEFINE_C_VCT_CONV_SETTER(map_area_opt, ma_opt, sc::addr_range, sc,
-                          ma_opts, omit_addr_ranges, _to_cc_addr_range)
-_DEFINE_C_VCT_CONV_GETTER(map_area_opt, ma_opt, sc_addr_range, sc,
-                          ma_opts, omit_addr_ranges, _from_cc_addr_range)
+_DEFINE_C_VCT_CONV_SETTER(opt_map_area, opt_ma, sc::addr_range, sc,
+                          opts_ma, omit_addr_ranges, _to_cc_addr_range)
+_DEFINE_C_VCT_CONV_GETTER(opt_map_area, opt_ma, sc_addr_range, sc,
+                          opts_ma, omit_addr_ranges, _from_cc_addr_range)
 
-_DEFINE_C_VCT_CONV_SETTER(map_area_opt, ma_opt, sc::addr_range, sc,
-                          ma_opts, exclusive_addr_ranges, _to_cc_addr_range)
-_DEFINE_C_VCT_CONV_GETTER(map_area_opt, ma_opt, sc_addr_range, sc,
-                          ma_opts, exclusive_addr_ranges, _from_cc_addr_range)
+_DEFINE_C_VCT_CONV_SETTER(opt_map_area, opt_ma, sc::addr_range, sc,
+                          opts_ma, exclusive_addr_ranges, _to_cc_addr_range)
+_DEFINE_C_VCT_CONV_GETTER(opt_map_area, opt_ma, sc_addr_range, sc,
+                          opts_ma, exclusive_addr_ranges, _from_cc_addr_range)
 
-_DEFINE_C_VALUE_SETTER(map_area_opt, ma_opt, cm_byte, sc, ma_set, access)
-_DEFINE_C_VALUE_GETTER(map_area_opt, ma_opt, cm_byte, sc, ma_set, access)
+_DEFINE_C_VALUE_SETTER(opt_map_area, opt_ma, cm_byte, sc, ma_set, access)
+_DEFINE_C_VALUE_GETTER(opt_map_area, opt_ma, cm_byte, sc, ma_set, access)
 
 
 
 //external - map area set
 
 //ctors & dtor
-_DEFINE_C_CTOR(sc_map_area_set, map_area_set, ma_set, sc)
-_DEFINE_C_COPY_CTOR(sc_map_area_set, map_area_set, ma_set, sc, src_ma_set)
-_DEFINE_C_DTOR(sc_map_area_set, map_area_set, ma_set, sc, ma_set)
-_DEFINE_C_RESET(sc_map_area_set, map_area_set, ma_set, sc, ma_set)
+_DEFINE_C_CTOR(map_area_set, ma_set, sc)
+_DEFINE_C_COPY_CTOR(map_area_set, ma_set, sc, ma_set)
+_DEFINE_C_DTOR(map_area_set, ma_set, sc, ma_set)
+_DEFINE_C_RESET(map_area_set, ma_set, sc, ma_set)
 
 
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
-                         sc_map_area_opt * ma_opts,
+                         sc_opt_map_area * opts_ma,
                          const mc_vm_map * map) {
 
     sc::map_area_set * cc_ma_set  = (sc::map_area_set *) ma_set;
-    sc::map_area_opt * cc_ma_opts = (sc::map_area_opt *) ma_opts;
+    sc::opt_map_area * cc_opts_ma = (sc::opt_map_area *) opts_ma;
     
-    return cc_ma_set->update_set(*cc_ma_opts, *map);
+    return cc_ma_set->update_set(*cc_opts_ma, *map);
 }
 
 

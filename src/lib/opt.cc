@@ -95,7 +95,8 @@ sc::opt::opt() noexcept
 
 
 //copy constructor
-sc::opt::opt(sc::opt & opts) noexcept {
+sc::opt::opt(sc::opt & opts) noexcept
+ : _lockable(), _ctor_failable() {
 
     this->do_copy(opts);
     return;
@@ -143,7 +144,7 @@ sc::opt & sc::opt::operator=(sc::opt & opts) noexcept {
 
     //reset the scan set
     ret = this->scan_set.reset();
-    if (ret != 0) return -1;
+    return (ret != 0) ? -1 : 0;
 }
 
 
@@ -158,7 +159,7 @@ _DEFINE_VCT_SETTER(sc::opt, sessions)
 _DEFINE_VCT_GETTER(sc::opt, sessions)
 
 _DEFINE_PTR_SETTER(sc::opt, mc_vm_map, map)
-_DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map)
+_DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map, sc::val_bad::map)
 
 _DEFINE_ENUM_SETTER(sc::opt, sc::addr_width, addr_width)
 _DEFINE_ENUM_GETTER(sc::opt, sc::addr_width, addr_width)
@@ -239,7 +240,8 @@ sc::opt_ptr::opt_ptr() noexcept
 
 
 //copy constructor
-sc::opt_ptr::opt_ptr(sc::opt_ptr & opts_ptr) noexcept {
+sc::opt_ptr::opt_ptr(sc::opt_ptr & opts_ptr) noexcept
+ : _opt_scan() {
 
     this->do_copy(opts_ptr);
     return;
@@ -300,17 +302,16 @@ sc::opt_ptr & sc::opt_ptr::operator=(sc::opt_ptr & opts_ptr) noexcept {
 //setters & getters
 _DEFINE_VALUE_SETTER(sc::opt_ptr, uintptr_t, target_addr)
 _DEFINE_VALUE_GETTER(sc::opt_ptr, uintptr_t,
-                     sc::val_bad::target_addr, target_addr)
+                     target_addr, sc::val_bad::target_addr)
 
 _DEFINE_VALUE_SETTER(sc::opt_ptr, off_t, alignment)
-_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t, sc::val_bad::alignment, alignment)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t, alignment, sc::val_bad::alignment)
 
 _DEFINE_VALUE_SETTER(sc::opt_ptr, off_t, max_obj_sz)
-_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t,
-                     sc::val_bad::max_obj_sz, max_obj_sz)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, off_t, max_obj_sz, sc::val_bad::max_obj_sz)
 
 _DEFINE_VALUE_SETTER(sc::opt_ptr, int, max_depth)
-_DEFINE_VALUE_GETTER(sc::opt_ptr, int, sc::val_bad::max_depth, max_depth)
+_DEFINE_VALUE_GETTER(sc::opt_ptr, int, max_depth, sc::val_bad::max_depth)
 
 _DEFINE_OBJ_REF_SETTER(sc::opt_ptr, sc::map_area_set, static_set)
 _DEFINE_OBJ_REF_GETTER(sc::opt_ptr, sc::map_area_set, static_set)
@@ -332,10 +333,10 @@ _DEFINE_ENUM_GETTER(sc::opt_ptr, sc::smart_scan, smart_scan)
  */
 
 //ctors & dtor
-_DEFINE_C_CTOR(sc_opt, opt, opt, sc)
-_DEFINE_C_COPY_CTOR(sc_opt, opt, opt, sc, opts)
-_DEFINE_C_DTOR(sc_opt, opt, opt, sc, opts)
-_DEFINE_C_RESET(sc_opt, opt, opt, sc, opts)
+_DEFINE_C_CTOR(opt, opt, sc)
+_DEFINE_C_COPY_CTOR(opt, opt, sc, opts)
+_DEFINE_C_DTOR(opt, opt, sc, opts)
+_DEFINE_C_RESET(opt, opt, sc, opts)
 
 
 //setters & getters
@@ -363,10 +364,10 @@ _DEFINE_C_OBJ_GETTER(opt, opt, map_area_set, sc, opts, scan_set)
  */
 
 //ctors & dtor
-_DEFINE_C_CTOR(sc_opt_ptr, opt_ptr, opt_ptr, sc)
-_DEFINE_C_COPY_CTOR(sc_opt_ptr, opt_ptr, opt_ptr, sc, opts_ptr)
-_DEFINE_C_DTOR(sc_opt_ptr, opt_ptr, opt_ptr, sc, opts_ptr)
-_DEFINE_C_RESET(sc_opt_ptr, opt_ptr, opt_ptr, sc, opts_ptr)
+_DEFINE_C_CTOR(opt_ptr, opt_ptr, sc)
+_DEFINE_C_COPY_CTOR(opt_ptr, opt_ptr, sc, opts_ptr)
+_DEFINE_C_DTOR(opt_ptr, opt_ptr, sc, opts_ptr)
+_DEFINE_C_RESET(opt_ptr, opt_ptr, sc, opts_ptr)
 
 
 //setters & getters

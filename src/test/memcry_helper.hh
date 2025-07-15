@@ -15,15 +15,15 @@
 
 namespace _memcry_helper {
 
-struct args {
+    struct args {
 
-    mc_vm_map map;
-    std::vector<mc_session> sessions;
-};
+        mc_vm_map map;
+        cm_vct /* <mc_session> */ sessions;
+    };
 
-void setup(args & mcry_args, pid_t pid, int session_num);
-void teardown(args & mcry_args);
-void print_area(mc_vm_area * area);
-void print_map(mc_vm_map * map);
+    void setup(args & mcry_args, const pid_t pid, const int session_num);
+    void teardown(args & mcry_args);
+    void print_area(const mc_vm_area * area);
+    void print_map(const mc_vm_map * map);
 
 }

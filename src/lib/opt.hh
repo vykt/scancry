@@ -62,7 +62,7 @@ enum sc_addr_width sc_opt_get_addr_width(const sc_opt * opts);
 
 //0 = success, -1 = error
 int sc_opt_set_scan_set(sc_opt * opts,
-                               const sc_map_area_opt * ma_opts);
+                               const sc_opt_map_area * opts_ma);
 //map area set attribute pointer = success, NULL = error
 const sc_map_area_set * sc_opt_get_scan_set(const sc_opt * opts);
 

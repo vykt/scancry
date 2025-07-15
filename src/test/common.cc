@@ -3,12 +3,12 @@
 
 
 //toggle colour mode
-bool use_colour;
+bool _common::use_colour;
 
 
 //print a test title 
-void title(const enum test_iface t_iface,
-           const std::string test, const std::string subtest) {
+void _common::title(const enum test_iface_type t_iface,
+                    const std::string test, const std::string subtest) {
 
     //print the language tag
     if (use_colour == true) {
@@ -32,7 +32,7 @@ void title(const enum test_iface t_iface,
 
 
 //print a test subtitle
-void subtitle(const std::string tag, const std::string subtitle) {
+void _common::subtitle(const std::string tag, const std::string subtitle) {
     
     //print tag
     if (use_colour == true) {

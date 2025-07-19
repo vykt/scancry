@@ -45,3 +45,18 @@ void _common::subtitle(const std::string tag, const std::string subtitle) {
     
     return;
 }
+
+
+//print a warning
+void _common::warning(const std::string tag, const std::string warning) {
+
+    //print tag
+    if (use_colour == true) {
+        std::cout << "|" << colour::RED << tag << colour::RESET << "| "
+                  << colour::YELLOW << warning << colour::RESET
+                  << std::endl;
+        
+    } else {
+        std::cout << "|" << tag << "| " << warning << std::endl;
+    }
+}

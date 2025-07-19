@@ -17,7 +17,7 @@
  */
 
 //debugging & unit testing support
-#ifdef DEBUG 
+#ifdef SC_DEBUG 
 #define _SC_DBG_STATIC
 #define _SC_DBG_INLINE
 #define _SC_DBG_PRIVATE   public

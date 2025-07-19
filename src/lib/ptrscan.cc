@@ -11,7 +11,7 @@
 
 //C standard library
 #include <cstring>
-#ifdef TRACE
+#ifdef SC_TRACE
 #include <cstdio>
 #endif
 
@@ -519,7 +519,7 @@ struct _potential_node {
                                     const opt * const opts,
                                     const _opt_scan * const opts_scan) {
 
-    #ifdef TRACE_PTRSCAN
+    #ifdef SC_TRACE_PTRSCAN
     mc_vm_area * _trace_area;
     mc_vm_obj * _trace_obj;
     #endif
@@ -564,7 +564,7 @@ struct _potential_node {
             (std::vector<std::shared_ptr<sc::_ptrscan_tree_node>> *)
             &this->tree_p->get_depth_level_vct(this->cur_depth_level - 1);
 
-        #ifdef TRACE_PTRSCAN
+        #ifdef SC_TRACE_PTRSCAN
         //log current address & depth vector being cached
         _trace_area = MC_GET_NODE_AREA(arg.area_node);
         _trace_obj = _trace_area->obj_node_p == nullptr
@@ -599,7 +599,7 @@ struct _potential_node {
     if (opts->addr_width == sc::AW64)
         potential_ptr = *((uint64_t *) arg.cur_byte);
 
-    #ifdef TRACE_PTRSCAN
+    #ifdef SC_TRACE_PTRSCAN
     #if 0 
     //log target address & potential pointer combination
     std::printf(
@@ -629,7 +629,7 @@ struct _potential_node {
 
 
         //else this is a match
-        #ifdef TRACE_PTRSCAN
+        #ifdef SC_TRACE_PTRSCAN
         //log a new match
         std::printf(
             "[SCRY][depth %d] match found (before misc. checks):\n",
@@ -644,7 +644,7 @@ struct _potential_node {
         if (presets.has_value()
             && (presets->size() > this->cur_depth_level)) {
 
-            #ifdef TRACE_PTRSCAN
+            #ifdef SC_TRACE_PTRSCAN
             std::printf("[SCRY][depth %d] preset offsets length: %lu using idx: %d\n",
                         this->cur_depth_level,
                         presets->size(), this->cur_depth_level - 1);
@@ -673,7 +673,7 @@ struct _potential_node {
 
         }
 
-        #ifdef TRACE_PTRSCAN
+        #ifdef SC_TRACE_PTRSCAN
         //log that other checks passed
         std::printf("[SCRY] adding new node:\n");
         std::printf("  - arg.addr:      0x%lx\n", arg.addr);
@@ -966,7 +966,7 @@ sc::ptrscan::ptrscan()
     cm_lst_node * area_node;
     uintptr_t target_addr;
 
-    #ifdef TRACE_PTRSCAN
+    #ifdef SC_TRACE_PTRSCAN
     int _trace_idx;
     std::shared_ptr<_ptrscan_tree_node> _trace_parent;
     #endif
@@ -1044,7 +1044,7 @@ sc::ptrscan::ptrscan()
     //for every depth level
     for (int i = 0; i < opts_ptr.get_max_depth().value(); ++i) {
 
-        #ifdef TRACE_PTRSCAN
+        #ifdef SC_TRACE_PTRSCAN
         std::printf("[SCRY] running depth: %d/%d\n",
                     this->cur_depth_level,
                     opts_ptr.get_max_depth().value());
@@ -1054,7 +1054,7 @@ sc::ptrscan::ptrscan()
         ret = w_pool._single_run();
         if (ret != 0) goto _scan_unlock_all;
 
-        #ifdef TRACE_PTRSCAN
+        #ifdef SC_TRACE_PTRSCAN
         //get this layer of tree nodes
         const std::vector<std::shared_ptr<_ptrscan_tree_node>> &depth_level_vct
             = this->tree_p->get_depth_level_vct(this->cur_depth_level - 1);

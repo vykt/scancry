@@ -216,8 +216,8 @@ class opt : public _lockable, public _ctor_failable {
          */
 
         //save & load file paths
-        char * file_pathname_out;
-        char * file_pathname_in;
+        char * /* alloc */ file_pathname_out;
+        char * /* alloc */ file_pathname_in;
         
         //sessions & map
         cm_vct /* <const mc_session *> */ sessions;
@@ -275,7 +275,7 @@ class opt : public _lockable, public _ctor_failable {
             enum sc::addr_width & addr_width) const noexcept;
 
         [[nodiscard]] int set_scan_set(
-            sc::map_area_set & scan_set) noexcept;
+            const sc::map_area_set & scan_set) noexcept;
         [[nodiscard]] const sc::map_area_set &
             get_scan_set() const noexcept;
 };
@@ -390,7 +390,7 @@ class opt_ptr final : public _opt_scan {
         [[nodiscard]] int get_max_depth() const noexcept;
 
         [[nodiscard]] int set_static_set(
-            sc::map_area_set & static_set) noexcept;
+            const sc::map_area_set & static_set) noexcept;
         [[nodiscard]] const sc::map_area_set &
             get_static_set() const noexcept;
 

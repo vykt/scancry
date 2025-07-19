@@ -164,9 +164,9 @@ _DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map, sc::val_bad::map)
 _DEFINE_ENUM_SETTER(sc::opt, sc::addr_width, addr_width)
 _DEFINE_ENUM_GETTER(sc::opt, sc::addr_width, addr_width)
 
-_DEFINE_OBJ_REF_SETTER(sc::opt, sc::map_area_set, scan_set)
-_DEFINE_OBJ_REF_GETTER(sc::opt, sc::map_area_set, scan_set)
-_DEFINE_OBJ_REF_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
+_DEFINE_OBJ_SETTER(sc::opt, sc::map_area_set, scan_set)
+_DEFINE_OBJ_GETTER(sc::opt, sc::map_area_set, scan_set)
+_DEFINE_OBJ_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
 
 
 /*
@@ -313,8 +313,8 @@ _DEFINE_VALUE_GETTER(sc::opt_ptr, off_t, max_obj_sz, sc::val_bad::max_obj_sz)
 _DEFINE_VALUE_SETTER(sc::opt_ptr, int, max_depth)
 _DEFINE_VALUE_GETTER(sc::opt_ptr, int, max_depth, sc::val_bad::max_depth)
 
-_DEFINE_OBJ_REF_SETTER(sc::opt_ptr, sc::map_area_set, static_set)
-_DEFINE_OBJ_REF_GETTER(sc::opt_ptr, sc::map_area_set, static_set)
+_DEFINE_OBJ_SETTER(sc::opt_ptr, sc::map_area_set, static_set)
+_DEFINE_OBJ_GETTER(sc::opt_ptr, sc::map_area_set, static_set)
 
 _DEFINE_VCT_SETTER(sc::opt_ptr, preset_offsets)
 _DEFINE_VCT_GETTER(sc::opt_ptr, preset_offsets)
@@ -340,17 +340,17 @@ _DEFINE_C_RESET(opt, opt, sc, opts)
 
 
 //setters & getters
-_DEFINE_C_VALUE_SETTER(opt, opt, char *, sc, opts, file_pathname_out)
-_DEFINE_C_PTR_GETTER(opt, opt, char *, sc, opts, file_pathname_out)
+_DEFINE_C_STR_SETTER(opt, opt, sc, opts, file_pathname_out)
+_DEFINE_C_STR_GETTER(opt, opt, sc, opts, file_pathname_out)
 
-_DEFINE_C_VALUE_SETTER(opt, opt, char *, sc, opts, file_pathname_in)
-_DEFINE_C_PTR_GETTER(opt, opt, char *, sc, opts, file_pathname_in)
+_DEFINE_C_STR_SETTER(opt, opt, sc, opts, file_pathname_in)
+_DEFINE_C_STR_GETTER(opt, opt, sc, opts, file_pathname_in)
 
-_DEFINE_C_PTR_SETTER(opt, opt, cm_vct, sc, opts, sessions)
-_DEFINE_C_PTR_GETTER(opt, opt, cm_vct, sc, opts, sessions)
+_DEFINE_C_VCT_SETTER(opt, opt, sc, opts, sessions)
+_DEFINE_C_VCT_GETTER(opt, opt, sc, opts, sessions)
 
-_DEFINE_C_VALUE_SETTER(opt, opt, mc_vm_map *, sc, opts, map)
-_DEFINE_C_VALUE_GETTER(opt, opt, mc_vm_map *, sc, opts, map)
+_DEFINE_C_PTR_SETTER(opt, opt, mc_vm_map, sc, opts, map)
+_DEFINE_C_PTR_GETTER(opt, opt, mc_vm_map, sc, opts, map)
 
 _DEFINE_C_ENUM_SETTER(opt, opt, addr_width, sc, opts, addr_width)
 _DEFINE_C_ENUM_GETTER(opt, opt, addr_width, sc, opts, addr_width)
@@ -395,6 +395,11 @@ _DEFINE_C_OBJ_SETTER(opt_ptr, opt_ptr, map_area_set,
                      sc, opts_ptr, static_set)
 _DEFINE_C_OBJ_GETTER(opt_ptr, opt_ptr, map_area_set,
                      sc, opts_ptr, static_set)
+
+_DEFINE_C_VCT_SETTER(opt_ptr, opt_ptr, sc,
+                     opts_ptr, preset_offsets)
+_DEFINE_C_VCT_GETTER(opt_ptr, opt_ptr, sc,
+                     opts_ptr, preset_offsets)
 
 _DEFINE_C_ENUM_SETTER(opt_ptr, opt_ptr, smart_scan,
                       sc, opts_ptr, smart_scan)

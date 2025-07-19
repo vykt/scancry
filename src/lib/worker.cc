@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstring>
 #include <ctime>
-#ifdef TRACE
+#ifdef SC_TRACE
 #include <cstdio>
 #endif
 
@@ -98,7 +98,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     mc_vm_area * area;
     off_t addr_off;
 
-    #ifdef TRACE_WORKER
+    #ifdef SC_TRACE_WORKER
     mc_vm_obj * _trace_obj;
     #endif
 
@@ -106,7 +106,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
     //fetch this area
     area = MC_GET_NODE_AREA(arg.area_node);
 
-    #ifdef TRACE_WORKER
+    #ifdef SC_TRACE_WORKER
     //log object & area starting address of current buffer read
     _trace_obj = nullptr;
     if (area->obj_node_p != nullptr) _trace_obj
@@ -148,7 +148,7 @@ sc::_worker::read_buffer_smart(struct _scan_arg & arg) noexcept {
         addr_off = (*this->opts)->addr_width;
     }
     
-    #ifdef TRACE_WORKER
+    #ifdef SC_TRACE_WORKER
     //log buffer reading parameters
     std::printf("  - area_sz:     0x%lx\n", area_sz);
     std::printf("  - area_off:    0x%lx\n", arg.area_off);
@@ -337,7 +337,7 @@ void sc::_worker::main() {
     int ret;
     off_t buf_adv;
 
-    #ifdef TRACE_WORKER
+    #ifdef SC_TRACE_WORKER
     int _trace_iter;
     mc_vm_obj * _trace_obj;
     #endif
@@ -354,7 +354,7 @@ void sc::_worker::main() {
         ret = this->release_wait();
         if (ret != 0) this->exit(true);
 
-        #ifdef TRACE_WORKER
+        #ifdef SC_TRACE_WORKER
         std::printf("[SCRY][worker %d] worker released\n",
                     this->scan_area_index);
         #endif
@@ -371,7 +371,7 @@ void sc::_worker::main() {
             = this->scan_area_sets[this->scan_area_index];
 
         //for every area in this worker's scan set
-        #ifdef TRACE_WORKER
+        #ifdef SC_TRACE_WORKER
         //log scan set size
         std::printf("[SCRY][worker  %d] scan set size: %lu\n",
                     this->scan_area_index,
@@ -382,7 +382,7 @@ void sc::_worker::main() {
         for (auto area_iter = scan_set.begin();
              area_iter != scan_set.end(); ++area_iter) {
 
-            #ifdef TRACE_WORKER
+            #ifdef SC_TRACE_WORKER
             std::printf("[SCRY][worker %d] scanning area %d/%ld\n",
                         this->scan_area_index,
                         _trace_iter,
@@ -397,7 +397,7 @@ void sc::_worker::main() {
             //fetch this scan area
             mc_vm_area * area = MC_GET_NODE_AREA((*area_iter));
 
-            #ifdef TRACE_WORKER
+            #ifdef SC_TRACE_WORKER
             //log next area to be scanned by this worker
             _trace_obj = nullptr;
             if (area->obj_node_p != nullptr)

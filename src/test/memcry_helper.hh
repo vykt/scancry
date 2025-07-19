@@ -13,6 +13,7 @@
 #include "common.hh"
 
 
+
 namespace _memcry_helper {
 
     struct args {

@@ -33,7 +33,7 @@ sc::serialiser::get_scan_type(sc::_scan * scan) const {
     }
 
     /* return ptrscan during unit testing */
-    #ifdef DEBUG
+    #ifdef SC_DEBUG
     else {
         return sc::scan_type_ptr;
     }

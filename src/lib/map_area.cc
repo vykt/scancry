@@ -723,17 +723,17 @@ _DEFINE_C_RESET(opt_map_area, opt_ma, sc, opts_ma)
 
 
 //setters & getters
-_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_areas)
-_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_areas)
+_DEFINE_C_VCT_SETTER(opt_map_area, opt_ma, sc, opts_ma, omit_areas)
+_DEFINE_C_VCT_GETTER(opt_map_area, opt_ma, sc, opts_ma, omit_areas)
 
-_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_objs)
-_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, omit_objs)
+_DEFINE_C_VCT_SETTER(opt_map_area, opt_ma, sc, opts_ma, omit_objs)
+_DEFINE_C_VCT_GETTER(opt_map_area, opt_ma, sc, opts_ma, omit_objs)
 
-_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_areas)
-_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_areas)
+_DEFINE_C_VCT_SETTER(opt_map_area, opt_ma, sc, opts_ma, exclusive_areas)
+_DEFINE_C_VCT_GETTER(opt_map_area, opt_ma, sc, opts_ma, exclusive_areas)
 
-_DEFINE_C_PTR_SETTER(opt_map_area, opt_ma, cm_vct,sc, opts_ma,  exclusive_objs)
-_DEFINE_C_PTR_GETTER(opt_map_area, opt_ma, cm_vct, sc, opts_ma, exclusive_objs)
+_DEFINE_C_VCT_SETTER(opt_map_area, opt_ma, sc, opts_ma,  exclusive_objs)
+_DEFINE_C_VCT_GETTER(opt_map_area, opt_ma, sc, opts_ma, exclusive_objs)
 
 _DEFINE_C_VCT_CONV_SETTER(opt_map_area, opt_ma, sc::addr_range, sc,
                           opts_ma, omit_addr_ranges, _to_cc_addr_range)

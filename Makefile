@@ -37,8 +37,8 @@ HEADER=scancry.h
 
 #[set build options]
 ifeq ($(build),debug)
-	FLAGS      += -O0 -ggdb3 -fsanitize=address -DDEBUG
-	FLAGS_TEST += -DDEBUG
+	FLAGS      += -O0 -ggdb3 -fsanitize=address -DSC_DEBUG
+	FLAGS_TEST += -DSC_DEBUG
  	LDFLAGS    += -static-libasan
 else
 	CFLAGS += -O2
@@ -46,13 +46,13 @@ endif
 
 #[enable tracing]
 ifeq ($(trace_worker),on)
-	FLAGS      += -DTRACE -DTRACE_WORKER
-	FLAGS_TEST += -DTRACE -DTRACE_WORKER
+	FLAGS      += -DSC_TRACE -DSC_TRACE_WORKER
+	FLAGS_TEST += -DSC_TRACE -DSC_TRACE_WORKER
 endif
 
 ifeq ($(trace_ptrscan),on)
-	FLAGS      += -DTRACE -DTRACE_PTRSCAN
-	FLAGS_TEXT += -DTRACE -DTRACE_PTRSCAN
+	FLAGS      += -DSC_TRACE -DSC_TRACE_PTRSCAN
+	FLAGS_TEXT += -DSC_TRACE -DSC_TRACE_PTRSCAN
 endif
 
 

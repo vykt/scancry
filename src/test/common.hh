@@ -45,5 +45,5 @@ namespace _common {
     void title(const enum _common::test_iface_type t_iface,
                const std::string test, const std::string subtest);
     void subtitle(const std::string tag, const std::string subtitle);
-
+    void warning(const std::string tag, const std::string warning);
 }

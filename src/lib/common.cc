@@ -49,11 +49,8 @@ void common::del_str_if_init(char *& str) noexcept {
 
 void common::mov_str_if_init(char *& dst_str, char *& src_str) noexcept {
 
-    //move a string
-    if (src_str != nullptr) {
-        dst_str = src_str;
-        src_str = nullptr;
-    }
+    //move a string if initialised, otherwise null it out
+    dst_str = (src_str == nullptr) ? nullptr : src_str;
 
     return;
 }
@@ -73,13 +70,17 @@ void common::del_vct_if_init(cm_vct & vct) noexcept {
     int ret;
 
 
-    //copy a vector
+    //copy a vector if initialised
     if (src_vct.is_init == true) {
         ret = cm_vct_cpy(&dst_vct, &src_vct);
         if (ret != 0) {
             sc_errno = SC_ERR_CMORE;
             return -1;
         }
+
+    //otherwise zero it out
+    } else {
+        memset(&dst_vct, 0, sizeof(dst_vct));
     }
 
     return 0;
@@ -89,10 +90,15 @@ void common::del_vct_if_init(cm_vct & vct) noexcept {
 void common::mov_vct_if_init(
     cm_vct & dst_vct, cm_vct & src_vct) noexcept {
 
-    //move a vector
-    if (src_vct.is_init == true)
+    //move a vector if initialised
+    if (src_vct.is_init == true) {
         cm_vct_mov(&dst_vct, &src_vct);
 
+    //otherwise zero it out
+    } else {
+        memset(&dst_vct, 0, sizeof(dst_vct));
+    }
+    
     return;
 }
 
@@ -111,13 +117,17 @@ void common::del_rbt_if_init(cm_rbt & rbt) noexcept {
     int ret;
 
 
-    //copy a red-black tree
+    //copy a red-black tree if initialised
     if (src_rbt.is_init == true) {
         ret = cm_rbt_cpy(&dst_rbt, &src_rbt);
         if (ret != 0) {
             sc_errno = SC_ERR_CMORE;
             return -1;
         }
+
+    //otherwise zero it out
+    } else {
+        memset(&dst_rbt, 0, sizeof(dst_rbt));
     }
 
     return 0;
@@ -127,9 +137,14 @@ void common::del_rbt_if_init(cm_rbt & rbt) noexcept {
 void common::mov_rbt_if_init(
     cm_rbt & dst_rbt, cm_rbt & src_rbt) noexcept {
 
-    //move a vector
-    if (src_rbt.is_init == true)
+    //move a red-black tree if initialised
+    if (src_rbt.is_init == true) {
         cm_rbt_mov(&dst_rbt, &src_rbt);
+
+    //otherwise zero it out
+    } else {
+        std::memset(&dst_rbt, 0, sizeof(dst_rbt));
+    }
 
     return;
 }
@@ -150,7 +165,7 @@ void common::mov_rbt_if_init(
 
     void * src_data;
     void * dst_data_buf;
-    
+
 
     //allocate a data buffer
     dst_data_buf = std::malloc(dst_data_sz);

@@ -50,10 +50,12 @@
 
 //copy a vector if it is initialised; on fail, cleanup and return early
 #define _CTOR_VCT_COPY_IF_INIT(dst_vct, src_vct)            \
+    std::memset(&dst_vct, 0, sizeof(dst_vct));              \
     ret = common::cpy_vct_if_init(dst_vct, src_vct);        \
     if (ret != 0) { this->_set_ctor_failed(true); return; } \
 
 #define _CTOR_VCT_COPY_IF_INIT_UNLOCK(dst_vct, src_vct, locked_obj) \
+    std::memset(&dst_vct, 0, sizeof(dst_vct));              \
     ret = common::cpy_vct_if_init(dst_vct, src_vct);                \
     if (ret != 0) {                                                 \
         locked_obj._unlock();                                       \
@@ -63,6 +65,7 @@
 
 //move a vector if its initialised
 #define _CTOR_VCT_MOVE_IF_INIT(dst_vct, src_vct) \
+    std::memset(&dst_vct, 0, sizeof(dst_vct));   \
     common::mov_vct_if_init(dst_vct, src_vct);   \
 
 
@@ -100,7 +103,7 @@
     /* acquire a write lock */                       \
     _LOCK_WRITE(-1)                                  \
                                                      \
-    this->value = value;                             \
+    this->value = (type) value;                      \
                                                      \
     /* release the lock */                           \
     _UNLOCK                                          \
@@ -500,47 +503,47 @@ sc_##type * sc_new_##short_type() {                     \
 
 
 //define a copy constructor
-#define _DEFINE_C_COPY_CTOR(                            \
-    type, short_type, namespace, src_obj)               \
-sc_##type * sc_new_##short_type(sc_##type * src_obj) {  \
-                                                        \
-    int ret;                                            \
-                                                        \
-    void * alloc;                                       \
-    namespace::type * obj;                              \
-    namespace::type * cc_src_obj;                       \
-                                                        \
-                                                        \
-    /* cast the source object */                        \
-    cc_src_obj = (namespace::type *) src_obj;           \
-                                                        \
-    /* read lock the source object */                   \
-    ret = cc_src_obj->_lock_read();                     \
-    if (ret != 0) return NULL;                          \
-                                                        \
-    /* allocate space for the new object */             \
-    alloc = std::malloc(sizeof(namespace::type));       \
-    if (alloc == NULL) {                                \
-        cc_src_obj->_unlock();                          \
-        sc_errno = SC_ERR_MEM;                          \
-        return NULL;                                    \
-    }                                                   \
-                                                        \
-    /* construct the object in the malloc allocation */ \
-    obj = new(alloc) namespace::type(*cc_src_obj);      \
-                                                        \
-    /* unlock the source object */                      \
-    cc_src_obj->_unlock();                              \
-                                                        \
-    /* abort & cleanup if constructor failed */         \
-    if (obj->_get_ctor_failed() == true) {              \
-        obj->~type();                                   \
-        free(alloc);                                    \
-        return NULL;                                    \
-    }                                                   \
-                                                        \
-    return (sc_##type *) obj;                           \
-}                                                       \
+#define _DEFINE_C_COPY_CTOR(                                  \
+    type, short_type, namespace, src_obj)                     \
+sc_##type * sc_copy_##short_type(const sc_##type * src_obj) { \
+                                                              \
+    int ret;                                                  \
+                                                              \
+    void * alloc;                                             \
+    namespace::type * obj;                                    \
+    namespace::type * cc_src_obj;                             \
+                                                              \
+                                                              \
+    /* cast the source object */                              \
+    cc_src_obj = (namespace::type *) src_obj;                 \
+                                                              \
+    /* read lock the source object */                         \
+    ret = cc_src_obj->_lock_read();                           \
+    if (ret != 0) return NULL;                                \
+                                                              \
+    /* allocate space for the new object */                   \
+    alloc = std::malloc(sizeof(namespace::type));             \
+    if (alloc == NULL) {                                      \
+        cc_src_obj->_unlock();                                \
+        sc_errno = SC_ERR_MEM;                                \
+        return NULL;                                          \
+    }                                                         \
+                                                              \
+    /* construct the object in the malloc allocation */       \
+    obj = new(alloc) namespace::type(*cc_src_obj);            \
+                                                              \
+    /* unlock the source object */                            \
+    cc_src_obj->_unlock();                                    \
+                                                              \
+    /* abort & cleanup if constructor failed */               \
+    if (obj->_get_ctor_failed() == true) {                    \
+        obj->~type();                                         \
+        free(alloc);                                          \
+        return NULL;                                          \
+    }                                                         \
+                                                              \
+    return (sc_##type *) obj;                                 \
+}                                                             \
 
 
 //define a destructor
@@ -598,59 +601,60 @@ int sc_##short_hdl_type##_set_##value(                     \
 
 
 //define a C interface getter by value
-#define _DEFINE_C_VALUE_GETTER(                               \
-    hdl_type, short_hdl_type, type, namespace, hdl, value)    \
-type sc_##short_hdl_type##_get_##value(sc_##hdl_type * hdl) { \
-                                                              \
-    namespace::hdl_type * cc_##hdl                            \
-        = (namespace::hdl_type *) hdl;                        \
-                                                              \
-    return cc_##hdl->get_##value();                           \
-}                                                             \
+#define _DEFINE_C_VALUE_GETTER(                                     \
+    hdl_type, short_hdl_type, type, namespace, hdl, value)          \
+type sc_##short_hdl_type##_get_##value(const sc_##hdl_type * hdl) { \
+                                                                    \
+    namespace::hdl_type * cc_##hdl                                  \
+        = (namespace::hdl_type *) hdl;                              \
+                                                                    \
+    return cc_##hdl->get_##value();                                 \
+}                                                                   \
 
 
 //define a C interface setter by value & convert between C++ & C types
-#define _DEFINE_C_VALUE_CONV_SETTER(     \
-    hdl_type, short_hdl_type, type,      \
-    namespace, hdl, value, convert_cb)   \
-int sc_##short_hdl_type##_set_##value(                        \
-    sc_##hdl_type * hdl, const sc_##type value) {             \
-                                                              \
-    int ret;                                                  \
-    namespace::type cc_##value;                               \
-    namespace::hdl_type * cc_##hdl                            \
-        = (namespace::hdl_type *) hdl;                        \
-                                                              \
-    ret = convert_cb(&cc_##value, &value);                    \
-    if (ret != 0) { sc_errno = SC_ERR_TYPECAST; return -1; }  \
-                                                              \
-    return cc_##hdl->set_##value(cc_##value);                 \
-}                                                             \
+#define _DEFINE_C_VALUE_CONV_SETTER(                         \
+    hdl_type, short_hdl_type, type,                          \
+    namespace, hdl, value, convert_cb)                       \
+int sc_##short_hdl_type##_set_##value(                       \
+    sc_##hdl_type * hdl, const sc_##type value) {            \
+                                                             \
+    int ret;                                                 \
+    namespace::type cc_##value;                              \
+    namespace::hdl_type * cc_##hdl                           \
+        = (namespace::hdl_type *) hdl;                       \
+                                                             \
+    ret = convert_cb(&cc_##value, &value);                   \
+    if (ret != 0) { sc_errno = SC_ERR_TYPECAST; return -1; } \
+                                                             \
+    return cc_##hdl->set_##value(cc_##value);                \
+}                                                            \
 
 
 //define a C interface getter by value & convert bwetween C++ & C types
-#define _DEFINE_C_VALUE_CONV_GETTER(                               \
-    hdl_type, short_hdl_type, type,                                \
-    namespace, hdl, value, convert_cb, bad_val)                    \
-sc_##type sc_##short_hdl_type##_get_##value(sc_##hdl_type * hdl) { \
-                                                                   \
-    int ret;                                                       \
-    sc_##type value;                                               \
-    namespace::type cc_##value;                                    \
-    namespace::hdl_type * cc_##hdl                                 \
-        = (namespace::hdl_type *) hdl;                             \
-                                                                   \
-    cc_##value = cc_##hdl->get_##value();                          \
-    if (cc_##value != bad_val) return bad_ret;                     \
-                                                                   \
-    ret = convert_cb(&value, &cc_##value);                         \
-    if (ret != 0) {                                                \
-        sc_errno = SC_ERR_TYPECAST;                                \
-        return bad_val;                                            \
-    }                                                              \
-                                                                   \
-    return value;                                                  \
-}                                                                  \
+#define _DEFINE_C_VALUE_CONV_GETTER(            \
+    hdl_type, short_hdl_type, type,             \
+    namespace, hdl, value, convert_cb, bad_val) \
+sc_##type sc_##short_hdl_type##_get_##value(    \
+    const sc_##hdl_type * hdl) {                \
+                                                \
+    int ret;                                    \
+    sc_##type value;                            \
+    namespace::type cc_##value;                 \
+    namespace::hdl_type * cc_##hdl              \
+        = (namespace::hdl_type *) hdl;          \
+                                                \
+    cc_##value = cc_##hdl->get_##value();       \
+    if (cc_##value != bad_val) return bad_ret;  \
+                                                \
+    ret = convert_cb(&value, &cc_##value);      \
+    if (ret != 0) {                             \
+        sc_errno = SC_ERR_TYPECAST;             \
+        return bad_val;                         \
+    }                                           \
+                                                \
+    return value;                               \
+}                                               \
 
 
 //define a C interface value setter by pointer
@@ -667,15 +671,16 @@ int sc_##short_hdl_type##_set_##ptr(                     \
 
 
 //define a C interface value getter by pointer
-#define _DEFINE_C_PTR_GETTER(hdl_type, short_hdl_type,              \
-                             type, namespace, hdl, ptr)             \
-const type * sc_##short_hdl_type##_get_##ptr(sc_##hdl_type * hdl) { \
-                                                                    \
-    namespace::hdl_type * cc_##hdl                                  \
-        = (namespace::hdl_type *) hdl;                              \
-                                                                    \
-    return cc_##hdl->get_##ptr();                                   \
-}                                                                   \
+#define _DEFINE_C_PTR_GETTER(hdl_type, short_hdl_type,  \
+                             type, namespace, hdl, ptr) \
+const type * sc_##short_hdl_type##_get_##ptr(           \
+    const sc_##hdl_type * hdl) {                        \
+                                                        \
+    namespace::hdl_type * cc_##hdl                      \
+        = (namespace::hdl_type *) hdl;                  \
+                                                        \
+    return cc_##hdl->get_##ptr();                       \
+}                                                       \
 
 
 //define a C interface enum setter by pointer
@@ -695,7 +700,7 @@ int sc_##short_hdl_type##_set_##enm(                     \
 #define _DEFINE_C_ENUM_GETTER(hdl_type, short_hdl_type,   \
                               type, namespace, hdl, enm)  \
 int sc_##short_hdl_type##_get_##enm(                      \
-    sc_##hdl_type * hdl, enum sc_##type * enm) {          \
+    const sc_##hdl_type * hdl, enum sc_##type * enm) {    \
                                                           \
     namespace::hdl_type * cc_##hdl                        \
         = (namespace::hdl_type *) hdl;                    \
@@ -721,7 +726,7 @@ int sc_##short_hdl_type##_set_##str(               \
 #define _DEFINE_C_STR_GETTER(hdl_type, short_hdl_type,    \
                              namespace, hdl, str)         \
 const char * const * sc_##short_hdl_type##_get_##str(     \
-    sc_##hdl_type * hdl) {                                \
+    const sc_##hdl_type * hdl) {                          \
                                                           \
     namespace::hdl_type * cc_##hdl                        \
         = (namespace::hdl_type *) hdl;                    \
@@ -744,15 +749,16 @@ int sc_##short_hdl_type##_set_##vct(               \
 
 
 //define a C interface vector getter
-#define _DEFINE_C_VCT_GETTER(hdl_type, short_hdl_type,                \
-                             namespace, hdl, vct)                     \
-const cm_vct * sc_##short_hdl_type##_get_##vct(sc_##hdl_type * hdl) { \
-                                                                      \
-    namespace::hdl_type * cc_##hdl                                    \
-        = (namespace::hdl_type *) hdl;                                \
-                                                                      \
-    return &cc_##hdl->get_##vct();                                    \
-}                                                                     \
+#define _DEFINE_C_VCT_GETTER(hdl_type, short_hdl_type, \
+                             namespace, hdl, vct)      \
+const cm_vct * sc_##short_hdl_type##_get_##vct(        \
+    const sc_##hdl_type * hdl) {                       \
+                                                       \
+    namespace::hdl_type * cc_##hdl                     \
+        = (namespace::hdl_type *) hdl;                 \
+                                                       \
+    return &cc_##hdl->get_##vct();                     \
+}                                                      \
 
 
 //define a C interface vector setter which converts C structures to C++
@@ -766,6 +772,9 @@ int sc_##short_hdl_type##_set_##vct(                        \
     cm_vct cc_##vct;                                        \
     namespace::hdl_type * cc_##hdl                          \
         = (namespace::hdl_type *) hdl;                      \
+                                                            \
+    /* if source vector is empty, return immediately */     \
+    if (vct->is_init == false) { return 0; }                \
                                                             \
     /* convert C address ranges to C++ */                   \
     ret = convert_c_data(cc_##vct,                          \
@@ -786,7 +795,7 @@ int sc_##short_hdl_type##_set_##vct(                        \
                                   vct_type, namespace,      \
                                   hdl, vct, convert_cb)     \
 int sc_##short_hdl_type##_get_##vct(                        \
-    sc_##hdl_type * hdl, cm_vct * vct) {                    \
+    const sc_##hdl_type * hdl, cm_vct * vct) {              \
                                                             \
     namespace::hdl_type * cc_##hdl                          \
         = (namespace::hdl_type *) hdl;                      \
@@ -794,12 +803,45 @@ int sc_##short_hdl_type##_get_##vct(                        \
     const cm_vct & cc_##vct                                 \
         = cc_##hdl->get_##vct();                            \
                                                             \
+    /* if source vector is empty, return immediately */     \
+    if (cc_##vct.is_init == false) {                        \
+        std::memset(vct, 0, sizeof(*vct));                  \
+        vct->is_init = false;                               \
+        return 0;                                           \
+    }                                                       \
+                                                            \
     /* convert C++ address ranges to C */                   \
     return convert_c_data(*vct,                             \
                           sizeof(vct_type),                 \
                           cc_##vct,                         \
                           convert_cb);                      \
 }                                                           \
+
+
+//define a C interface red-black setter
+#define _DEFINE_C_RBT_SETTER(                      \
+    hdl_type, short_hdl_type, namespace, hdl, rbt) \
+int sc_##short_hdl_type##_set_##rbt(               \
+    sc_##hdl_type * hdl, const cm_rbt * vct) {     \
+                                                   \
+    namespace::hdl_type * cc_##hdl                 \
+        = (namespace::hdl_type *) hdl;             \
+                                                   \
+    return cc_##hdl->set_##rbt(*rbt);              \
+}                                                  \
+
+
+//define a C interface red-black getter
+#define _DEFINE_C_RBT_GETTER(hdl_type, short_hdl_type, \
+                             namespace, hdl, rbt)      \
+const cm_rbt * sc_##short_hdl_type##_get_##rbt(        \
+    const sc_##hdl_type * hdl) {                       \
+                                                       \
+    namespace::hdl_type * cc_##hdl                     \
+        = (namespace::hdl_type *) hdl;                 \
+                                                       \
+    return &cc_##hdl->get_##rbt();                     \
+}                                                      \
 
 
 //define a C interface object setter
@@ -815,17 +857,18 @@ int sc_##short_hdl_type##_set_##obj(                    \
     namespace::type * cc_##obj                          \
         = (namespace::type *) obj;                      \
                                                         \
-    return cc_##hdl->set_##obj(*cc_##obj);               \
+    return cc_##hdl->set_##obj(*cc_##obj);              \
 }                                                       \
 
 
 //define a C interface object getter
-#define _DEFINE_C_OBJ_GETTER(hdl_type, short_hdl_type,                   \
-                             type, namespace, hdl, obj)                  \
-const sc_##type * sc_##short_hdl_type##_get_##obj(sc_##hdl_type * hdl) { \
-                                                                         \
-    namespace::hdl_type * cc_##hdl                                       \
-        = (namespace::hdl_type *) hdl;                                   \
-                                                                         \
-    return (const sc_##type *) &cc_##hdl->get_##obj();                   \
-}                                                                        \
+#define _DEFINE_C_OBJ_GETTER(hdl_type, short_hdl_type,  \
+                             type, namespace, hdl, obj) \
+const sc_##type * sc_##short_hdl_type##_get_##obj(      \
+    const sc_##hdl_type * hdl) {                        \
+                                                        \
+    namespace::hdl_type * cc_##hdl                      \
+        = (namespace::hdl_type *) hdl;                  \
+                                                        \
+    return (const sc_##type *) &cc_##hdl->get_##obj();  \
+}                                                       \

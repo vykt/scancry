@@ -68,7 +68,7 @@ class _lockable {
         //ctors
         _lockable() noexcept;
         _lockable(const sc::_lockable & lockable) noexcept;
-        _lockable(sc::_lockable && lockable) = delete;
+        _lockable(const sc::_lockable && lockable) = delete;
 
         //operators
         sc::_lockable & operator=(const sc::_lockable & lockable) noexcept;

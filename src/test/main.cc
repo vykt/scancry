@@ -1,5 +1,4 @@
 /* specify a custom main() implementation in doctest */
-#include <cstdint>
 #define DOCTEST_CONFIG_IMPLEMENT
 
 
@@ -7,7 +6,7 @@
 #include <iostream>
 
 //C standard library
-#include <stdint.h>
+#include <cstdint>
 
 //system headers
 #include <unistd.h>
@@ -69,7 +68,7 @@ static uint16_t _get_test_mode(int argc, char ** argv) {
         switch (opt) {
 
             case 'c':
-                use_colour = true;
+                _common::use_colour = true;
                 break;
 
             case 'a':
@@ -162,7 +161,7 @@ static void _run_unit_tests(uint16_t test_mask) {
 int main(int argc, char ** argv) {
 
     //initialise miscellaneous state
-    use_colour = false;
+    _common::use_colour = false;
 
     //setup & run tests
     uint16_t test_mask = _get_test_mode(argc, argv);

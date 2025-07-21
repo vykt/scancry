@@ -22,6 +22,11 @@ void sc::_lockable::do_copy(const sc::_lockable & lockable) noexcept {
 }
 
 
+//constructor
+sc::_lockable::_lockable() noexcept
+: lock(PTHREAD_RWLOCK_INITIALIZER) {}
+
+
 //copy constructor
 sc::_lockable::_lockable(const sc::_lockable & lockable) noexcept {
 
@@ -40,7 +45,7 @@ sc::_lockable & sc::_lockable::operator=(
 
 
 //acquire a read lock
-_SC_DBG_INLINE int sc::_lockable::_lock_read() const noexcept {
+int sc::_lockable::_lock_read() const noexcept {
 
     int ret;
 
@@ -59,7 +64,7 @@ _SC_DBG_INLINE int sc::_lockable::_lock_read() const noexcept {
 
 
 //acquire a write lock
-_SC_DBG_INLINE int sc::_lockable::_lock_write() const noexcept {
+int sc::_lockable::_lock_write() const noexcept {
 
     int ret;
 
@@ -78,7 +83,7 @@ _SC_DBG_INLINE int sc::_lockable::_lock_write() const noexcept {
 
 
 //release a read or write lock
-_SC_DBG_INLINE void sc::_lockable::_unlock() const noexcept {
+void sc::_lockable::_unlock() const noexcept {
 
     pthread_rwlock_unlock(&this->lock);
     return;
@@ -119,6 +124,17 @@ sc::_ctor_failable & sc::_ctor_failable::operator=(
 
     if (this != &ctor_failable) this->do_copy(ctor_failable);
     return *this;
+}
+
+
+//setter & getter
+[[nodiscard]] bool sc::_ctor_failable::_get_ctor_failed() const noexcept {
+    return this->ctor_failed;
+}
+
+
+void sc::_ctor_failable::_set_ctor_failed(const bool failed) noexcept {
+    this->ctor_failed = failed;
 }
 
 

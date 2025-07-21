@@ -1,5 +1,6 @@
 //local headers
 #include "common.hh"
+#include <type_traits>
 
 
 //toggle colour mode
@@ -48,15 +49,18 @@ void _common::subtitle(const std::string tag, const std::string subtitle) {
 
 
 //print a warning
-void _common::warning(const std::string tag, const std::string warning) {
+void _common::release_warning(const std::string _class) {
 
     //print tag
     if (use_colour == true) {
-        std::cout << "|" << colour::RED << tag << colour::RESET << "| "
-                  << colour::YELLOW << warning << colour::RESET
-                  << std::endl;
+        std::cout << "[" << colour::RED << _common::release_warn_tag
+                  << colour::RESET << "]<" << colour::YELLOW
+                  << _class << colour::RESET << "> "
+                  << _common::release_warn << std::endl;
         
     } else {
-        std::cout << "|" << tag << "| " << warning << std::endl;
+        std::cout << "[" << _common::release_warn_tag << "]<"
+                  << _class << "> "
+                  << _common::release_warn << std::endl;
     }
 }

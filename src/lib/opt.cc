@@ -28,9 +28,10 @@
  */
 
 //perform a deep copy
-void sc::opt::do_copy(sc::opt & opts) noexcept {
+void sc::opt::do_copy(const sc::opt & opts) noexcept {
 
     int ret;
+    enum sc::addr_width addr_width;
 
 
     //acquire a read lock on the source object
@@ -56,15 +57,16 @@ void sc::opt::do_copy(sc::opt & opts) noexcept {
     this->map = opts.get_map();
 
     //copy the address width
-    ret= opts.set_addr_width(this->addr_width);
+    ret = opts.get_addr_width(addr_width);
     if (ret != 0) {
         opts._unlock();
         this->_set_ctor_failed(true);
         return;
     }
+    this->addr_width = addr_width;
 
     //copy the scan set
-    this->scan_set = opts._get_scan_set_mut();
+    this->scan_set = ((sc::opt &) opts)._get_scan_set_mut();
 
     //release the lock
     opts._unlock();
@@ -95,7 +97,7 @@ sc::opt::opt() noexcept
 
 
 //copy constructor
-sc::opt::opt(sc::opt & opts) noexcept
+sc::opt::opt(const sc::opt & opts) noexcept
  : _lockable(), _ctor_failable() {
 
     this->do_copy(opts);
@@ -118,7 +120,7 @@ sc::opt::~opt() noexcept {
 
 
 //copy assignment operator
-sc::opt & sc::opt::operator=(sc::opt & opts) noexcept {
+sc::opt & sc::opt::operator=(const sc::opt & opts) noexcept {
 
     if (this != &opts) this->do_copy(opts);
     return *this;
@@ -158,8 +160,8 @@ _DEFINE_STR_GETTER(sc::opt, file_pathname_in)
 _DEFINE_VCT_SETTER(sc::opt, sessions)
 _DEFINE_VCT_GETTER(sc::opt, sessions)
 
-_DEFINE_PTR_SETTER(sc::opt, mc_vm_map, map)
-_DEFINE_PTR_GETTER(sc::opt, mc_vm_map, map, sc::val_bad::map)
+_DEFINE_VALUE_SETTER(sc::opt, mc_vm_map *, map)
+_DEFINE_VALUE_GETTER(sc::opt, mc_vm_map *, map, sc::val_bad::map)
 
 _DEFINE_ENUM_SETTER(sc::opt, sc::addr_width, addr_width)
 _DEFINE_ENUM_GETTER(sc::opt, sc::addr_width, addr_width)
@@ -174,9 +176,10 @@ _DEFINE_OBJ_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
  */
 
 //perform a deep copy
-void sc::opt_ptr::do_copy(sc::opt_ptr & opts_ptr) noexcept {
+void sc::opt_ptr::do_copy(const sc::opt_ptr & opts_ptr) noexcept {
 
     int ret;
+    enum sc::smart_scan smart_scan;
 
 
     //acquire a read lock on the source object
@@ -193,7 +196,7 @@ void sc::opt_ptr::do_copy(sc::opt_ptr & opts_ptr) noexcept {
     this->max_depth = opts_ptr.get_max_depth();
 
     //copy the static area set
-    this->static_set = opts_ptr._get_static_set_mut();
+    this->static_set = ((sc::opt_ptr &) opts_ptr)._get_static_set_mut();
     if (this->_get_ctor_failed() == true) {
         opts_ptr._unlock();
         this->_set_ctor_failed(true);
@@ -205,12 +208,13 @@ void sc::opt_ptr::do_copy(sc::opt_ptr & opts_ptr) noexcept {
         this->preset_offsets, opts_ptr.get_preset_offsets(), opts_ptr)
 
     //copy the smart scan toggle
-    ret = opts_ptr.get_smart_scan(this->smart_scan);
+    ret = opts_ptr.get_smart_scan(smart_scan);
     if (ret != 0) {
         opts_ptr._unlock();
         this->_set_ctor_failed(true);
         return;
     }
+    this->smart_scan = smart_scan;
 
     //release the lock
     opts_ptr._unlock();
@@ -240,7 +244,7 @@ sc::opt_ptr::opt_ptr() noexcept
 
 
 //copy constructor
-sc::opt_ptr::opt_ptr(sc::opt_ptr & opts_ptr) noexcept
+sc::opt_ptr::opt_ptr(const sc::opt_ptr & opts_ptr) noexcept
  : _opt_scan() {
 
     this->do_copy(opts_ptr);
@@ -259,7 +263,8 @@ sc::opt_ptr::~opt_ptr() noexcept {
 
 
 //copy assignment operator
-sc::opt_ptr & sc::opt_ptr::operator=(sc::opt_ptr & opts_ptr) noexcept {
+sc::opt_ptr & sc::opt_ptr::operator=(
+    const sc::opt_ptr & opts_ptr) noexcept {
 
     if (this != &opts_ptr) this->do_copy(opts_ptr);
     return *this;
@@ -315,6 +320,7 @@ _DEFINE_VALUE_GETTER(sc::opt_ptr, int, max_depth, sc::val_bad::max_depth)
 
 _DEFINE_OBJ_SETTER(sc::opt_ptr, sc::map_area_set, static_set)
 _DEFINE_OBJ_GETTER(sc::opt_ptr, sc::map_area_set, static_set)
+_DEFINE_OBJ_GETTER_MUT(sc::opt_ptr, sc::map_area_set, static_set)
 
 _DEFINE_VCT_SETTER(sc::opt_ptr, preset_offsets)
 _DEFINE_VCT_GETTER(sc::opt_ptr, preset_offsets)
@@ -349,8 +355,8 @@ _DEFINE_C_STR_GETTER(opt, opt, sc, opts, file_pathname_in)
 _DEFINE_C_VCT_SETTER(opt, opt, sc, opts, sessions)
 _DEFINE_C_VCT_GETTER(opt, opt, sc, opts, sessions)
 
-_DEFINE_C_PTR_SETTER(opt, opt, mc_vm_map, sc, opts, map)
-_DEFINE_C_PTR_GETTER(opt, opt, mc_vm_map, sc, opts, map)
+_DEFINE_C_VALUE_SETTER(opt, opt, mc_vm_map *, sc, opts, map)
+_DEFINE_C_VALUE_GETTER(opt, opt, mc_vm_map *, sc, opts, map)
 
 _DEFINE_C_ENUM_SETTER(opt, opt, addr_width, sc, opts, addr_width)
 _DEFINE_C_ENUM_GETTER(opt, opt, addr_width, sc, opts, addr_width)

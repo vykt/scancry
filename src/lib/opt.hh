@@ -24,12 +24,12 @@ int sc_opt_reset(sc_opt * opts);
 //0 = success, -1 = error
 int sc_opt_set_file_pathname_out(sc_opt * opts, const char * path);
 //pointer to a private string (can't fail)
-const char ** sc_opt_get_filename_pathname_out(const sc_opt * opts);
+const char * const * sc_opt_get_filename_pathname_out(const sc_opt * opts);
 
 //0 = success, -1 = error
 int sc_opt_set_file_pathname_in(sc_opt * opts, const char * path);
 //pointer to a private string (can't fail)
-const char ** sc_opt_get_file_pathname_in(const sc_opt * opts);
+const char * const * sc_opt_get_file_pathname_in(const sc_opt * opts);
 
 /*
  *  NOTE: The following setter requires an initialised vector. The

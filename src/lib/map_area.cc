@@ -195,7 +195,7 @@ cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
  */
 
 //perform a deep copy
-void sc::opt_map_area::do_copy(sc::opt_map_area & opts_ma) noexcept {
+void sc::opt_map_area::do_copy(const sc::opt_map_area & opts_ma) noexcept {
 
     int ret;
 
@@ -253,19 +253,25 @@ sc::opt_map_area::opt_map_area() noexcept
  : _lockable(), _ctor_failable(), access(sc::val_unset::access) {
 
     //zero out vectors
-    std::memset(&this->omit_areas, 0, sizeof(this->omit_areas));
-    std::memset(&this->omit_areas, 0, sizeof(this->omit_objs));
-    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_areas));
-    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_objs));
-    std::memset(&this->omit_areas, 0, sizeof(this->omit_addr_ranges));
-    std::memset(&this->omit_areas, 0, sizeof(this->exclusive_addr_ranges));
+    std::memset(&this->omit_areas,
+                0, sizeof(this->omit_areas));
+    std::memset(&this->omit_objs,
+                0, sizeof(this->omit_objs));
+    std::memset(&this->exclusive_areas,
+                0, sizeof(this->exclusive_areas));
+    std::memset(&this->exclusive_objs,
+                0, sizeof(this->exclusive_objs));
+    std::memset(&this->omit_addr_ranges,
+                0, sizeof(this->omit_addr_ranges));
+    std::memset(&this->exclusive_addr_ranges,
+                0, sizeof(this->exclusive_addr_ranges));
 
     return;
 }
 
 
 //copy constructor
-sc::opt_map_area::opt_map_area(sc::opt_map_area & opts_ma) noexcept
+sc::opt_map_area::opt_map_area(const sc::opt_map_area & opts_ma) noexcept
  : _lockable(), _ctor_failable() {
 
     this->do_copy(opts_ma);
@@ -290,7 +296,7 @@ sc::opt_map_area::~opt_map_area() noexcept {
 
 //copy assignment operator
 sc::opt_map_area & sc::opt_map_area::operator=(
-    sc::opt_map_area & opts_ma) noexcept {
+    const sc::opt_map_area & opts_ma) noexcept {
 
     if (this != &opts_ma) this->do_copy(opts_ma);
     return *this;
@@ -349,7 +355,7 @@ _DEFINE_VALUE_GETTER(sc::opt_map_area, cm_byte, access, sc::val_bad::access)
  *  --- [MAP_AREA_SET | PRIVATE] ---
  */
 
-void sc::map_area_set::do_copy(sc::map_area_set & ma_set) noexcept {
+void sc::map_area_set::do_copy(const sc::map_area_set & ma_set) noexcept {
 
     int ret;
 
@@ -391,7 +397,7 @@ sc::map_area_set::map_area_set() noexcept
 
 
 //copy constructor
-sc::map_area_set::map_area_set(sc::map_area_set & ma_set) noexcept
+sc::map_area_set::map_area_set(const sc::map_area_set & ma_set) noexcept
  : _lockable(), _ctor_failable() {
 
     this->do_copy(ma_set);
@@ -411,7 +417,7 @@ sc::map_area_set::~map_area_set() noexcept {
 
 //copy assignment operator
 sc::map_area_set & sc::map_area_set::operator=(
-    sc::map_area_set & ma_set) noexcept {
+    const sc::map_area_set & ma_set) noexcept {
 
     if (this != &ma_set) this->do_copy(ma_set);
     return *this;
@@ -712,7 +718,7 @@ _SC_DBG_STATIC int _from_cc_addr_range(
 
 
 /*
- *  --- [OPT_map_area | EXTERNAL] ---
+ *  --- [OPT_MAP_AREA | EXTERNAL] ---
  */
 
 //ctors & dtor
@@ -771,4 +777,4 @@ int sc_ma_set_update_set(sc_map_area_set * ma_set,
 
 
 //setters & getters
-_DEFINE_C_PTR_GETTER(map_area_set, ma_set, cm_rbt, sc, ma_set, set)
+_DEFINE_C_RBT_GETTER(map_area_set, ma_set, sc, ma_set, set)

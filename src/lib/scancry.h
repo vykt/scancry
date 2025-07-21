@@ -84,19 +84,21 @@ class opt_map_area : public _lockable, public _ctor_failable {
         cm_byte access;
 
         //[methods]
-        void do_copy(sc::opt_map_area & opts_ma) noexcept;
+        void do_copy(const sc::opt_map_area & opts_ma) noexcept;
 
     public:
         //[methods]
         //ctors & dtor
         opt_map_area() noexcept;
-        opt_map_area(sc::opt_map_area & opts_ma) noexcept;
-        opt_map_area(sc::opt_map_area && opts_ma) = delete;
+        opt_map_area(const sc::opt_map_area & opts_ma) noexcept;
+        opt_map_area(const sc::opt_map_area && opts_ma) = delete;
         ~opt_map_area() noexcept;
 
         //operators
-        sc::opt_map_area & operator=(sc::opt_map_area & opt_ma) noexcept;
-        sc::opt_map_area & operator=(sc::opt_map_area && opt_ma) = delete;
+        sc::opt_map_area & operator=(
+            const sc::opt_map_area & opt_ma) noexcept;
+        sc::opt_map_area & operator=(
+            const sc::opt_map_area && opt_ma) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept;
@@ -151,19 +153,21 @@ class map_area_set : public _lockable, public _ctor_failable {
         cm_rbt /* <const cm_lst_node * : nullptr> */ set;
 
         //[methods]
-        void do_copy(sc::map_area_set & ma_set) noexcept;
+        void do_copy(const sc::map_area_set & ma_set) noexcept;
 
     public:
         //[methods]
         //ctors & dtor
         map_area_set() noexcept;
-        map_area_set(sc::map_area_set & ma_set) noexcept;
-        map_area_set(sc::map_area_set && ma_set) = delete;
+        map_area_set(const sc::map_area_set & ma_set) noexcept;
+        map_area_set(const sc::map_area_set && ma_set) = delete;
         ~map_area_set() noexcept;
 
         //operators
-        sc::map_area_set & operator=(sc::map_area_set & ma_set) noexcept;
-        sc::map_area_set & operator=(sc::map_area_set && ma_set) = delete;
+        sc::map_area_set & operator=(
+            const sc::map_area_set & ma_set) noexcept;
+        sc::map_area_set & operator=(
+            const sc::map_area_set && ma_set) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept;
@@ -230,7 +234,7 @@ class opt : public _lockable, public _ctor_failable {
         sc::map_area_set scan_set;
 
         //[methods]
-        void do_copy(sc::opt & opts) noexcept;
+        void do_copy(const sc::opt & opts) noexcept;
 
     public:
         //[methods]
@@ -239,13 +243,13 @@ class opt : public _lockable, public _ctor_failable {
         
         //ctors & dtor
         opt() noexcept;
-        opt(opt & opts) noexcept;
-        opt(opt && opts) = delete;
+        opt(const opt & opts) noexcept;
+        opt(const opt && opts) = delete;
         ~opt() noexcept;
 
         //operators
-        sc::opt & operator=(sc::opt & opts) noexcept;
-        sc::opt & operator=(sc::opt && opts) = delete;
+        sc::opt & operator=(const sc::opt & opts) noexcept;
+        sc::opt & operator=(const sc::opt && opts) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept;
@@ -355,7 +359,7 @@ class opt_ptr final : public _opt_scan {
         enum smart_scan smart_scan;
 
         //[methods]
-        void do_copy(sc::opt_ptr & opts_ptr) noexcept;
+        void do_copy(const sc::opt_ptr & opts_ptr) noexcept;
 
     public:
         //[methods]
@@ -364,13 +368,13 @@ class opt_ptr final : public _opt_scan {
     
         //ctors & dtor
         opt_ptr() noexcept;
-        opt_ptr(opt_ptr & opts_ptr) noexcept;
-        opt_ptr(opt_ptr && opts_ptr) = delete;
+        opt_ptr(const opt_ptr & opts_ptr) noexcept;
+        opt_ptr(const opt_ptr && opts_ptr) = delete;
         ~opt_ptr() noexcept override final;
 
         //operators
-        sc::opt_ptr & operator=(sc::opt_ptr & opts_ptr) noexcept;
-        sc::opt_ptr & operator=(sc::opt_ptr && opts_ptr) = delete;
+        sc::opt_ptr & operator=(const sc::opt_ptr & opts_ptr) noexcept;
+        sc::opt_ptr & operator=(const sc::opt_ptr && opts_ptr) = delete;
 
         //reset
         [[nodiscard]] int reset() noexcept override final;
@@ -841,7 +845,7 @@ typedef struct combined_file_hdr {
 
 //opaque handle = success, NULL = error 
 extern sc_opt_map_area * sc_new_opt_ma();
-extern sc_opt_map_area * sc_copy_opt_ma(sc_opt_map_area * opts_ma);
+extern sc_opt_map_area * sc_copy_opt_ma(const sc_opt_map_area * opts_ma);
 //void return
 extern void sc_del_opt_ma(sc_opt_map_area * opts_ma);
 //0 = success, -1 = error
@@ -853,42 +857,45 @@ extern int sc_opt_ma_reset(sc_opt_map_area * opts_ma);
 //omit areas
 extern int sc_opt_ma_set_omit_areas(
     sc_opt_map_area * opts_ma, const cm_vct * omit_areas);
-extern const cm_vct * sc_opt_ma_get_omit_areas(sc_opt_map_area * opts_ma);
+extern const cm_vct * sc_opt_ma_get_omit_areas(const sc_opt_map_area * opts_ma);
 
 //omit objects
 extern int sc_opt_ma_set_omit_objs(
     sc_opt_map_area * opts_ma, const cm_vct * omit_objs);
-extern const cm_vct * sc_opt_ma_get_omit_objs(sc_opt_map_area * opts_ma);
+extern const cm_vct * sc_opt_ma_get_omit_objs(
+    const sc_opt_map_area * opts_ma);
 
 //exclusive areas
 extern int sc_opt_ma_set_exclusive_areas(
     sc_opt_map_area * opts_ma, const cm_vct * exclusive_areas);
-extern const cm_vct * sc_opt_ma_get_exclusive_areas(sc_opt_map_area * opts_ma);
+extern const cm_vct * sc_opt_ma_get_exclusive_areas(
+    const sc_opt_map_area * opts_ma);
 
 //exclusive objects
 extern int sc_opt_ma_set_exclusive_objs(
     sc_opt_map_area * opts_ma, const cm_vct * exclusive_objs);
-extern const cm_vct * sc_opt_ma_get_exclusive_objs(sc_opt_map_area * opts_ma);
+extern const cm_vct * sc_opt_ma_get_exclusive_objs(
+    const sc_opt_map_area * opts_ma);
 
 //omit address ranges
 extern int sc_opt_ma_set_omit_addr_ranges(
     sc_opt_map_area * opts_ma, const cm_vct * omit_addr_ranges);
 //only for this getter: 0 = success, -1 = fail, deallocate vector manually
 extern int sc_opt_ma_get_omit_addr_ranges(
-    sc_opt_map_area * opts_ma, cm_vct * addr_ranges);
+    const sc_opt_map_area * opts_ma, cm_vct * omit_addr_ranges);
 
 //exclusive address ranges
 extern int sc_opt_ma_set_exclusive_addr_ranges(
     sc_opt_map_area * opts_ma, const cm_vct * exclusive_addr_ranges);
 extern int sc_opt_ma_get_exclusive_addr_ranges(
-    sc_opt_map_area * opts_ma, cm_vct * addr_ranges);
+    const sc_opt_map_area * opts_ma, cm_vct * omit_addr_ranges);
 
 //access
 //0 = success, CM_BYTE_MAX = error
 extern int sc_opt_ma_set_access(
     sc_opt_map_area * opts_ma, const cm_byte access);
 //CM_BYTE_MAX = error, SC_ACCESS_UNSET = not set, other = success
-extern cm_byte sc_opt_ma_get_access(sc_opt_map_area * opts_ma);
+extern cm_byte sc_opt_ma_get_access(const sc_opt_map_area * opts_ma);
 
 
 /*
@@ -908,7 +915,7 @@ extern int sc_ma_set_update_set(sc_map_area_set * ma_set,
                                 sc_opt_map_area * opts_ma,
                                 const mc_vm_map * map);
 //pointer = success, -1 = error
-extern const cm_rbt * sc_get_set(sc_map_area_set * ma_set);
+extern const cm_rbt * sc_get_set(const sc_map_area_set * ma_set);
 
 
 /*
@@ -926,12 +933,14 @@ extern int sc_opt_reset(sc_opt * opts);
 //0 = success, -1 = error
 extern int sc_opt_set_file_pathname_out(sc_opt * opts, const char * path);
 //pointer to a private string (can't fail)
-extern const char ** sc_opt_get_filename_pathname_out(const sc_opt * opts);
+extern const char * const * sc_opt_get_filename_pathname_out(
+    const sc_opt * opts);
 
 //0 = success, -1 = error
 extern int sc_opt_set_file_pathname_in(sc_opt * opts, const char * path);
 //pointer to a private string (can't fail)
-extern const char ** sc_opt_get_file_pathname_in(const sc_opt * opts);
+extern const char * const * sc_opt_get_file_pathname_in(
+    const sc_opt * opts);
 
 /*
  *  NOTE: The following setter requires an initialised vector. The

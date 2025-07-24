@@ -50,12 +50,10 @@
 
 //copy a vector if it is initialised; on fail, cleanup and return early
 #define _CTOR_VCT_COPY_IF_INIT(dst_vct, src_vct)            \
-    std::memset(&dst_vct, 0, sizeof(dst_vct));              \
     ret = common::cpy_vct_if_init(dst_vct, src_vct);        \
     if (ret != 0) { this->_set_ctor_failed(true); return; } \
 
 #define _CTOR_VCT_COPY_IF_INIT_UNLOCK(dst_vct, src_vct, locked_obj) \
-    std::memset(&dst_vct, 0, sizeof(dst_vct));              \
     ret = common::cpy_vct_if_init(dst_vct, src_vct);                \
     if (ret != 0) {                                                 \
         locked_obj._unlock();                                       \
@@ -65,7 +63,6 @@
 
 //move a vector if its initialised
 #define _CTOR_VCT_MOVE_IF_INIT(dst_vct, src_vct) \
-    std::memset(&dst_vct, 0, sizeof(dst_vct));   \
     common::mov_vct_if_init(dst_vct, src_vct);   \
 
 
@@ -519,7 +516,10 @@ sc_##type * sc_copy_##short_type(const sc_##type * src_obj) { \
                                                               \
     /* read lock the source object */                         \
     ret = cc_src_obj->_lock_read();                           \
-    if (ret != 0) return NULL;                                \
+    if (ret != 0) {                                           \
+        sc_errno = SC_ERR_IN_USE;                             \
+        return NULL;                                          \
+    }                                                         \
                                                               \
     /* allocate space for the new object */                   \
     alloc = std::malloc(sizeof(namespace::type));             \
@@ -544,6 +544,56 @@ sc_##type * sc_copy_##short_type(const sc_##type * src_obj) { \
                                                               \
     return (sc_##type *) obj;                                 \
 }                                                             \
+
+
+//define a copy assignment
+#define _DEFINE_C_COPY_ASSIGN(                              \
+    type, short_type, namespace, dst_obj, src_obj)          \
+int sc_copy_assign_##short_type(                            \
+    const sc_##type * dst_obj, const sc_##type * src_obj) { \
+                                                            \
+    int ret;                                                \
+    namespace::type * cc_##src_obj;                         \
+    namespace::type * cc_##dst_obj;                         \
+                                                            \
+                                                            \
+    /* cast the source object */                            \
+    cc_##src_obj = (namespace::type *) src_obj;             \
+    cc_##dst_obj = (namespace::type *) dst_obj;             \
+                                                            \
+    /* read lock the source object */                       \
+    ret = cc_##src_obj->_lock_read();                       \
+    if (ret != 0) {                                         \
+        sc_errno = SC_ERR_IN_USE;                           \
+        return 0;                                           \
+    }                                                       \
+                                                            \
+    /* write lock the destination object */                 \
+    ret = cc_##dst_obj->_lock_write();                      \
+    if (ret != 0) {                                         \
+        cc_##src_obj->_unlock();                            \
+        sc_errno = SC_ERR_IN_USE;                           \
+        return -1;                                          \
+    }                                                       \
+                                                            \
+    /* perform assignment */                                \
+    cc_##dst_obj = cc_##src_obj;                            \
+                                                            \
+    /* unlock the source object */                          \
+    cc_##src_obj->_unlock();                                \
+                                                            \
+    /* abort & cleanup if constructor failed */             \
+    if (cc_##dst_obj->_get_ctor_failed() == true) {         \
+        cc_##dst_obj->~type();                              \
+        cc_##dst_obj->_unlock();                            \
+        return -1;                                          \
+    }                                                       \
+                                                            \
+    /* unlock the destination object */                     \
+    cc_##dst_obj->_unlock();                                \
+                                                            \
+    return 0;                                               \
+}                                                           \
 
 
 //define a destructor
@@ -872,3 +922,4 @@ const sc_##type * sc_##short_hdl_type##_get_##obj(      \
                                                         \
     return (const sc_##type *) &cc_##hdl->get_##obj();  \
 }                                                       \
+

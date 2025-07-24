@@ -179,3 +179,4 @@ sc::_opt_scan & sc::_opt_scan::operator=(
     if (this != &opts_scan) this->do_copy(opts_scan);
     return *this;    
 }
+

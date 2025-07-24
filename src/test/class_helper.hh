@@ -11,15 +11,26 @@
 #include <cmore.h>
 #include <doctest/doctest.h>
 
+//test target headers
+#include "../lib/scancry.h"
+
 
 
 namespace _class_helper {
 
     /*
-     *  C++ interface tests
+     *  String helpers
      */
 
-    // -- vector helpers
+    namespace str {
+
+        //setup a stub string
+        void setup_stub(char *& str);
+    }
+
+    /*
+     *  Vector helpers
+     */
 
     namespace vct {
     
@@ -76,6 +87,96 @@ namespace _class_helper {
 
     } //end namespace `vct`
 
+
+
+    /*
+     *  Red-black tree helpers
+     */
+
+    namespace rbt {
+
+    //setup a stub red-black tree
+    void setup_stub(cm_rbt & rbt);
+
+
+    //check if two red-black trees are equal
+    template <typename key_T, typename data_T>
+    void assert_eq(const cm_rbt & rbt_0, const cm_rbt & rbt_1,
+                   std::function<void(
+                       const key_T & key_0, const data_T & data_0,
+                       const key_T & key_1, const data_T & data_1)>
+                       key_data_assert_cb) {
+
+        cm_rbt_node * node_0, * node_1;
+        key_T * key_0, * key_1;
+        data_T * data_0, * data_1;
+
+        
+        REQUIRE_EQ(rbt_0.is_init, rbt_1.is_init);
+        if (rbt_0.is_init == false) return;
+        
+        REQUIRE_EQ(rbt_0.size, rbt_1.size);
+        for (int i = 0; i < rbt_0.size; ++i) {
+            node_0 = cm_rbt_idx_get_n(&rbt_0, i);
+            REQUIRE_NE(node_0, nullptr);
+            node_1 = cm_rbt_idx_get_n(&rbt_1, i);
+            REQUIRE_NE(node_1, nullptr);
+            key_data_assert_cb(
+                *(const key_T *) node_0->key,
+                *(const data_T *) node_0->data,
+                *(const key_T *) node_1->key,
+                *(const data_T *) node_1->data
+            );
+        }
+    }
+
+
+    //setup a red-black tree with real values
+    enum cm_rbt_side _compare(const void *, const void *);
+
+    template <typename key_T, typename data_T>
+    void populate(cm_rbt & rbt,
+                  const key_T * key_arr, const data_T * data_arr,
+                  const size_t key_data_count) {
+
+        cm_rbt_node * ret_node;
+
+
+        //initialise the red-black tree
+        cm_new_rbt(&rbt, sizeof(key_T), sizeof(data_T),
+                   _class_helper::rbt::_compare);
+
+        //populate the red-black tree with elements
+        for (int i = 0; i < key_data_count; ++i) {
+
+            ret_node = cm_rbt_set(&rbt,
+                                  (const void *) &key_arr[i],
+                                  (const void *) &data_arr[i]);
+            REQUIRE_NE(ret_node, nullptr);
+        }
+
+        return;
+    }
+    
+    } //end namespace `rbt`
+
+
+
+    /*
+     *  Map area set helpers
+     */
+
+    namespace ma_set {
+
+    void print_set(const sc::map_area_set & ma_set);
+
+    } //end namespace `ma_set`
+
+
+
+    /*
+     *  C++ interface tests
+     */
 
     namespace cc {
 
@@ -144,6 +245,43 @@ namespace _class_helper {
 
         std::free(dst_obj_buf);
         std::free(src_obj_buf);
+        return;
+    }
+
+
+    //copy assignment test
+    template <typename obj_T>
+    void test_copy_assign(
+        std::function<void(obj_T &)> src_setup_cb,
+        std::function<void(obj_T &)> dst_setup_cb,
+        std::function<
+            void(const obj_T &, const obj_T &)> copy_assign_assert_cb) {
+
+        //use placement new to keep memory after dtors are called
+        void * dst_obj_buf = std::malloc(sizeof(obj_T));
+        REQUIRE_NE(dst_obj_buf, nullptr);
+
+        void * src_obj_buf = std::malloc(sizeof(obj_T));
+        REQUIRE_NE(src_obj_buf, nullptr);
+
+        //setup the source object
+        obj_T * src_obj = new(src_obj_buf) obj_T();
+        src_setup_cb(*src_obj);
+
+        //setup the destination object
+        obj_T * dst_obj = new(dst_obj_buf) obj_T();
+        dst_setup_cb(*dst_obj);
+
+        //run post-copy-assignment checks
+        *dst_obj = *src_obj;
+        copy_assign_assert_cb(*dst_obj, *src_obj);
+
+        //cleanup
+        src_obj->~obj_T();
+        dst_obj->~obj_T();
+        std::free(dst_obj_buf);
+        std::free(src_obj_buf);
+
         return;
     }
 
@@ -270,15 +408,16 @@ namespace _class_helper {
         const enm_T dflt_val, const enm_T new_enm,
         int (obj_T::*setter_fn)(const enm_T enm),
         int (obj_T::*getter_fn)(enm_T & enm) const,
-        std::function<void(const obj_T &)> setter_assert_cb,
-        std::function<void(const obj_T &)> getter_assert_cb) {
+        std::function<void(const obj_T &)> setter_assert_cb) {
 
         int ret;
         obj_T obj;
+        enm_T _dflt_enm, _new_enm;
 
 
         //run the default value getter checks
-        const enm_T _dflt_enm = (obj.*getter_fn)();
+        ret = (obj.*getter_fn)(_dflt_enm);
+        REQUIRE_EQ(ret, 0);
         REQUIRE_EQ(_dflt_enm, dflt_val);
 
         //run the new value setter checks
@@ -287,7 +426,8 @@ namespace _class_helper {
         setter_assert_cb(obj);
 
         //run the new value getter checks
-        const enm_T _new_enm = (obj.*getter_fn)();
+        ret = (obj.*getter_fn)(_new_enm);
+        REQUIRE_EQ(ret, 0);
         REQUIRE_EQ(_new_enm, new_enm);
 
         return;
@@ -306,18 +446,18 @@ namespace _class_helper {
         obj_T obj;
 
 
-        //run the default pointer getter checks
+        //run the default string getter checks
         const char * const & _dflt_str = (obj.*getter_fn)();
         REQUIRE_EQ(_dflt_str, dflt_str);
 
-        //run the new pointer setter checks
+        //run the new string setter checks
         ret = (obj.*setter_fn)(new_str);
         REQUIRE_EQ(ret, 0);
         setter_assert_cb(obj);
 
-        //run the new pointer getter checks
+        //run the new string getter checks
         const char * const & _new_str = (obj.*getter_fn)();
-        REQUIRE_EQ(_new_str, new_str);
+        REQUIRE_EQ(strcmp(_new_str, new_str), 0);
 
         return;
     }
@@ -372,7 +512,7 @@ namespace _class_helper {
 
         //run the default pointer getter checks
         const obj_val_T & _dflt_obj = (obj.*getter_fn)();
-        dflt_getter_assert_cb(*obj, _dflt_obj);
+        dflt_getter_assert_cb(obj, _dflt_obj);
 
         //run the new pointer setter checks
         ret = (obj.*setter_fn)(new_obj);
@@ -381,7 +521,7 @@ namespace _class_helper {
 
         //run the new pointer getter checks
         const obj_val_T & _new_obj = (obj.*getter_fn)();
-        new_getter_assert_cb(*obj, _new_obj);
+        new_getter_assert_cb(obj, _new_obj);
 
         return;
     }
@@ -445,6 +585,42 @@ namespace _class_helper {
         copy_dtor_assert_cb(*dst_obj);
 
         //destroy destination handle
+        dtor_fn(dst_hdl);
+
+        return;
+    }
+
+
+    //copy assignment test
+    template <typename hdl_T, typename obj_T>
+    void test_copy_assign(
+        hdl_T * (* ctor_fn)(), void (* dtor_fn)(hdl_T *),
+        int (* copy_assign_fn)(const hdl_T *, const hdl_T *),
+        std::function<void(obj_T &)> src_setup_cb,
+        std::function<void(obj_T &)> dst_setup_cb,
+        std::function<
+            void(const obj_T &, const obj_T &)> copy_assign_assert_cb) {
+
+        int ret;
+
+
+        //setup the source & destination handles
+        hdl_T * src_hdl = ctor_fn();
+        obj_T * src_obj = (obj_T *) src_hdl;
+        src_setup_cb(*src_obj);
+
+        //setup the source & destination handles
+        hdl_T * dst_hdl = ctor_fn();
+        obj_T * dst_obj = (obj_T *) dst_hdl;
+        dst_setup_cb(*dst_obj);
+
+        //run post-copy-assignment checks
+        ret = copy_assign_fn(dst_hdl, src_hdl);
+        REQUIRE_EQ(0, ret);
+        copy_assign_assert_cb(*dst_obj, *src_obj);
+
+        //cleanup
+        dtor_fn(src_hdl);
         dtor_fn(dst_hdl);
 
         return;

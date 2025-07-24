@@ -16,6 +16,8 @@ extern "C" {
 //opaque handle = success, NULL = error
 sc_opt * sc_new_opt();
 sc_opt * sc_copy_opt(const sc_opt * opts);
+//0 = success, -1 = error
+int sc_copy_assign_opt(const sc_opt * dst_opts, const sc_opt * src_opts);
 //void return
 void sc_del_opt(sc_opt * opts);
 //0 = success, -1 = error
@@ -70,55 +72,57 @@ const sc_map_area_set * sc_opt_get_scan_set(const sc_opt * opts);
 // -- sc_opt_ptr
 
 //opaque handle = success, NULL = error
-sc_opt_ptr * sc_new_opt_ptr();
-sc_opt_ptr * sc_copy_opt_ptr(const sc_opt_ptr * opts_ptr);
+sc_opt_ptrscan * sc_new_opt_ptr();
+sc_opt_ptrscan * sc_copy_opt_ptr(const sc_opt_ptrscan * opts_ptr);
 //0 = success, -1 = error
-void sc_del_opt_ptr(sc_opt_ptr * opts_ptr);
-int sc_opt_ptr_reset(sc_opt_ptr * opts_ptr);
+int sc_copy_assign_opt_ptr(const sc_opt_ptrscan * dst_opts_ptr,
+                           const sc_opt_ptrscan * src_opts_ptr);
+void sc_del_opt_ptr(sc_opt_ptrscan * opts_ptr);
+int sc_opt_ptr_reset(sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
-int sc_opt_ptr_set_target_addr(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_target_addr(sc_opt_ptrscan * opts_ptr,
                                       const uintptr_t target_addr);
 //target address = success, SC_TARGET_ADDR_BAD = error
-uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptr * opts_ptr);
+uintptr_t sc_opt_ptr_get_target_addr(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
-int sc_opt_ptr_set_alignment(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_alignment(sc_opt_ptrscan * opts_ptr,
                                     const off_t alignment);
 //alignment = success, SC_ALIGNMENT_BAD = error
-off_t sc_opt_ptr_get_alignment(const sc_opt_ptr * opts_ptr);
+off_t sc_opt_ptr_get_alignment(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success. -1 = error
-int sc_opt_ptr_set_max_obj_sz(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_max_obj_sz(sc_opt_ptrscan * opts_ptr,
                                      const off_t max_obj_sz);
 //max object size = success, SC_MAX_OBJ_SZ_BAD = error
-off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptr * opts_ptr);
+off_t sc_opt_ptr_get_max_obj_sz(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
-int sc_opt_ptr_set_max_depth(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_max_depth(sc_opt_ptrscan * opts_ptr,
                                     const int max_depth);
 //max depth = succeess, SC_MAX_DEPTH_BAD = error
-int sc_opt_ptr_get_max_depth(const sc_opt_ptr * opts_ptr);
+int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
-int sc_opt_ptr_set_static_set(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_static_set(sc_opt_ptrscan * opts_ptr,
                                      const sc_map_area_set * static_set);
 //pointer to a private map area set (can't fail)
 const sc_map_area_set *
-    sc_opt_ptr_get_static_set(const sc_opt_ptr * opts_ptr);
+    sc_opt_ptr_get_static_set(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
 int sc_opt_ptr_set_preset_offsets(
-    sc_opt_ptr * opts_ptr, const cm_vct * preset_offsets);
+    sc_opt_ptrscan * opts_ptr, const cm_vct * preset_offsets);
 //pointer to a private vector (can't fail)
 const cm_vct *
-    sc_opt_ptr_get_preset_offsets(const sc_opt_ptr * opts_ptr);
+    sc_opt_ptr_get_preset_offsets(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = fail
-int sc_opt_ptr_set_smart_scan(sc_opt_ptr * opts_ptr,
+int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan * opts_ptr,
                                      const enum sc_smart_scan smart_scan);
 //smart scan enum = success, SC_SMART_SCAN_BAD = errorr
 enum sc_smart_scan
-    sc_opt_ptr_get_smart_scan(const sc_opt_ptr * opts_ptr);
+    sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan * opts_ptr);
 
 } //"C"

@@ -40,6 +40,8 @@ extern "C" {
 sc_opt_map_area * sc_new_opt_ma();
 sc_opt_map_area * sc_copy_opt_ma(const sc_opt_map_area * opts_ma);
 //0 = success, -1 = error
+int sc_copy_assign_opt_ma(const sc_opt_map_area * dst_opts_ma,
+                          const sc_opt_map_area * src_opts_ma);
 void sc_del_opt_ma(sc_opt_map_area * opts_ma);
 int sc_opt_ma_reset(sc_opt_map_area * opts_ma);
 
@@ -94,15 +96,17 @@ cm_byte sc_opt_ma_get_access(const sc_opt_map_area * opts_ma);
 
 //pointer = success, NULL = error
 sc_map_area_set * sc_new_ma_set();
-sc_map_area_set * sc_copy_ma_set(sc_map_area_set * ma_set);
+sc_map_area_set * sc_copy_ma_set(const sc_map_area_set * ma_set);
 //0 = success, -1 = error
+int sc_copy_assign_ma_set(const sc_map_area_set * dst_ma_set,
+                          const sc_map_area_set * src_ma_set);
 void sc_del_ma_set(sc_map_area_set * ma_set);
 int sc_ma_set_reset(sc_map_area_set * ma_set);
 
 //0 = success, -1 = error
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
-                                sc_opt_map_area * opts_ma,
-                                const mc_vm_map * map);
+                         const sc_opt_map_area * opts_ma,
+                         const mc_vm_map * map);
 //pointer = success, -1 = error
 const cm_rbt * sc_get_set(const sc_map_area_set * ma_set);
 

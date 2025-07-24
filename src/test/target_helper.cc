@@ -28,9 +28,10 @@ static enum _target_helper::target_map_state target_state;
 static void _sigusr1_handler(int signal) {
 
     /*
-     *  We need to wait for the child process to complete initialisation
-     *  before continuing the test. The child will send a SIGUSR1 signal
-     *  once its initialisation is finished.
+     *  NOTE: We need to wait for the child process to complete
+     *        initialisation before continuing the test. The child
+     *        will send a SIGUSR1 signal once its initialisation is
+     *        finished.
      */
 
     //update target state to set
@@ -42,7 +43,7 @@ static void _sigusr1_handler(int signal) {
 
 
 //helpers
-int _target_helper::clean_targets() {
+void _target_helper::clean_targets() {
 
     int ret;
 
@@ -53,9 +54,8 @@ int _target_helper::clean_targets() {
 
     //use system() to kill all existing targets
     ret = system(command_ss.str().c_str());
-    if (ret == -1) return -1;
 
-    return 0;
+    return;
 }
 
 
@@ -81,16 +81,16 @@ pid_t _target_helper::start_target() {
 
     //register signal handler
     ret_s = signal(SIGUSR1, _sigusr1_handler);
-    CHECK_NE((void *) ret_s, (void *) SIG_ERR);
+    REQUIRE_NE((void *) ret_s, (void *) SIG_ERR);
 
     //fork a new process
     target_pid = fork();
-    CHECK_NE(target_pid, -1);
+    REQUIRE_NE(target_pid, -1);
 
     //change image to target in child
     if (target_pid == 0) {
         ret = execve(_target_helper::target_name, argv, NULL);
-        CHECK_NE(ret, -1);
+        REQUIRE_NE(ret, -1);
 
     //parent waits for child to complete initialisation
     } else {
@@ -114,11 +114,11 @@ void _target_helper::end_target(pid_t pid) {
 
     //terminate target process
     ret = kill(pid, SIGTERM);
-    CHECK_EQ(ret, 0);
+    REQUIRE_EQ(ret, 0);
 
     //wait for it to terminate
     ret_p = waitpid(pid, NULL, 0);
-    CHECK_EQ(ret, 0);
+    REQUIRE_EQ(ret, 0);
 
     return;
 }

@@ -1,4 +1,5 @@
 //standard template library
+#include <cstddef>
 #include <optional>
 #include <vector>
 #include <functional>
@@ -23,9 +24,12 @@
  *        a non-empty setup callback.
  */
 
-void _opt_helper::setup(_opt_helper::args & opt_args,
-                        const _memcry_helper::args & mcry_args,
-                        std::function<void()> setup_cb) {
+// -- C++ interface
+
+void _opt_helper::cc::setup(
+    _opt_helper::cc::args & opt_args,
+    const _memcry_helper::args & mcry_args,
+    std::function<void(_opt_helper::cc::args &)> setup_cb) {
 
     int ret;
 
@@ -39,13 +43,13 @@ void _opt_helper::setup(_opt_helper::args & opt_args,
     REQUIRE_EQ(ret, 0);
 
     //call the setup callback
-    setup_cb();
+    setup_cb(opt_args);
 
     return;
 }
 
 
-void _opt_helper::teardown(args & opt_args) {
+void _opt_helper::cc::teardown(_opt_helper::cc::args & opt_args) {
 
     int ret;
 
@@ -61,6 +65,54 @@ void _opt_helper::teardown(args & opt_args) {
     //reset map area options
     ret = opt_args.opts_ma.reset();
     REQUIRE_EQ(ret, 0);
+
+    return;
+}
+
+
+// -- C interface
+
+void _opt_helper::c::setup(
+    _opt_helper::c::args & opt_args,
+    const _memcry_helper::args & mcry_args,
+    std::function<void(_opt_helper::c::args &)> setup_cb) {
+
+    int ret;
+
+
+    //create handles
+    opt_args.opts = sc_new_opt();
+    REQUIRE_NE(opt_args.opts, nullptr);
+
+    opt_args.opts_ma = sc_new_opt_ma();
+    REQUIRE_NE(opt_args.opts_ma, nullptr);
+
+    /* TODO: allocate new pointer scan options */
+
+    
+    //assign the MemCry map to ScanCry options
+    ret = sc_opt_set_map(opt_args.opts, &mcry_args.map);
+    REQUIRE_EQ(ret, 0);
+
+    //assign MemCry sessions to ScanCry options
+    ret = sc_opt_set_sessions(opt_args.opts, &mcry_args.sessions);
+    REQUIRE_EQ(ret, 0);
+
+    //call the setup callback
+    setup_cb(opt_args);
+
+    return;
+}
+
+
+void _opt_helper::c::teardown(_opt_helper::c::args & opt_args) {
+
+    int ret;
+
+
+    //destroy handles
+    sc_del_opt(opt_args.opts);
+    sc_del_opt_ma(opt_args.opts_ma);
 
     return;
 }

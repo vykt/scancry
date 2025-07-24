@@ -10,6 +10,8 @@
 #include "common.hh"
 #include "error.hh"
 
+//DEBUG
+#include <cstdio>
 
 
       /* =============== * 
@@ -29,7 +31,6 @@ void common::del_str_if_init(char *& str) noexcept {
 
     size_t len;
 
-
     //return if source string is not initialised
     if (src_str == nullptr) return 0;
 
@@ -37,7 +38,7 @@ void common::del_str_if_init(char *& str) noexcept {
     len = strlen(src_str);
 
     //reallocate a destination string
-    dst_str = static_cast<char *>(std::realloc((void *) dst_str, len + 1));
+    dst_str = (char *) std::realloc(dst_str, len + 1);
     if (dst_str == nullptr) return -1;
 
     //copy a source string into a destination string
@@ -70,6 +71,9 @@ void common::del_vct_if_init(cm_vct & vct) noexcept {
     int ret;
 
 
+    //release old vector
+    if (dst_vct.is_init == true) cm_del_vct(&dst_vct);
+
     //copy a vector if initialised
     if (src_vct.is_init == true) {
         ret = cm_vct_cpy(&dst_vct, &src_vct);
@@ -89,6 +93,9 @@ void common::del_vct_if_init(cm_vct & vct) noexcept {
 
 void common::mov_vct_if_init(
     cm_vct & dst_vct, cm_vct & src_vct) noexcept {
+
+    //release old vector
+    if (dst_vct.is_init == true) cm_del_vct(&dst_vct);
 
     //move a vector if initialised
     if (src_vct.is_init == true) {
@@ -117,6 +124,9 @@ void common::del_rbt_if_init(cm_rbt & rbt) noexcept {
     int ret;
 
 
+    //release old red-black tree
+    if (dst_rbt.is_init == true) cm_del_rbt(&dst_rbt);
+
     //copy a red-black tree if initialised
     if (src_rbt.is_init == true) {
         ret = cm_rbt_cpy(&dst_rbt, &src_rbt);
@@ -136,6 +146,9 @@ void common::del_rbt_if_init(cm_rbt & rbt) noexcept {
 
 void common::mov_rbt_if_init(
     cm_rbt & dst_rbt, cm_rbt & src_rbt) noexcept {
+
+    //release old red-black tree
+    if (dst_rbt.is_init == true) cm_del_rbt(&dst_rbt);
 
     //move a red-black tree if initialised
     if (src_rbt.is_init == true) {

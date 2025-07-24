@@ -14,7 +14,7 @@
 namespace _common {
 
     //misc. constants
-    const constexpr enum sc::addr_width cc_addr_width = sc::SC_AW64;
+    const constexpr enum sc::addr_width cc_addr_width = sc::AW64;
     const constexpr enum sc_addr_width c_addr_width = SC_AW64;
     const constexpr useconds_t thread_wait_usec_time = 100000;
 

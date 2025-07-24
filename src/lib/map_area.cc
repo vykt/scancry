@@ -40,16 +40,16 @@ enum _constraint_match {
 _SC_DBG_STATIC enum cm_rbt_side map_area_set_compare(
     const void * area_node_0_erased, const void * area_node_1_erased) {
 
-    cm_lst_node * area_node_0 = (cm_lst_node *) area_node_0_erased;
-    cm_lst_node * area_node_1 = (cm_lst_node *) area_node_1_erased;
+    cm_lst_node ** area_node_0 = (cm_lst_node **) area_node_0_erased;
+    cm_lst_node ** area_node_1 = (cm_lst_node **) area_node_1_erased;
     
-    mc_vm_area * area_0 = MC_GET_NODE_AREA(area_node_0);
-    mc_vm_area * area_1 = MC_GET_NODE_AREA(area_node_1);
+    mc_vm_area * area_0 = MC_GET_NODE_AREA((*area_node_0));
+    mc_vm_area * area_1 = MC_GET_NODE_AREA((*area_node_1));
 
-    if (area_0->id > area_1->id) return MORE;
-    if (area_0->id < area_1->id) return LESS;
+    if (area_0->id > area_1->id) return CM_RBT_MORE;
+    if (area_0->id < area_1->id) return CM_RBT_LESS;
 
-    return EQUAL;
+    return CM_RBT_EQUAL;
 }
 
 
@@ -274,6 +274,20 @@ sc::opt_map_area::opt_map_area() noexcept
 sc::opt_map_area::opt_map_area(const sc::opt_map_area & opts_ma) noexcept
  : _lockable(), _ctor_failable() {
 
+    //zero out vectors
+    std::memset(&this->omit_areas,
+                0, sizeof(this->omit_areas));
+    std::memset(&this->omit_objs,
+                0, sizeof(this->omit_objs));
+    std::memset(&this->exclusive_areas,
+                0, sizeof(this->exclusive_areas));
+    std::memset(&this->exclusive_objs,
+                0, sizeof(this->exclusive_objs));
+    std::memset(&this->omit_addr_ranges,
+                0, sizeof(this->omit_addr_ranges));
+    std::memset(&this->exclusive_addr_ranges,
+                0, sizeof(this->exclusive_addr_ranges));
+
     this->do_copy(opts_ma);
     return;
 }
@@ -400,6 +414,9 @@ sc::map_area_set::map_area_set() noexcept
 sc::map_area_set::map_area_set(const sc::map_area_set & ma_set) noexcept
  : _lockable(), _ctor_failable() {
 
+    //zero out the set
+    std::memset(&this->set, 0, sizeof(this->set));
+
     this->do_copy(ma_set);
     return;
 }
@@ -441,7 +458,7 @@ sc::map_area_set & sc::map_area_set::operator=(
 
 
 [[nodiscard]] int sc::map_area_set::update_set(
-    sc::opt_map_area & opts_ma, const mc_vm_map & map) noexcept {
+    const sc::opt_map_area & opts_ma, const mc_vm_map & map) noexcept {
 
     int ret, ret_val;
     cm_rbt_node * new_node;
@@ -526,27 +543,31 @@ sc::map_area_set & sc::map_area_set::operator=(
         //check if this object is omitted or blacklisted
         obj_node = area->obj_node_p;
         if (obj_node != nullptr) {
+        
             obj = MC_GET_NODE_OBJ(obj_node);
+            if (obj != nullptr) {
+            
+                //if the omit object vector is provided
+                if (omit_objs.is_init == true) {
 
-            //if the omit object vector is provided
-            if (omit_objs.is_init == true) {
+                    //check if this object is included in the omit
+                    //object vector
+                    match = is_included(obj_node, omit_objs);
+                    if (match == ERROR) goto _update_set_fail;
 
-                //check if this object is included in the omit object vector
-                match = is_included(obj_node, omit_objs);
-                if (match == ERROR) goto _update_set_fail;
+                    //if included, skip to the end of the current object
+                    if (match == INCLUDED) {
+                        area_node = get_last_obj_area(obj);
+                        goto _update_set_continue;
+                    }
+                }
 
-                //if included, skip to the end of the current object
+                //skip to the end of the current object if blacklisted
+                match = is_blacklisted(obj->pathname);
                 if (match == INCLUDED) {
                     area_node = get_last_obj_area(obj);
                     goto _update_set_continue;
                 }
-            }
-
-            //skip to the end of the current object if blacklisted
-            match = is_blacklisted(obj->pathname);
-            if (match == INCLUDED) {
-                area_node = get_last_obj_area(obj);
-                goto _update_set_continue;
             }
             
         } //end check if this object is omitted
@@ -636,8 +657,8 @@ sc::map_area_set & sc::map_area_set::operator=(
 
         //add to the scan set
         _update_set_add:
-        new_node = cm_rbt_set(&this->set, area_node,
-                              MC_GET_NODE_AREA(area_node));
+        new_node = cm_rbt_set(&this->set, &area_node,
+                              &area_node->data);
         if (new_node == nullptr) {
             sc_errno = SC_ERR_CMORE;
             goto _update_set_fail;
@@ -724,6 +745,7 @@ _SC_DBG_STATIC int _from_cc_addr_range(
 //ctors & dtor
 _DEFINE_C_CTOR(opt_map_area, opt_ma, sc)
 _DEFINE_C_COPY_CTOR(opt_map_area, opt_ma, sc, opts_ma)
+_DEFINE_C_COPY_ASSIGN(opt_map_area, opt_ma, sc, dst_opts_ma, src_opts_ma)
 _DEFINE_C_DTOR(opt_map_area, opt_ma, sc, opts_ma)
 _DEFINE_C_RESET(opt_map_area, opt_ma, sc, opts_ma)
 
@@ -761,16 +783,18 @@ _DEFINE_C_VALUE_GETTER(opt_map_area, opt_ma, cm_byte, sc, ma_set, access)
 //ctors & dtor
 _DEFINE_C_CTOR(map_area_set, ma_set, sc)
 _DEFINE_C_COPY_CTOR(map_area_set, ma_set, sc, ma_set)
+_DEFINE_C_COPY_ASSIGN(map_area_set, ma_set, sc, dst_ma_set, src_ma_set)
 _DEFINE_C_DTOR(map_area_set, ma_set, sc, ma_set)
 _DEFINE_C_RESET(map_area_set, ma_set, sc, ma_set)
 
 
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
-                         sc_opt_map_area * opts_ma,
+                         const sc_opt_map_area * opts_ma,
                          const mc_vm_map * map) {
 
     sc::map_area_set * cc_ma_set  = (sc::map_area_set *) ma_set;
-    sc::opt_map_area * cc_opts_ma = (sc::opt_map_area *) opts_ma;
+    const sc::opt_map_area * cc_opts_ma
+        = (const sc::opt_map_area *) opts_ma;
     
     return cc_ma_set->update_set(*cc_opts_ma, *map);
 }
@@ -778,3 +802,4 @@ int sc_ma_set_update_set(sc_map_area_set * ma_set,
 
 //setters & getters
 _DEFINE_C_RBT_GETTER(map_area_set, ma_set, sc, ma_set, set)
+

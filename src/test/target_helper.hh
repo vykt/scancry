@@ -33,7 +33,7 @@ const constexpr size_t pattern_2_sz = 0x2000;
 
 
 //target helpers
-int clean_targets();
+void clean_targets();
 pid_t start_target();
 void end_target(pid_t pid);
 

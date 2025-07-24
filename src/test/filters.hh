@@ -9,45 +9,38 @@
  */
 
 //C++ interface opt class tests
-inline const constexpr int test_cc_opt_subtests_num = 13;
+inline const constexpr int test_cc_opt_subtests_num = 10;
 inline const constexpr char * test_cc_opt_subtests[] = {
-    "test_cc_opt",
+    "test_cc_opt_ctor_dtor",
     "test_cc_opt_file_path_out",
     "test_cc_opt_file_path_in",
     "test_cc_opt_sessions",
     "test_cc_opt_map",
-    "test_cc_opt_omit_areas",
-    "test_cc_opt_omit_objs",
-    "test_cc_opt_exclusive_areas",
-    "test_cc_opt_exclusive_objs",
-    "test_cc_opt_omit_addr_range",
-    "test_cc_opt_exclusive_addr_range",
-    "test_cc_opt_access",
+    "test_cc_opt_addr_width",
+    "test_cc_opt_scan_set",
+    "test_cc_opt_copy_ctor",
+    "test_cc_opt_copy_assign",
     "test_cc_opt_reset"
 };
 
 
 //C interface opt class tests
-inline const constexpr int test_c_opt_subtests_num = 13;
+inline const constexpr int test_c_opt_subtests_num = 10;
 inline const constexpr char * test_c_opt_subtests[] = {
-    "test_c_sc_opt",
+    "test_c_sc_opt_ctor_dtor",
     "test_c_sc_opt_file_path_out",
     "test_c_sc_opt_file_path_in",
     "test_c_sc_opt_sessions",
     "test_c_sc_opt_map",
     "test_c_sc_opt_addr_width",
-    "test_c_sc_opt_omit_areas",
-    "test_c_sc_opt_omit_objs",
-    "test_c_sc_opt_exclusive_areas",
-    "test_c_sc_opt_exclusive_objs",
-    "test_c_sc_opt_omit_addr_range",
-    "test_c_sc_opt_exclusive_addr_range",
-    "test_c_sc_opt_access",
+    "test_c_sc_opt_scan_set",
+    "test_c_sc_opt_copy_ctor",
+    "test_c_sc_opt_copy_assign",
     "test_c_sc_opt_reset"
 };
 
 
-//C++ interface opt_ptr class tests
+//C++ interface opt_ptrscan class tests
 inline const constexpr int test_cc_opt_ptr_subtests_num = 9;
 inline const constexpr char * test_cc_opt_ptr_subtests[] = {
     "test_cc_opt_ptr",
@@ -62,7 +55,7 @@ inline const constexpr char * test_cc_opt_ptr_subtests[] = {
 };
 
 
-//C interface opt_ptr class tests
+//C interface opt_ptrscan class tests
 inline const constexpr int test_c_opt_ptr_subtests_num = 9;
 inline const constexpr char * test_c_opt_ptr_subtests[] = {
     "test_c_sc_opt_ptr",
@@ -77,8 +70,8 @@ inline const constexpr char * test_c_opt_ptr_subtests[] = {
 };
 
 
-//C++ interface map_area_set class tests
-inline const constexpr int test_cc_map_area_subtests_num = 14;
+//C++ interface map area tests
+inline const constexpr int test_cc_map_area_subtests_num = 16;
 inline const constexpr char * test_cc_map_area_subtests[] = {
     "test_cc_sc_opt_map_area_ctor_dtor",
     "test_cc_sc_opt_map_area_omit_areas",
@@ -89,17 +82,19 @@ inline const constexpr char * test_cc_map_area_subtests[] = {
     "test_cc_sc_opt_map_area_exclusive_addr_ranges",
     "test_cc_sc_opt_map_area_access",
     "test_cc_sc_opt_map_area_copy_ctor",
+    "test_cc_sc_opt_map_area_copy_assign",
     "test_cc_sc_opt_map_area_reset",
 
     "test_cc_sc_map_area_set_ctor_dtor",
+    "test_cc_sc_map_area_set_update_set",
     "test_cc_sc_map_area_set_copy_ctor",
-    "test_cc_sc_map_area_set_update",
+    "test_cc_sc_map_area_set_copy_assign",
     "test_cc_sc_map_area_set_reset"
 };
 
 
-//C interface opt class tests
-inline const constexpr int test_c_map_area_subtests_num = 14;
+//C interface map area tests
+inline const constexpr int test_c_map_area_subtests_num = 16;
 inline const constexpr char * test_c_map_area_subtests[] = {
     "test_c_sc_opt_map_area_ctor_dtor",
     "test_c_sc_opt_map_area_omit_areas",
@@ -110,11 +105,13 @@ inline const constexpr char * test_c_map_area_subtests[] = {
     "test_c_sc_opt_map_area_exclusive_addr_ranges",
     "test_c_sc_opt_map_area_access",
     "test_c_sc_opt_map_area_copy_ctor",
+    "test_c_sc_opt_map_area_copy_assign",
     "test_c_sc_opt_map_area_reset",
 
     "test_c_sc_map_area_set_ctor_dtor",
+    "test_c_sc_map_area_set_update_set",
     "test_c_sc_map_area_set_copy_ctor",
-    "test_c_sc_map_area_set_update",
+    "test_c_sc_map_area_set_copy_assign",
     "test_c_sc_map_area_set_reset"
 };
 

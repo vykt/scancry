@@ -8,8 +8,8 @@
  *  --- [FILTERS] ---
  */
 
-//C++ interface opt class tests
-inline const constexpr int test_cc_opt_subtests_num = 10;
+//C++ interface option classes tests
+inline const constexpr int test_cc_opt_subtests_num = 21;
 inline const constexpr char * test_cc_opt_subtests[] = {
     "test_cc_opt_ctor_dtor",
     "test_cc_opt_file_path_out",
@@ -20,12 +20,24 @@ inline const constexpr char * test_cc_opt_subtests[] = {
     "test_cc_opt_scan_set",
     "test_cc_opt_copy_ctor",
     "test_cc_opt_copy_assign",
-    "test_cc_opt_reset"
+    "test_cc_opt_reset",
+
+    "test_cc_opt_ptrscan_ctor_dtor",
+    "test_cc_opt_ptrscan_target_addr",
+    "test_cc_opt_ptrscan_alignment",
+    "test_cc_opt_ptrscan_max_obj_sz",
+    "test_cc_opt_ptrscan_max_depth",
+    "test_cc_opt_ptrscan_static_set",
+    "test_cc_opt_ptrscan_preset_offsets",
+    "test_cc_opt_ptrscan_smart_scan",
+    "test_cc_opt_ptrscan_copy_ctor",
+    "test_cc_opt_ptrscan_copy_assign",
+    "test_cc_opt_ptrscan_reset"
 };
 
 
-//C interface opt class tests
-inline const constexpr int test_c_opt_subtests_num = 10;
+//C interface option classes tests
+inline const constexpr int test_c_opt_subtests_num = 21;
 inline const constexpr char * test_c_opt_subtests[] = {
     "test_c_sc_opt_ctor_dtor",
     "test_c_sc_opt_file_path_out",
@@ -36,37 +48,19 @@ inline const constexpr char * test_c_opt_subtests[] = {
     "test_c_sc_opt_scan_set",
     "test_c_sc_opt_copy_ctor",
     "test_c_sc_opt_copy_assign",
-    "test_c_sc_opt_reset"
-};
+    "test_c_sc_opt_reset",
 
-
-//C++ interface opt_ptrscan class tests
-inline const constexpr int test_cc_opt_ptr_subtests_num = 9;
-inline const constexpr char * test_cc_opt_ptr_subtests[] = {
-    "test_cc_opt_ptr",
-    "test_cc_opt_ptr_target_addr",
-    "test_cc_opt_ptr_alignment",
-    "test_cc_opt_ptr_max_obj_sz",
-    "test_cc_opt_ptr_max_depth",
-    "test_cc_opt_ptr_static_areas",
-    "test_cc_opt_ptr_preset_offsets",
-    "test_cc_opt_ptr_smart_scan",
-    "test_cc_opt_ptr_reset"
-};
-
-
-//C interface opt_ptrscan class tests
-inline const constexpr int test_c_opt_ptr_subtests_num = 9;
-inline const constexpr char * test_c_opt_ptr_subtests[] = {
-    "test_c_sc_opt_ptr",
-    "test_c_sc_opt_ptr_target_addr",
-    "test_c_sc_opt_ptr_alignment",
-    "test_c_sc_opt_ptr_max_obj_sz",
-    "test_c_sc_opt_ptr_max_depth",
-    "test_c_sc_opt_ptr_static_areas",
-    "test_c_sc_opt_ptr_preset_offsets",
-    "test_c_sc_opt_ptr_smart_scan",
-    "test_c_sc_opt_ptr_reset"
+    "test_c_sc_opt_ptrscan_ctor_dtor",
+    "test_c_sc_opt_ptrscan_target_addr",
+    "test_c_sc_opt_ptrscan_alignment",
+    "test_c_sc_opt_ptrscan_max_obj_sz",
+    "test_c_sc_opt_ptrscan_max_depth",
+    "test_c_sc_opt_ptrscan_static_set",
+    "test_c_sc_opt_ptrscan_preset_offsets",
+    "test_c_sc_opt_ptrscan_smart_scan",
+    "test_c_sc_opt_ptrscan_copy_ctor",
+    "test_c_sc_opt_ptrscan_copy_assign",
+    "test_c_sc_opt_ptrscan_reset"
 };
 
 

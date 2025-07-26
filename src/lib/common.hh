@@ -577,7 +577,7 @@ int sc_copy_assign_##short_type(                            \
     }                                                       \
                                                             \
     /* perform assignment */                                \
-    cc_##dst_obj = cc_##src_obj;                            \
+    *cc_##dst_obj = *cc_##src_obj;                          \
                                                             \
     /* unlock the source object */                          \
     cc_##src_obj->_unlock();                                \

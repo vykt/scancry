@@ -40,6 +40,19 @@ static void _session_elem_eq(const mc_session & elem_0,
 }
 
 
+//compare cmore node pointers (red-black tree)
+static void _cm_node_key_data_eq(cm_lst_node * const & key_0,
+                                 mc_vm_area * const & data_0,
+                                 cm_lst_node * const & key_1,
+                                 mc_vm_area * const & data_1) {
+
+    REQUIRE_EQ(key_0, key_1);
+    REQUIRE_EQ(data_0, data_1);
+
+    return;    
+}
+
+
 //fully populate a `opt`
 static void _populate_opt(sc::opt & opts) {
 
@@ -380,6 +393,8 @@ TEST_CASE(test_cc_opt_subtests[6]) {
         [](const sc::opt & opts, const sc::map_area_set & ma_set) {
             REQUIRE_EQ(ma_set.get_set().is_init, false);
         },
+
+        //FIXME: actually properly populate the set
         
         //new object setter asserts
         [](const sc::opt & opts) {
@@ -403,7 +418,7 @@ TEST_CASE(test_cc_opt_subtests[6]) {
 TEST_CASE(test_cc_opt_subtests[7]) {
 
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - copy ctor");
+    _common::release_warning("opt - copy ctor");
     #endif
 
     //run test helper
@@ -437,9 +452,14 @@ TEST_CASE(test_cc_opt_subtests[7]) {
 
             //miscellaneous
             REQUIRE_EQ(dst_opts.addr_width, src_opts.addr_width);
-            REQUIRE_EQ(dst_opts.scan_set.set.is_init,
-                       src_opts.scan_set.set.is_init);
+            _class_helper::rbt::assert_eq<
+                cm_lst_node *, mc_vm_area *>(
+
+                dst_opts.scan_set.set,
+                src_opts.scan_set.set,
+                _cm_node_key_data_eq);
             #endif
+        
         },
 
 
@@ -479,7 +499,7 @@ TEST_CASE(test_cc_opt_subtests[7]) {
 TEST_CASE(test_cc_opt_subtests[8]) {
 
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - copy assign");
+    _common::release_warning("opt - copy assign");
     #endif
 
     //run test helper
@@ -531,8 +551,12 @@ TEST_CASE(test_cc_opt_subtests[8]) {
 
             //miscellaneous
             REQUIRE_EQ(dst_opts.addr_width, src_opts.addr_width);
-            REQUIRE_EQ(dst_opts.scan_set.set.is_init,
-                       src_opts.scan_set.set.is_init);
+            _class_helper::rbt::assert_eq<
+                cm_lst_node *, mc_vm_area *>(
+                
+                dst_opts.scan_set.set,
+                src_opts.scan_set.set,
+                _cm_node_key_data_eq);
             #endif
         }
     );
@@ -545,7 +569,7 @@ TEST_CASE(test_cc_opt_subtests[8]) {
 TEST_CASE(test_cc_opt_subtests[9]) {
 
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - reset");
+    _common::release_warning("opt - reset");
     #endif
 
     //run test helper
@@ -578,65 +602,632 @@ TEST_CASE(test_cc_opt_subtests[9]) {
 }
 
 
+
+/*
+ *  --- [OPT_PTRSCAN - HELPERS] ---
+ */
+
+//compare memcry sessions (vector)
+static void _off_elem_eq(const off_t & elem_0,
+                         const off_t & elem_1) {
+
+    REQUIRE_EQ(elem_0, elem_1);
+
+    return;
+}
+
+
+//fully populate a `opt_ptrscan`
+static void _populate_opt_ptrscan(sc::opt_ptrscan & opts_ptr) {
+
+
+    int ret;
+
+    off_t offs[4] = { 0x10, 0x20, 0x30, 0x40 };
+    cm_vct new_preset_offsets;
+    
+    cm_lst_node * nodes[4] = {
+        (cm_lst_node *) 0x10101010,
+        (cm_lst_node *) 0x20202020,
+        (cm_lst_node *) 0x30303030,
+        (cm_lst_node *) 0x40404040
+    };
+    mc_vm_area * areas[4] = {
+        (mc_vm_area *) 0x50505050,
+        (mc_vm_area *) 0x60606060,
+        (mc_vm_area *) 0x70707070,
+        (mc_vm_area *) 0x80808080
+    };
+    sc::map_area_set new_static_set;
+    
+
+    /*
+     *  NOTE: Do not fully initialise the static set, they're
+     *        too cumbersome to initialise & tested independently.
+     */
+
+    //build new sessions
+    _class_helper::vct::populate(new_preset_offsets, offs, 4);
+
+    #ifdef SC_DEBUG
+    //build new scan set
+    _class_helper::rbt::populate(new_static_set.set, nodes, areas, 4);
+    #endif
+
+    ret = opts_ptr.set_target_addr(0x1337);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_alignment(0x10);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_max_obj_sz(0x800);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_max_depth(5);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_static_set(new_static_set);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_preset_offsets(new_preset_offsets);
+    REQUIRE_EQ(ret, 0);
+
+    ret = opts_ptr.set_smart_scan(sc::SMART_SCAN_DISABLED);
+    REQUIRE_EQ(ret, 0);
+
+    //cleanup
+    cm_del_vct(&new_preset_offsets);
+
+    return;
+
+}
+
+
+
 /*
  *  --- [OPT_PTRSCAN - TESTS] ---
  */
 
-#if 0
 //ctor & dtor
-TEST_CASE(test_cc_opt_subtests[0]) {
+TEST_CASE(test_cc_opt_subtests[10]) {
 
     #ifndef SC_DEBUG
-    _common::release_warning("opt - ctor & dtor");
+    _common::release_warning("opt_ptrscan - ctor & dtor");
     #endif
 
     //run test helper
-    _class_helper::cc::test_ctor_dtor<sc::opt>(
+    _class_helper::cc::test_ctor_dtor<sc::opt_ptrscan>(
 
         //ctor asserts
-        [](const sc::opt & opts) {
+        [](const sc::opt_ptrscan & opts_ptr) {
 
             #ifdef SC_DEBUG
-            //assert file pathnames
-            REQUIRE_EQ(opts.file_pathname_out, nullptr);
-            REQUIRE_EQ(opts.file_pathname_in, nullptr);
-            //assert memcry
-            REQUIRE_EQ(opts.sessions.is_init, false);
-            REQUIRE_EQ(opts.map, nullptr);
-            //assert miscellaneous
-            REQUIRE_EQ(opts.addr_width, sc::val_unset::addr_width);
-            REQUIRE_EQ(opts.scan_set.set.is_init, false);
+            //assert primitives
+            REQUIRE_EQ(opts_ptr.target_addr, 0x0);
+            REQUIRE_EQ(opts_ptr.alignment,
+                       sc::val_default::alignment);
+            REQUIRE_EQ(opts_ptr.max_obj_sz,
+                       sc::val_default::max_obj_sz);
+            REQUIRE_EQ(opts_ptr.max_depth,
+                       sc::val_default::max_depth);
+            //assert composites
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init,false);
+            REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
+            //assert smart scan
+            REQUIRE_EQ(opts_ptr.smart_scan, sc::val_default::smart_scan);
             #endif
         },
+
 
         //fixture
-        [](sc::opt & opts) {
+        [](sc::opt_ptrscan & opts_ptr) {
 
             #ifdef SC_DEBUG
-            //(fixture) setup file pathnames
-            _class_helper::str::setup_stub(opts.file_pathname_out);
-            _class_helper::str::setup_stub(opts.file_pathname_in);
-            //(fixture) setup memcry
-            _class_helper::vct::setup_setub(opts.sessions);
-            opts.map = (mc_vm_map *) 0x10203040;
-            //(fixture) setup miscellaneous
-            opts.addr_width = sc::AW64;
-            _class_helper::rbt::setub_stub(opts.scan_set.set);
+            //(fixture) setup primitives
+            opts_ptr.target_addr = 0x1337;
+            opts_ptr.alignment   = 0x10;
+            opts_ptr.max_obj_sz  = 0x800;
+            opts_ptr.max_depth   = 5;
+            //(fixture) setup composites
+            _class_helper::rbt::setup_stub(opts_ptr.static_set.set);
+            _class_helper::vct::setup_stub(opts_ptr.preset_offsets);
+            //(fixture) setup smart scan
+            opts_ptr.smart_scan = sc::SMART_SCAN_ENABLED;
             #endif
         },
 
+
         //dtor asserts
-        [](const sc::opt & opts) {
+        [](const sc::opt_ptrscan & opts_ptr) {
 
             #ifdef SC_DEBUG
-            /* note: use sanitizer to check file pathname dealloc */
             //assert destructors were run
-            REQUIRE_EQ(opts.sessions.is_init, false);
-            REQUIRE_EQ(opts.scan_set.set.is_init, false);
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
+            REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
             #endif
         }
     );
 
     return;
 }
-#endif
+
+
+//`target_addr` setter & getter
+TEST_CASE(test_cc_opt_subtests[11]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - target_addr");
+    #endif
+
+    uintptr_t new_target_addr = 0x1337;
+    
+    //run test helper
+    _class_helper::cc::test_value_setter_getter<
+        sc::opt_ptrscan, uintptr_t>(
+
+        //provide test helper requirements
+        new_target_addr,
+        &sc::opt_ptrscan::set_target_addr,
+        &sc::opt_ptrscan::get_target_addr,
+
+        //default getter asserts
+        [](const sc::opt_ptrscan & opts_ptr, uintptr_t target_addr) {
+            REQUIRE_EQ(target_addr, 0x0);
+        },
+
+        //new setter asserts
+        [new_target_addr](const sc::opt_ptrscan & opts_ptr) {
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.target_addr, new_target_addr);
+            #endif
+        },
+
+        //new getter asserts
+        [new_target_addr](
+            const sc::opt_ptrscan & opts_ptr, uintptr_t target_addr) {
+            REQUIRE_EQ(target_addr, new_target_addr);
+        }
+    );
+
+    return;
+}
+
+
+//`alignment` setter & getter
+TEST_CASE(test_cc_opt_subtests[12]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - alignment");
+    #endif
+
+    off_t new_alignment = 0x10;
+    
+    //run test helper
+    _class_helper::cc::test_value_setter_getter<
+        sc::opt_ptrscan, off_t>(
+
+        //provide test helper requirements
+        new_alignment,
+        &sc::opt_ptrscan::set_alignment,
+        &sc::opt_ptrscan::get_alignment,
+
+        //default getter asserts
+        [](const sc::opt_ptrscan & opts_ptr, off_t alignment) {
+            REQUIRE_EQ(alignment, sc::val_default::alignment);
+        },
+
+        //new setter asserts
+        [new_alignment](const sc::opt_ptrscan & opts_ptr) {
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.alignment, new_alignment);
+            #endif
+        },
+
+        //new getter asserts
+        [new_alignment](
+            const sc::opt_ptrscan & opts_ptr, off_t alignment) {
+            REQUIRE_EQ(alignment, new_alignment);
+        }
+    );
+
+    return;
+}
+
+
+
+//`max_obj_sz` setter & getter
+TEST_CASE(test_cc_opt_subtests[13]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - max_obj_sz");
+    #endif
+
+    off_t new_max_obj_sz = 0x10;
+    
+    //run test helper
+    _class_helper::cc::test_value_setter_getter<
+        sc::opt_ptrscan, off_t>(
+
+        //provide test helper requirements
+        new_max_obj_sz,
+        &sc::opt_ptrscan::set_max_obj_sz,
+        &sc::opt_ptrscan::get_max_obj_sz,
+
+        //default getter asserts
+        [](const sc::opt_ptrscan & opts_ptr, off_t max_obj_sz) {
+            REQUIRE_EQ(max_obj_sz, sc::val_default::max_obj_sz);
+        },
+
+        //new setter asserts
+        [new_max_obj_sz](const sc::opt_ptrscan & opts_ptr) {
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.max_obj_sz, new_max_obj_sz);
+            #endif
+        },
+
+        //new getter asserts
+        [new_max_obj_sz](
+            const sc::opt_ptrscan & opts_ptr, off_t max_obj_sz) {
+            REQUIRE_EQ(max_obj_sz, new_max_obj_sz);
+        }
+    );
+
+    return;
+}
+
+
+//`max_depth` setter & getter
+TEST_CASE(test_cc_opt_subtests[14]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - max_depth");
+    #endif
+
+    int new_max_depth = 0x10;
+    
+    //run test helper
+    _class_helper::cc::test_value_setter_getter<
+        sc::opt_ptrscan, int>(
+
+        //provide test helper requirements
+        new_max_depth,
+        &sc::opt_ptrscan::set_max_depth,
+        &sc::opt_ptrscan::get_max_depth,
+
+        //default getter asserts
+        [](const sc::opt_ptrscan & opts_ptr, int max_depth) {
+            REQUIRE_EQ(max_depth, sc::val_default::max_depth);
+        },
+
+        //new setter asserts
+        [new_max_depth](const sc::opt_ptrscan & opts_ptr) {
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.max_depth, new_max_depth);
+            #endif
+        },
+
+        //new getter asserts
+        [new_max_depth](
+            const sc::opt_ptrscan & opts_ptr, int max_depth) {
+            REQUIRE_EQ(max_depth, new_max_depth);
+        }
+    );
+
+    return;
+}
+
+
+//`static_set` setter & getter
+TEST_CASE(test_cc_opt_subtests[15]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - static_set");
+    #endif
+
+    sc::map_area_set new_ma_set;
+    #ifdef SC_DEBUG
+    _class_helper::rbt::setup_stub(new_ma_set.set);
+    #endif
+
+
+    //run test helper
+    _class_helper::cc::test_obj_setter_getter<
+        sc::opt_ptrscan, sc::map_area_set> (
+
+        //provide test helper requirements
+        new_ma_set,
+        &sc::opt_ptrscan::set_static_set,
+        &sc::opt_ptrscan::get_static_set,
+
+        //default object asserts
+        [](const sc::opt_ptrscan & opts_ptr,
+           const sc::map_area_set & ma_set) {
+            REQUIRE_EQ(ma_set.get_set().is_init, false);
+        },
+        
+        //new object setter asserts
+        [](const sc::opt_ptrscan & opts_ptr) {
+        
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init, true);
+            #endif
+        },
+
+        //new object getter asserts
+        [](const sc::opt_ptrscan & opts_ptr,
+           const sc::map_area_set & ma_set) {
+            REQUIRE_EQ(ma_set.get_set().is_init, true);
+        }
+    );
+
+    return;
+}
+
+
+//`preset_offsets` setter & getter
+TEST_CASE(test_cc_opt_subtests[16]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - preset_offsets");
+    #endif
+
+    int ret;
+    cm_vct new_preset_offsets;
+    off_t off[4] = { 0x10, 0x20, 0x30, 0x40 };
+    
+
+    //setup new preset offsets
+    _class_helper::vct::populate<off_t>(
+        new_preset_offsets, off, 4);
+
+    
+    //run test helper
+    _class_helper::cc::test_vct_setter_getter<
+        sc::opt_ptrscan, off_t>(
+
+        //provide test helper requirements
+        new_preset_offsets,
+        &sc::opt_ptrscan::set_preset_offsets,
+        &sc::opt_ptrscan::get_preset_offsets,
+
+        //setter assert
+        [&new_preset_offsets](const sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            _class_helper::vct::assert_eq<off_t>(
+                new_preset_offsets,
+                opts_ptr.preset_offsets,
+                _off_elem_eq);
+            #endif
+        },
+
+        //element assert
+        _off_elem_eq
+    );
+
+    //delete new omit areas
+    cm_del_vct(&new_preset_offsets);
+
+    return;
+}
+
+
+//`smart_scan` setter & getter
+TEST_CASE(test_cc_opt_subtests[17]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - smart_scan");
+    #endif
+
+    //run test helper
+    _class_helper::cc::test_enm_setter_getter<
+        sc::opt_ptrscan, sc::smart_scan>(
+
+        //provide test helper requirements
+        sc::val_default::smart_scan, sc::SMART_SCAN_DISABLED,
+        &sc::opt_ptrscan::set_smart_scan,
+        &sc::opt_ptrscan::get_smart_scan,
+
+        //new value setter asserts
+        [](const sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            REQUIRE_EQ(opts_ptr.smart_scan, sc::SMART_SCAN_DISABLED);
+            #endif
+        }
+    );
+
+    return;
+}
+
+
+//copy ctor
+TEST_CASE(test_cc_opt_subtests[18]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - copy ctor");
+    #endif
+
+    //run test helper
+    _class_helper::cc::test_copy_ctor<sc::opt_ptrscan>(
+
+        //setup
+        _populate_opt_ptrscan,
+
+
+        //copy ctor asserts
+        [](const sc::opt_ptrscan & dst_opts_ptr,
+           const sc::opt_ptrscan & src_opts_ptr) {
+
+            #ifdef SC_DEBUG
+            int ret;
+            sc::smart_scan dst_smart_scan;
+            sc::smart_scan src_smart_scan;
+
+            //assert primitives
+            REQUIRE_EQ(dst_opts_ptr.target_addr, src_opts_ptr.target_addr);
+            REQUIRE_EQ(dst_opts_ptr.alignment, src_opts_ptr.alignment);
+            REQUIRE_EQ(dst_opts_ptr.max_obj_sz, src_opts_ptr.max_obj_sz);
+            REQUIRE_EQ(dst_opts_ptr.max_depth, src_opts_ptr.max_depth);
+
+            //assert composites
+            _class_helper::rbt::assert_eq<
+                cm_lst_node *, mc_vm_area *>(
+                
+                dst_opts_ptr.static_set.set,
+                src_opts_ptr.static_set.set,
+                _cm_node_key_data_eq
+            );
+                
+            _class_helper::vct::assert_eq<off_t>(
+                dst_opts_ptr.preset_offsets,
+                src_opts_ptr.preset_offsets,
+                _off_elem_eq
+            );
+
+            //assert smart scan
+            REQUIRE_EQ(dst_opts_ptr.smart_scan, src_opts_ptr.smart_scan);
+            #endif
+        },
+
+        
+        //post source dtor asserts
+        [](const sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            //assert primitives
+            REQUIRE_EQ(opts_ptr.target_addr, 0x1337);
+            REQUIRE_EQ(opts_ptr.alignment, 0x10);
+            REQUIRE_EQ(opts_ptr.max_obj_sz, 0x800);
+            REQUIRE_EQ(opts_ptr.max_depth, 5);
+            //assert composites are initialised
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init, true);
+            REQUIRE_EQ(opts_ptr.preset_offsets.is_init, true);
+            //assert smart scan
+            REQUIRE_EQ(opts_ptr.smart_scan, sc::SMART_SCAN_DISABLED);
+            #endif
+        },
+
+
+        //dtor asserts
+        [](const sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            //assert compositers are uninitialised
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
+            REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
+            #endif
+        }
+    );
+
+    return;
+}
+
+
+//copy assign
+TEST_CASE(test_cc_opt_subtests[19]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - copy assign");
+    #endif
+
+    //run test helper
+    _class_helper::cc::test_copy_assign<sc::opt_ptrscan>(
+
+        //source object setup
+        _populate_opt_ptrscan,
+
+
+        //destination object setup
+        [](sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            //(fixture) setup primitives
+            opts_ptr.target_addr = 0x1337;
+            opts_ptr.alignment   = 0x10;
+            opts_ptr.max_obj_sz  = 0x800;
+            opts_ptr.max_depth   = 5;
+            //(fixture) setup composites
+            _class_helper::rbt::setup_stub(opts_ptr.static_set.set);
+            _class_helper::vct::setup_stub(opts_ptr.preset_offsets);
+            //(fixture) setup smart scan
+            opts_ptr.smart_scan = sc::SMART_SCAN_ENABLED;
+            #endif
+        },
+
+        //copy ctor asserts
+        [](const sc::opt_ptrscan & dst_opts_ptr,
+           const sc::opt_ptrscan & src_opts_ptr) {
+
+            #ifdef SC_DEBUG
+            int ret;
+            sc::smart_scan dst_smart_scan;
+            sc::smart_scan src_smart_scan;
+
+            //assert primitives
+            REQUIRE_EQ(dst_opts_ptr.target_addr, src_opts_ptr.target_addr);
+            REQUIRE_EQ(dst_opts_ptr.alignment, src_opts_ptr.alignment);
+            REQUIRE_EQ(dst_opts_ptr.max_obj_sz, src_opts_ptr.max_obj_sz);
+            REQUIRE_EQ(dst_opts_ptr.max_depth, src_opts_ptr.max_depth);
+
+            //assert composites
+            _class_helper::rbt::assert_eq<
+                cm_lst_node *, mc_vm_area *>(
+                
+                dst_opts_ptr.static_set.set,
+                src_opts_ptr.static_set.set,
+                _cm_node_key_data_eq
+            );
+                
+            _class_helper::vct::assert_eq<off_t>(
+                dst_opts_ptr.preset_offsets,
+                src_opts_ptr.preset_offsets,
+                _off_elem_eq
+            );
+
+            //assert smart scan
+            REQUIRE_EQ(dst_opts_ptr.smart_scan, src_opts_ptr.smart_scan);
+            #endif
+        }
+    );
+
+    return;
+}
+
+
+//reset
+TEST_CASE(test_cc_opt_subtests[20]) {
+
+    #ifndef SC_DEBUG
+    _common::release_warning("opt_ptrscan - reset");
+    #endif
+
+    //run test helper
+    _class_helper::cc::test_reset<sc::opt_ptrscan>(
+
+        //setup
+        _populate_opt_ptrscan,
+
+
+        //reset asserts
+        [](const sc::opt_ptrscan & opts_ptr) {
+
+            #ifdef SC_DEBUG
+            //assert primitives
+            REQUIRE_EQ(opts_ptr.target_addr, 0x0);
+            REQUIRE_EQ(opts_ptr.alignment, sc::val_default::alignment);
+            REQUIRE_EQ(opts_ptr.max_obj_sz, sc::val_default::max_obj_sz);
+            REQUIRE_EQ(opts_ptr.max_depth, sc::val_default::max_depth);
+
+            //assert composites
+            REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
+            REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
+
+            //assert smart scan
+            REQUIRE_EQ(opts_ptr.smart_scan, sc::val_default::smart_scan);
+            #endif
+        }
+    );
+
+    return; 
+}

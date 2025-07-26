@@ -292,8 +292,8 @@ class opt : public _lockable, public _ctor_failable {
  */
 
 enum smart_scan /* parity with sc_smart_scan */ {
-    SC_SMART_SCAN_ENABLED = 0,
-    SC_SMART_SCAN_DISABLED = 1,
+    SMART_SCAN_ENABLED = 0,
+    SMART_SCAN_DISABLED = 1,
 };
 
 //unset values
@@ -306,7 +306,7 @@ namespace val_default {
     const constexpr off_t           alignment  = 0x4;
     const constexpr off_t           max_obj_sz = 0x100;
     const constexpr int             max_depth  = 3;
-    const constexpr enum smart_scan smart_scan = SC_SMART_SCAN_ENABLED;
+    const constexpr enum smart_scan smart_scan = sc::SMART_SCAN_ENABLED;
 }
 
 //bad values

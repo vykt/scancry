@@ -178,6 +178,8 @@ _DEFINE_OBJ_GETTER(sc::opt, sc::map_area_set, scan_set)
 _DEFINE_OBJ_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
 
 
+
+
 /*
  *  --- [OPT_PTRSCAN | PRIVATE] ---
  */
@@ -199,8 +201,9 @@ void sc::opt_ptrscan::do_copy(const sc::opt_ptrscan & opts_ptr) noexcept {
 
     //copy trivial attributes
     this->target_addr = opts_ptr.get_target_addr();
-    this->max_obj_sz = opts_ptr.get_max_obj_sz();
-    this->max_depth = opts_ptr.get_max_depth();
+    this->alignment   = opts_ptr.get_alignment();
+    this->max_obj_sz  = opts_ptr.get_max_obj_sz();
+    this->max_depth   = opts_ptr.get_max_depth();
 
     //copy the static area set
     this->static_set = ((sc::opt_ptrscan &) opts_ptr)._get_static_set_mut();
@@ -241,6 +244,7 @@ sc::opt_ptrscan::opt_ptrscan() noexcept
    target_addr(sc::val_unset::target_addr),
    alignment(sc::val_default::alignment),
    max_obj_sz(sc::val_default::max_obj_sz),
+   max_depth(sc::val_default::max_depth),
    smart_scan(sc::val_default::smart_scan) {
 
     //zero out the preset offsets vector

@@ -26,7 +26,7 @@ int sc_opt_reset(sc_opt * opts);
 //0 = success, -1 = error
 int sc_opt_set_file_pathname_out(sc_opt * opts, const char * path);
 //pointer to a private string (can't fail)
-const char * const * sc_opt_get_filename_pathname_out(const sc_opt * opts);
+const char * const * sc_opt_get_file_pathname_out(const sc_opt * opts);
 
 //0 = success, -1 = error
 int sc_opt_set_file_pathname_in(sc_opt * opts, const char * path);
@@ -41,10 +41,8 @@ const char * const * sc_opt_get_file_pathname_in(const sc_opt * opts);
  */
 
 //0 = success, -1 = error
-int sc_opt_set_sessions(sc_opt * opts,
-                               const cm_vct /* <mc_session> */ * sessions);
-int sc_opt_get_sessions(const sc_opt * opts,
-                               cm_vct /* <mc_session> */ * sessions);
+int sc_opt_set_sessions(sc_opt * opts, const cm_vct * sessions);
+const cm_vct * sc_opt_get_sessions(const sc_opt * opts);
 
 //0 = success, -1 = error
 int sc_opt_set_map(sc_opt * opts, const mc_vm_map * map);
@@ -58,13 +56,13 @@ off_t sc_opt_get_alignment(const sc_opt opts);
 
 //0 = success. -1 = error
 int sc_opt_set_addr_width(sc_opt * opts,
-                                 const sc_addr_width addr_width);
+                          const sc_addr_width addr_width);
 //address width = success, SC_ADDR_WIDTH_BAD = error
-enum sc_addr_width sc_opt_get_addr_width(const sc_opt * opts);
+int sc_opt_get_addr_width(const sc_opt * opts, sc_addr_width * addr_width);
 
 //0 = success, -1 = error
 int sc_opt_set_scan_set(sc_opt * opts,
-                               const sc_opt_map_area * opts_ma);
+                        const sc_map_area_set * ma_set);
 //map area set attribute pointer = success, NULL = error
 const sc_map_area_set * sc_opt_get_scan_set(const sc_opt * opts);
 
@@ -122,7 +120,7 @@ const cm_vct *
 int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan * opts_ptr,
                                      const enum sc_smart_scan smart_scan);
 //smart scan enum = success, SC_SMART_SCAN_BAD = errorr
-enum sc_smart_scan
-    sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan * opts_ptr);
+int sc_opt_ptr_get_smart_scan(
+    const sc_opt_ptrscan * opts_ptr, sc_smart_scan * smart_scan);
 
 } //"C"

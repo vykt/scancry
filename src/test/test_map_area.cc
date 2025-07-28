@@ -140,7 +140,7 @@ TEST_CASE(test_cc_map_area_subtests[0]) {
         //ctor asserts
         [](const sc::opt_map_area & opts_ma) {
 
-            //check ctor succeeded
+            //assert constructor succeeded
             REQUIRE_EQ(opts_ma._get_ctor_failed(), false);
 
             #ifdef SC_DEBUG
@@ -206,10 +206,12 @@ TEST_CASE(test_cc_map_area_subtests[1]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_omit_areas, nodes, 4);
-    
+
+
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
         sc::opt_map_area, cm_lst_node *>(
@@ -234,6 +236,7 @@ TEST_CASE(test_cc_map_area_subtests[1]) {
 
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -261,9 +264,11 @@ TEST_CASE(test_cc_map_area_subtests[2]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_omit_objs, nodes, 4);
+
     
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
@@ -289,6 +294,7 @@ TEST_CASE(test_cc_map_area_subtests[2]) {
 
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -316,9 +322,11 @@ TEST_CASE(test_cc_map_area_subtests[3]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_exclusive_areas, nodes, 4);
+
     
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
@@ -344,6 +352,7 @@ TEST_CASE(test_cc_map_area_subtests[3]) {
 
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -371,9 +380,11 @@ TEST_CASE(test_cc_map_area_subtests[4]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit objs
     _class_helper::vct::populate<cm_lst_node *>(
         new_exclusive_objs, nodes, 4);
+
     
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
@@ -399,6 +410,7 @@ TEST_CASE(test_cc_map_area_subtests[4]) {
 
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -426,9 +438,11 @@ TEST_CASE(test_cc_map_area_subtests[5]) {
         sc::addr_range(0x4000, 0x5000)
     };
 
+
     //setup new omit addr ranges
     _class_helper::vct::populate<sc::addr_range>(
         new_omit_addr_ranges, addr_ranges, 4);
+
     
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
@@ -458,6 +472,7 @@ TEST_CASE(test_cc_map_area_subtests[5]) {
         //element assert
         [](const sc::addr_range & addr_range_0,
            const sc::addr_range & addr_range_1) {
+
             REQUIRE_EQ(addr_range_0.get_start_addr(),
                        addr_range_1.get_start_addr());
             REQUIRE_EQ(addr_range_0.get_end_addr(),
@@ -488,9 +503,11 @@ TEST_CASE(test_cc_map_area_subtests[6]) {
         sc::addr_range(0x4000, 0x5000)
     };
 
+
     //setup new exclusive addr ranges
     _class_helper::vct::populate<sc::addr_range>(
         new_exclusive_addr_ranges, addr_ranges, 4);
+
     
     //run test helper
     _class_helper::cc::test_vct_setter_getter<
@@ -520,6 +537,7 @@ TEST_CASE(test_cc_map_area_subtests[6]) {
         //element assert
         [](const sc::addr_range & addr_range_0,
            const sc::addr_range & addr_range_1) {
+
             REQUIRE_EQ(addr_range_0.get_start_addr(),
                        addr_range_1.get_start_addr());
             REQUIRE_EQ(addr_range_0.get_end_addr(),
@@ -542,6 +560,7 @@ TEST_CASE(test_cc_map_area_subtests[7]) {
     #endif
 
     cm_byte new_access = 0b111;
+
     
     //run test helper
     _class_helper::cc::test_value_setter_getter<
@@ -550,8 +569,10 @@ TEST_CASE(test_cc_map_area_subtests[7]) {
 
         //default value asserts
         [](const sc::opt_map_area & opts_ma, const cm_byte access) {
+
             REQUIRE_EQ(access, sc::val_unset::access);
         },
+
 
         //new value setter asserts
         [new_access](const sc::opt_map_area & opts_ma) {
@@ -561,9 +582,11 @@ TEST_CASE(test_cc_map_area_subtests[7]) {
             #endif
         },
 
+
         //new value getter asserts
         [new_access](const sc::opt_map_area & opts_ma,
                      const cm_byte access) {
+
             REQUIRE_EQ(access, new_access);
         }
     );
@@ -594,11 +617,11 @@ TEST_CASE(test_cc_map_area_subtests[8]) {
         [&old_vct_len, &old_access](const sc::opt_map_area & dst_opts_ma,
                                     const sc::opt_map_area & src_opts_ma) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
 
-            //save old vector lengths
             #ifdef SC_DEBUG    
+            //save old vector lengths
             old_vct_len[0] = dst_opts_ma.omit_areas.len;
             old_vct_len[1] = dst_opts_ma.omit_objs.len;
             old_vct_len[2] = dst_opts_ma.exclusive_areas.len;
@@ -693,6 +716,7 @@ TEST_CASE(test_cc_map_area_subtests[9]) {
         //source object setup
         _populate_opt_map_area,
 
+
         //destination object setup
         [](sc::opt_map_area & opts_ma) {
 
@@ -707,11 +731,12 @@ TEST_CASE(test_cc_map_area_subtests[9]) {
             #endif
         },
 
+
         //post copy assignment asserts
         [](const sc::opt_map_area & dst_opts_ma,
            const sc::opt_map_area & src_opts_ma) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
 
             #ifdef SC_DEBUG
@@ -760,7 +785,8 @@ TEST_CASE(test_cc_map_area_subtests[10]) {
 
         //setup
         _populate_opt_map_area,
-        
+
+
         //reset asserts
         [](const sc::opt_map_area & opts_ma) {
 
@@ -812,13 +838,14 @@ TEST_CASE(test_cc_map_area_subtests[11]) {
         //post-constructor assertions
         [](const sc::map_area_set & ma_set) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(ma_set._get_ctor_failed(), false);
 
             #ifdef SC_DEBUG
             REQUIRE_EQ(ma_set.set.is_init, false);
             #endif
         },
+
 
         //fixture
         [](sc::map_area_set & ma_set) {
@@ -827,6 +854,7 @@ TEST_CASE(test_cc_map_area_subtests[11]) {
             _class_helper::rbt::setup_stub(ma_set.set);
             #endif
         },
+
 
         //post-destructor assertions
         [](const sc::map_area_set & ma_set) {
@@ -1124,7 +1152,7 @@ TEST_CASE(test_cc_map_area_subtests[13]) {
         [](const sc::map_area_set & dst_map_set,
            const sc::map_area_set & src_map_set) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_map_set._get_ctor_failed(), false);
 
             //assert both sets are equal
@@ -1222,7 +1250,7 @@ TEST_CASE(test_cc_map_area_subtests[14]) {
         [](const sc::map_area_set & dst_map_set,
            const sc::map_area_set & src_map_set) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_map_set._get_ctor_failed(), false);
 
             //assert both sets are equal
@@ -1335,6 +1363,7 @@ TEST_CASE(test_c_map_area_subtests[0]) {
         sc_new_opt_ma,
         sc_del_opt_ma,
 
+
         //ctor asserts
         [](const sc::opt_map_area & opts_ma) {
 
@@ -1373,9 +1402,11 @@ TEST_CASE(test_c_map_area_subtests[1]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_omit_areas, nodes, 4);
+
     
     //run test helper
     _class_helper::c::test_vct_setter_getter<
@@ -1390,6 +1421,7 @@ TEST_CASE(test_c_map_area_subtests[1]) {
         sc_opt_ma_set_omit_areas,
         sc_opt_ma_get_omit_areas,
 
+
         //setter assert
         [&new_omit_areas](const sc::opt_map_area & opts_ma) {
 
@@ -1403,8 +1435,10 @@ TEST_CASE(test_c_map_area_subtests[1]) {
             #endif
         },
 
+
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -1433,9 +1467,11 @@ TEST_CASE(test_c_map_area_subtests[2]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit objs
     _class_helper::vct::populate<cm_lst_node *>(
         new_omit_objs, nodes, 4);
+
     
     //run test helper
     _class_helper::c::test_vct_setter_getter<
@@ -1450,6 +1486,7 @@ TEST_CASE(test_c_map_area_subtests[2]) {
         sc_opt_ma_set_omit_objs,
         sc_opt_ma_get_omit_objs,
 
+
         //setter assert
         [&new_omit_objs](const sc::opt_map_area & opts_ma) {
 
@@ -1463,8 +1500,10 @@ TEST_CASE(test_c_map_area_subtests[2]) {
             #endif
         },
 
+
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -1492,9 +1531,11 @@ TEST_CASE(test_c_map_area_subtests[3]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new exclusive areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_exclusive_areas, nodes, 4);
+
     
     //run test helper
     _class_helper::c::test_vct_setter_getter<
@@ -1509,6 +1550,7 @@ TEST_CASE(test_c_map_area_subtests[3]) {
         sc_opt_ma_set_exclusive_areas,
         sc_opt_ma_get_exclusive_areas,
 
+
         //setter assert
         [&new_exclusive_areas](const sc::opt_map_area & opts_ma) {
 
@@ -1522,8 +1564,10 @@ TEST_CASE(test_c_map_area_subtests[3]) {
             #endif
         },
 
+        
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -1552,9 +1596,11 @@ TEST_CASE(test_c_map_area_subtests[4]) {
         (cm_lst_node *) 0x40404040
     };
 
+
     //setup new omit areas
     _class_helper::vct::populate<cm_lst_node *>(
         new_exclusive_objs, nodes, 4);
+
     
     //run test helper
     _class_helper::c::test_vct_setter_getter<
@@ -1569,6 +1615,7 @@ TEST_CASE(test_c_map_area_subtests[4]) {
         sc_opt_ma_set_exclusive_objs,
         sc_opt_ma_get_exclusive_objs,
 
+
         //setter assert
         [&new_exclusive_objs](const sc::opt_map_area & opts_ma) {
 
@@ -1582,8 +1629,10 @@ TEST_CASE(test_c_map_area_subtests[4]) {
             #endif
         },
 
+
         //element assert
         [](cm_lst_node * const & node_0, cm_lst_node * const & node_1) {
+
             REQUIRE_EQ(node_0, node_1);
         }
     );
@@ -1628,6 +1677,7 @@ TEST_CASE(test_c_map_area_subtests[5]) {
         sc_opt_ma_set_omit_addr_ranges,
         sc_opt_ma_get_omit_addr_ranges,
 
+
         //setter assert
         [&new_omit_addr_ranges](const sc::opt_map_area & opts_ma) {
 
@@ -1644,9 +1694,11 @@ TEST_CASE(test_c_map_area_subtests[5]) {
             #endif
         },
 
+
         //element assert
         [](const sc_addr_range & addr_range_0,
            const sc_addr_range & addr_range_1) {
+
             REQUIRE_EQ(addr_range_0.start_addr,
                        addr_range_1.start_addr);
             REQUIRE_EQ(addr_range_0.end_addr,
@@ -1677,9 +1729,11 @@ TEST_CASE(test_c_map_area_subtests[5]) {
         {0x4000, 0x5000}
     };
 
+
     //setup new exclusive addr ranges
     _class_helper::vct::populate<sc_addr_range>(
         new_exclusive_addr_ranges, addr_ranges, 4);
+
     
     //run test helper
     _class_helper::c::test_vct_conv_setter_getter<
@@ -1693,6 +1747,7 @@ TEST_CASE(test_c_map_area_subtests[5]) {
         sc_del_opt_ma,
         sc_opt_ma_set_exclusive_addr_ranges,
         sc_opt_ma_get_exclusive_addr_ranges,
+
 
         //setter assert
         [&new_exclusive_addr_ranges](const sc::opt_map_area & opts_ma) {
@@ -1709,6 +1764,7 @@ TEST_CASE(test_c_map_area_subtests[5]) {
             });
             #endif
         },
+
 
         //element assert
         [](const sc_addr_range & addr_range_0,
@@ -1749,10 +1805,12 @@ TEST_CASE(test_c_map_area_subtests[7]) {
         sc_opt_ma_set_access,
         sc_opt_ma_get_access,
 
+
         //default value asserts
         [](const sc::opt_map_area & opts_ma, const cm_byte access) {
             REQUIRE_EQ(access, sc::val_unset::access);
         },
+
 
         //new value setter asserts
         [new_access](const sc::opt_map_area & opts_ma) {
@@ -1761,6 +1819,7 @@ TEST_CASE(test_c_map_area_subtests[7]) {
             REQUIRE_EQ(opts_ma.access, new_access);
             #endif
         },
+
 
         //new value getter asserts
         [new_access](const sc::opt_map_area & opts_ma,
@@ -1776,13 +1835,13 @@ TEST_CASE(test_c_map_area_subtests[7]) {
 //copy ctor
 TEST_CASE(test_c_map_area_subtests[8]) {
 
-    size_t old_vct_len[6];
-    cm_byte old_access;
-
-
     #ifndef SC_DEBUG
     _common::release_warning(" (C) opt_map_area - copy ctor");
     #endif
+
+    size_t old_vct_len[6];
+    cm_byte old_access;
+
 
     //run test helper
     _class_helper::c::test_copy_ctor<
@@ -1793,6 +1852,7 @@ TEST_CASE(test_c_map_area_subtests[8]) {
         sc_del_opt_ma,
         sc_copy_opt_ma,
 
+
         //source object setup
         _populate_opt_map_area,
 
@@ -1801,7 +1861,7 @@ TEST_CASE(test_c_map_area_subtests[8]) {
         [&old_vct_len, &old_access](const sc::opt_map_area & dst_opts_ma,
                                     const sc::opt_map_area & src_opts_ma) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
 
             #ifdef SC_DEBUG    
@@ -1914,7 +1974,7 @@ TEST_CASE(test_c_map_area_subtests[9]) {
         [](const sc::opt_map_area & dst_opts_ma,
            const sc::opt_map_area & src_opts_ma) {
 
-            //check ctor succeeded
+            //assert the constructor succeeded
             REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
 
             #ifdef SC_DEBUG
@@ -1966,9 +2026,11 @@ TEST_CASE(test_c_map_area_subtests[10]) {
         sc_new_opt_ma,
         sc_del_opt_ma,
         sc_opt_ma_reset,
+
         
         //setup
         _populate_opt_map_area,
+
         
         //reset asserts
         [](const sc::opt_map_area & opts_ma) {
@@ -2008,6 +2070,7 @@ TEST_CASE(test_c_map_area_subtests[11]) {
         //fn pointers
         sc_new_ma_set,
         sc_del_ma_set,
+
 
         //ctor asserts
         [](const sc::map_area_set & ma_set) {
@@ -2054,9 +2117,7 @@ TEST_CASE(test_c_map_area_subtests[12]) {
 
         //update the set
         ret = sc_ma_set_update_set(
-                  ma_set,
-                  opt_args.opts_ma,
-                  &mcry_args.map);
+                  ma_set, opt_args.opts_ma, &mcry_args.map);
         REQUIRE_EQ(ret, 0);
 
         //dump the set
@@ -2317,6 +2378,7 @@ TEST_CASE(test_c_map_area_subtests[13]) {
         sc_del_ma_set,
         sc_copy_ma_set,
 
+
         //setup source object
         [&opt_args, &mcry_args](sc::map_area_set & ma_set) {
 
@@ -2411,6 +2473,7 @@ TEST_CASE(test_c_map_area_subtests[14]) {
         sc_del_ma_set,
         sc_copy_assign_ma_set,
 
+
         //setup source object
         [&opt_args, &mcry_args](sc::map_area_set & ma_set) {
 
@@ -2501,6 +2564,7 @@ TEST_CASE(test_c_map_area_subtests[15]) {
         sc_new_ma_set,
         sc_del_ma_set,
         sc_ma_set_reset,
+
 
         //setup
         [&opt_args, &mcry_args](sc::map_area_set & ma_set) {

@@ -710,7 +710,7 @@ namespace _class_helper {
 
         //run the default pointer getter checks
         const ptr_T * _dflt_ptr = getter_fn(hdl);
-        REQUIRE_EQ(_dflt_ptr, NULL);
+        REQUIRE_EQ(_dflt_ptr, nullptr);
 
         //run the new pointer setter checks
         ret = setter_fn(hdl, new_ptr);
@@ -751,7 +751,7 @@ namespace _class_helper {
         //run the new enum setter checks
         ret = setter_fn(hdl, new_enm);
         REQUIRE_EQ(ret, 0);
-        setter_cb(obj);
+        setter_cb(*obj);
 
         //run the new enum getter checks
         ret = getter_fn(hdl, &_new_enm);
@@ -766,7 +766,7 @@ namespace _class_helper {
     //a setter & getter test for strings
     template <typename hdl_T, typename obj_T>
     void test_str_setter_getter(
-        const char * dflt_str, const char * new_str,
+        const char * new_str,
         hdl_T * (* ctor_fn)(), void (* dtor_fn)(hdl_T * hdl),
         int (* setter_fn)(hdl_T * hdl, const char *),
         const char * const * (* getter_fn)(const hdl_T * hdl),
@@ -781,17 +781,16 @@ namespace _class_helper {
 
         //run the default string getter checks
         const char * const * _dflt_str = getter_fn(hdl);
-        REQUIRE_NE(*_dflt_str, dflt_str);
-        REQUIRE_EQ(strcmp(*_dflt_str, dflt_str), 0);
+        REQUIRE_EQ(*_dflt_str, nullptr);
 
         //run the new string setter checks
         ret = setter_fn(hdl, new_str);
         REQUIRE_EQ(ret, 0);
-        setter_cb(obj);
+        setter_cb(*obj);
 
         //run the new string getter checks
         const char * const * _new_str = getter_fn(hdl);
-        REQUIRE_NE(*_dflt_str, dflt_str);
+        REQUIRE_NE(*_new_str, nullptr);
         REQUIRE_EQ(strcmp(*_new_str, new_str), 0);
 
         //destroy handle
@@ -806,7 +805,7 @@ namespace _class_helper {
         hdl_T * (* ctor_fn)(), void (* dtor_fn)(hdl_T * hdl),
         int (* setter_fn)(hdl_T * hdl, const cm_vct *),
         const cm_vct * (* getter_fn)(const hdl_T * hdl),
-        std::function<void(const obj_T &)> new_setter_cb,
+        std::function<void(const obj_T &)> setter_cb,
         const std::function<
             void(const elem_T &, const elem_T &)> elem_assert_cb) {
 
@@ -824,7 +823,7 @@ namespace _class_helper {
         //run the new vector setter checks
         ret = setter_fn(hdl, &new_vct);
         REQUIRE_EQ(ret, 0);
-        new_setter_cb(*obj);
+        setter_cb(*obj);
 
         //run the new vector getter checks
         const cm_vct * _new_vct = getter_fn(hdl);
@@ -878,7 +877,7 @@ namespace _class_helper {
     //a setter & getter test for objects
     template <typename hdl_T, typename obj_T, typename obj_val_T>
     void test_obj_setter_getter(
-        const obj_val_T & new_obj,
+        const obj_val_T * new_obj,
         hdl_T * (* ctor_fn)(), void (* dtor_fn)(hdl_T * hdl),
         int (* setter_fn)(hdl_T * hdl, const obj_val_T *),
         const obj_val_T * (* getter_fn)(const hdl_T *),
@@ -897,16 +896,16 @@ namespace _class_helper {
 
         //run the default value getter checks
         const obj_val_T * obj_0 = getter_fn(hdl);
-        dflt_getter_cb(obj, obj_0);
+        dflt_getter_cb(*obj, obj_0);
 
         //run the new value setter checks
         ret = setter_fn(hdl, new_obj);
         CHECK_EQ(ret, 0);
-        new_setter_cb(obj);
+        new_setter_cb(*obj);
 
         //run the new value getter checks
         const obj_val_T * obj_1 = getter_fn(hdl);
-        new_getter_cb(obj, obj_1);
+        new_getter_cb(*obj, obj_1);
 
         //destroy handle
         dtor_fn(hdl);

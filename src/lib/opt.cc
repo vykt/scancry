@@ -387,7 +387,7 @@ _DEFINE_C_OBJ_GETTER(opt, opt, map_area_set, sc, opts, scan_set)
 //ctors & dtor
 _DEFINE_C_CTOR(opt_ptrscan, opt_ptr, sc)
 _DEFINE_C_COPY_CTOR(opt_ptrscan, opt_ptr, sc, opts_ptr)
-_DEFINE_C_COPY_ASSIGN(opt_ptrscan, opt_tr, sc, dst_opts_ptr, src_opts_tr)
+_DEFINE_C_COPY_ASSIGN(opt_ptrscan, opt_ptr, sc, dst_opts_ptr, src_opts_tr)
 _DEFINE_C_DTOR(opt_ptrscan, opt_ptr, sc, opts_ptr)
 _DEFINE_C_RESET(opt_ptrscan, opt_ptr, sc, opts_ptr)
 

@@ -544,13 +544,17 @@ namespace _class_helper {
     template <typename hdl_T, typename obj_T>
     void test_ctor_dtor(
         hdl_T * (* ctor_fn)(), void (* dtor_fn)(hdl_T *),
-        std::function<void(const obj_T &)> ctor_assert_cb
+        std::function<void(const obj_T &)> ctor_assert_cb,
+        std::function<void(obj_T &)> fixture_cb
         /* no destructor assertions callback, rely on sanitisers */) {
 
         //run post-constructor checks
         hdl_T * hdl = ctor_fn();
         obj_T * obj = (obj_T *) hdl;
         ctor_assert_cb(*obj);
+
+        //run fixture
+        fixture_cb(*obj);
 
         //run destructor (rely on sanitisers to catch leaks)
         dtor_fn(hdl);

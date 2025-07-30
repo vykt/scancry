@@ -1379,7 +1379,22 @@ TEST_CASE(test_c_map_area_subtests[0]) {
             //assert access
             REQUIRE_EQ(opts_ma.access, SC_ACCESS_UNSET);
             #endif
-        }       
+        },
+
+        
+        //fixture
+        [](sc::opt_map_area & opts_ma) {
+
+            #ifdef SC_DEBUG
+            //(fixture) setup vectors
+            _class_helper::vct::setup_stub(opts_ma.omit_areas);
+            _class_helper::vct::setup_stub(opts_ma.omit_objs);
+            _class_helper::vct::setup_stub(opts_ma.exclusive_areas);
+            _class_helper::vct::setup_stub(opts_ma.exclusive_objs);
+            _class_helper::vct::setup_stub(opts_ma.omit_addr_ranges);
+            _class_helper::vct::setup_stub(opts_ma.exclusive_addr_ranges);
+            #endif
+        }
     );
 
     return;
@@ -2077,6 +2092,15 @@ TEST_CASE(test_c_map_area_subtests[11]) {
 
             #ifdef SC_DEBUG
             REQUIRE_EQ(ma_set.set.is_init, false);
+            #endif
+        },
+
+        
+        //fixture
+        [](sc::map_area_set & ma_set) {
+
+            #ifdef SC_DEBUG
+            _class_helper::rbt::setup_stub(ma_set.set);
             #endif
         }
     );

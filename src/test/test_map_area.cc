@@ -173,30 +173,18 @@ namespace _opt_map_area {
         return;
     }
 
-
-    //setter assert for `cm_vct<cm_lst_node *>`
-    static void _setter_asserts(const sc::opt_map_area & opts_ma) {
-
-        #ifdef SC_DEBUG
-        _class_helper::vct::assert_eq<cm_lst_node *>(
-            _new_nodes_vct, opts_ma.omit_objs,
-            _shared::_cm_node_elem_eq);
-        #endif
-
-        return;
-    }
-
 } //end namespace `_opt_map_area`
     
 } //end namespace `_shared`
+
 
 
 /*
  *  --- [OPT_MAP_AREA] ---
  */
 
+// -- ctor & dtor
 
-//ctor & dtor
 namespace _opt_map_area {
 
     namespace _ctor_dtor {
@@ -307,6 +295,28 @@ TEST_CASE(test_c_map_area_subtests[0]) {
 
 // -- `omit_areas` setter & getter
 
+namespace _opt_map_area {
+
+    namespace _omit_areas {
+
+    //setter asserts
+    static void _setter_asserts(const sc::opt_map_area & opts_ma) {
+
+        #ifdef SC_DEBUG
+        _class_helper::vct::assert_eq<cm_lst_node *>(
+            _shared::_opt_map_area::_new_nodes_vct,
+            opts_ma.omit_areas,
+            _shared::_cm_node_elem_eq);
+        #endif
+
+        return;
+    }
+
+    } //end namespace `_omit_areas`
+
+} //end namespace `_opt_map_area`
+
+
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[1]) {
 
@@ -327,7 +337,7 @@ TEST_CASE(test_cc_map_area_subtests[1]) {
         &sc::opt_map_area::get_omit_areas,
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_omit_areas::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -365,7 +375,7 @@ TEST_CASE(test_c_map_area_subtests[1]) {
 
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_omit_areas::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -379,6 +389,28 @@ TEST_CASE(test_c_map_area_subtests[1]) {
 
 
 // -- `omit_objs` setter & getter
+
+namespace _opt_map_area {
+
+    namespace _omit_objs {
+
+    //setter asserts
+    static void _setter_asserts(const sc::opt_map_area & opts_ma) {
+
+        #ifdef SC_DEBUG
+        _class_helper::vct::assert_eq<cm_lst_node *>(
+            _shared::_opt_map_area::_new_nodes_vct,
+            opts_ma.omit_objs,
+            _shared::_cm_node_elem_eq);
+        #endif
+
+        return;
+    }
+
+    } //end namespace `_omit_objs`
+
+} //end namespace `_opt_map_area`
+
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[2]) {
@@ -400,7 +432,7 @@ TEST_CASE(test_cc_map_area_subtests[2]) {
         &sc::opt_map_area::get_omit_objs,
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_omit_objs::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -438,7 +470,7 @@ TEST_CASE(test_c_map_area_subtests[2]) {
 
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_omit_objs::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -452,6 +484,28 @@ TEST_CASE(test_c_map_area_subtests[2]) {
 
 
 // -- `exclusive_areas` setter & getter
+
+namespace _opt_map_area {
+
+    namespace _exclusive_areas {
+
+    //setter asserts
+    static void _setter_asserts(const sc::opt_map_area & opts_ma) {
+
+        #ifdef SC_DEBUG
+        _class_helper::vct::assert_eq<cm_lst_node *>(
+            _shared::_opt_map_area::_new_nodes_vct,
+            opts_ma.exclusive_areas,
+            _shared::_cm_node_elem_eq);
+        #endif
+
+        return;
+    }
+
+    } //end namespace `_exclusive_areas`
+
+} //end namespace `_opt_map_area`
+
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[3]) {
@@ -473,7 +527,7 @@ TEST_CASE(test_cc_map_area_subtests[3]) {
         &sc::opt_map_area::get_exclusive_areas,
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_exclusive_areas::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -511,7 +565,7 @@ TEST_CASE(test_c_map_area_subtests[3]) {
 
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_exclusive_areas::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -525,6 +579,28 @@ TEST_CASE(test_c_map_area_subtests[3]) {
 
 
 // -- `exclusive_objs` setter & getter
+
+namespace _opt_map_area {
+
+    namespace _exclusive_objs {
+
+    //setter asserts
+    static void _setter_asserts(const sc::opt_map_area & opts_ma) {
+
+        #ifdef SC_DEBUG
+        _class_helper::vct::assert_eq<cm_lst_node *>(
+            _shared::_opt_map_area::_new_nodes_vct,
+            opts_ma.exclusive_objs,
+            _shared::_cm_node_elem_eq);
+        #endif
+
+        return;
+    }
+
+    } //end namespace `_exclusive_objs`
+
+} //end namespace `_opt_map_area`
+
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[4]) {
@@ -546,7 +622,7 @@ TEST_CASE(test_cc_map_area_subtests[4]) {
         &sc::opt_map_area::get_exclusive_objs,
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_exclusive_objs::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -584,7 +660,7 @@ TEST_CASE(test_c_map_area_subtests[4]) {
 
 
         //setter assert
-        _shared::_opt_map_area::_setter_asserts,
+        _opt_map_area::_exclusive_objs::_setter_asserts,
 
         //element assert
         _shared::_cm_node_elem_eq
@@ -652,7 +728,7 @@ TEST_CASE(test_cc_map_area_subtests[5]) {
 
             #ifdef SC_DEBUG
             _class_helper::vct::assert_eq<sc::addr_range>(
-                _opt_map_area::_omit_addr_ranges::new_omit_addr_ranges,
+                _opt_map_area::_omit_addr_ranges::_new_omit_addr_ranges,
                 opts_ma.omit_addr_ranges, _shared::_cc_addr_range_elem_eq);
             #endif
         },
@@ -715,7 +791,6 @@ TEST_CASE(test_c_map_area_subtests[5]) {
 
 
 // -- `exclusive_addr_ranges` setter & getter
-
 
 namespace _opt_map_area {
 
@@ -817,7 +892,7 @@ TEST_CASE(test_c_map_area_subtests[6]) {
 
             #ifdef SC_DEBUG
             _class_helper::vct::assert_eq<sc_addr_range>(
-                _opt_map_area::_omit_addr_ranges
+                _opt_map_area::_exclusive_addr_ranges
                     ::_new_exclusive_addr_ranges,
                 opts_ma.exclusive_addr_ranges,
                 _shared::_c_addr_range_elem_eq);
@@ -857,7 +932,7 @@ namespace _opt_map_area {
     static void _new_setter_asserts(const sc::opt_map_area & opts_ma) {
 
         #ifdef SC_DEBUG
-        REQUIRE_EQ(opts_ma.access, new_access);
+        REQUIRE_EQ(opts_ma.access, _new_access);
         #endif
     }
 
@@ -970,27 +1045,27 @@ namespace _opt_map_area {
         _class_helper::vct::assert_eq<cm_lst_node *>(
             dst_opts_ma.omit_areas,
             src_opts_ma.omit_areas,
-            _cm_node_elem_eq);
+            _shared::_cm_node_elem_eq);
         _class_helper::vct::assert_eq<cm_lst_node *>(
             dst_opts_ma.omit_objs,
             src_opts_ma.omit_objs,
-            _cm_node_elem_eq);
+            _shared::_cm_node_elem_eq);
         _class_helper::vct::assert_eq<cm_lst_node *>(
             dst_opts_ma.exclusive_areas,
             src_opts_ma.exclusive_areas,
-            _cm_node_elem_eq);
+            _shared::_cm_node_elem_eq);
         _class_helper::vct::assert_eq<cm_lst_node *>(
             dst_opts_ma.exclusive_objs,
             src_opts_ma.exclusive_objs,
-            _cm_node_elem_eq);
+            _shared::_cm_node_elem_eq);
         _class_helper::vct::assert_eq<sc::addr_range>(
             dst_opts_ma.omit_addr_ranges,
             src_opts_ma.omit_addr_ranges,
-            _cc_addr_range_elem_eq);
+            _shared::_cc_addr_range_elem_eq);
         _class_helper::vct::assert_eq<sc::addr_range>(
             dst_opts_ma.exclusive_addr_ranges,
             src_opts_ma.exclusive_addr_ranges,
-            _cc_addr_range_elem_eq);
+            _shared::_cc_addr_range_elem_eq);
         REQUIRE_EQ(dst_opts_ma.access, src_opts_ma.access);
         #endif
     }
@@ -1017,7 +1092,7 @@ namespace _opt_map_area {
         REQUIRE_EQ(opts_ma.exclusive_addr_ranges.is_init, true);
         REQUIRE_EQ(opts_ma.exclusive_addr_ranges.len, _old_vct_len[5]);
 
-        REQUIRE_EQ(opts_ma.access, old_access);
+        REQUIRE_EQ(opts_ma.access, _old_access);
         #endif
     }
 

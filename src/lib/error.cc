@@ -1,8 +1,3 @@
-//standard template library
-#include <exception>
-#include <stdexcept>
-#include <typeinfo>
-
 //C standard library
 #include <cstdio>
 
@@ -11,32 +6,7 @@
 #include "error.hh"
 
 
-/*
- *  NOTE: This implementation is extracted from C projects that didn't 
- *        have a map implementation available. In this project it should
- *        probably be replaced with `std::map`.
- */
-
-
 __thread int sc_errno;
-
-
-/*
- *  --- [INTERNAL] ---
- */
-
-void print_warning(const std::string msg) {
-
-    std::fprintf(stderr, "<ScanCry>[WARNING] %s\n", msg.c_str()); 
-    return;
-}
-
-
-void print_critical(const std::string msg) {
-
-    std::fprintf(stderr, "<ScanCry>[CRITICAL] %s\n", msg.c_str());
-    return;
-}
 
 
 /*

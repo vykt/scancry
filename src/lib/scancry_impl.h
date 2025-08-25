@@ -58,13 +58,14 @@ namespace sc {
 class _lockable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         mutable pthread_rwlock_t lock;
 
-        //[methods]
+        // -- [methods]
         void do_copy(const sc::_lockable & lockable) noexcept;
 
     public:
+        // -- [methods]
         //ctors
         _lockable() noexcept;
         _lockable(const sc::_lockable & lockable) noexcept;
@@ -85,13 +86,14 @@ class _lockable {
 class _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         bool ctor_failed;
 
-        //[methods]
+        // -- [methods]
         void do_copy(const sc::_ctor_failable & ctor_failable) noexcept;
 
     public:
+        // -- [methods]
         //ctors
         _ctor_failable() noexcept;
         _ctor_failable(const sc::_ctor_failable & ctor_failable) noexcept;
@@ -116,11 +118,11 @@ class _ctor_failable {
 class _opt_scan : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //[methods]        
+        // -- [methods]
         void do_copy(sc::_opt_scan & opts_scan) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         //ctor
         _opt_scan() noexcept;
         _opt_scan(_opt_scan & opts_scan) noexcept;
@@ -146,119 +148,190 @@ class worker_pool;
 
 
 //argument passed from a worker to the `process_addr()` function
-struct _scan_arg {
+class _scan_arg {
 
-    //[members]
-    uintptr_t addr;
-    off_t area_off;
-    size_t buf_left;
-    cm_byte * cur_byte;
-    const cm_lst_node * const area_node;
+        // -- [attributes]
+        uintptr_t addr;
+    
+        const cm_lst_node * area_node;
+        off_t area_off;
 
-    //[methods]
-    _scan_arg(const uintptr_t addr,
-              const off_t area_off,
-              const size_t buf_left,
-              cm_byte * cur_byte,
-              const cm_lst_node * const area_node)
-     : addr(addr),
-       area_off(area_off),
-       buf_left(buf_left),
-       cur_byte(cur_byte),
-       area_node(area_node) {};
+        const cm_byte * cur_byte;
+        size_t buf_left;
+
+    public:
+        // -- [methods]
+        //ctors
+        _scan_arg(const uintptr_t addr,
+                  const cm_lst_node * const area_node,
+                  const off_t area_off,
+                  const cm_byte * cur_byte,
+                  const size_t buf_left) noexcept
+         : addr(addr),
+           area_node(area_node),
+           area_off(area_off),
+           cur_byte(cur_byte),
+           buf_left(buf_left) {}
+        _scan_arg(const _scan_arg & scan_arg) = delete;
+        _scan_arg(const _scan_arg && scan_arg) = delete;
+
+        //reset the buffer state
+        void reset_buffer(const size_t new_buf_left,
+                          const cm_byte * new_cur_byte) noexcept;
+
+        //advance the buffer
+        void advance_buffer(const size_t advance) noexcept;
+
+        //getters
+        [[nodiscard]] uintptr_t get_addr() noexcept;
+        [[nodiscard]] const cm_lst_node * get_area_node() noexcept;
+        [[nodiscard]] off_t get_area_off() noexcept;
+        [[nodiscard]] const cm_byte * get_cur_byte() noexcept;
+        [[nodiscard]] size_t get_buf_left() noexcept;
 };
 
 
 /*
- *  This is an abstract scanner class used for dependency injection.
+ *  NOTE: This is an abstract scanner class used for dependency injection.
  */
+
 class _scan : public _lockable {
 
     public:
-        //[methods]
-        
-        /*
-         *  NOTE: This function returns the next iteration buffer offset.
-         */
-
+        // -- [methods]
+        //return: number of bytes to advance the buffer by
         /* internal */ [[nodiscard]]
-            virtual _SC_DBG_INLINE off_t _process_addr(
-                const struct _scan_arg arg, const opt * const opts,
-                const _opt_scan * const opts_scan) = 0;
-
-        /*
-         *  NOTE: _generate_body() is responsible for including the 
-         *        file end byte (`fbuf_util::_file_end`).
-         */
-
-        /* internal */ [[nodiscard]]
-            virtual int _generate_body(
-                cm_vct /* <cm_byte> */ & buf, const off_t hdr_off) = 0;
-                
-        /* internal */ [[nodiscard]]
-            virtual int _process_body(
-                const cm_byte * file_map,
-                const off_t hdr_off,
-                const mc_vm_map & map) = 0;
-
-        /* internal */ [[nodiscard]]
-            virtual int _read_body(
-                const cm_byte * file_map,
-                const off_t hdr_off) = 0;
+            virtual off_t _process_addr(
+                const struct _scan_arg & arg,
+                const opt & opts,
+                const _opt_scan & opts_scan) = 0;
 
         [[nodiscard]] virtual int reset() = 0;
 };
 
 
 //worker control flags
-const constexpr cm_byte _worker_flag_release_ready = 0x1;
-const constexpr cm_byte _worker_flag_exit          = 0x2;
-const constexpr cm_byte _worker_flag_cancel        = 0x4;
-const constexpr cm_byte _worker_flag_error         = 0x8;
+namespace _worker_flag {
+    const constexpr cm_byte release_ready = 0x1;
+    const constexpr cm_byte exit          = 0x2;
+    const constexpr cm_byte cancel        = 0x4;
+    const constexpr cm_byte error         = 0x8;
+}
+
 
 //worker misc.
 const constexpr useconds_t _release_broadcast_wait = 50000;
 
 
-/*
- *  NOTE: For the time being, just save an error string that the user
- *        can optionally view. Ideally, an error string should only be
- *        saved here if it is no longer recoverable.
- */
+//concurrent variables shared by a worker pool and its workers
+class _worker_concurrency {
 
-//concurrent variables shared by a worker manager and its workers
-struct _worker_concurrency {
+    /*
+     * NOTE: Acquisition order:
+     *
+     *  1) release lock
+     *
+     *  2) alive lock
+     *
+     *  3) flags lock
+     */
 
-    //release adaptive barrier
-    pthread_cond_t release_count_cond;
-    pthread_mutex_t release_count_lock;
-    volatile int release_count;
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        //release adaptive barrier
+        pthread_cond_t release_count_cond;
+        mutable pthread_mutex_t release_count_lock;
+        volatile int release_count;
 
-    //number of alive threads
-    pthread_cond_t alive_count_cond;
-    pthread_mutex_t alive_count_lock;
-    volatile int alive_count;
+        //number of alive threads
+        pthread_cond_t alive_count_cond;
+        mutable pthread_mutex_t alive_count_lock;
+        volatile int alive_count;
 
-    //control flags
-    pthread_mutex_t flags_lock;
-    volatile cm_byte flags;
+        //control flags
+        mutable pthread_mutex_t flags_lock;
+        volatile cm_byte flags;
 
-    _worker_concurrency()
-     : release_count_cond(PTHREAD_COND_INITIALIZER),
-       release_count_lock(PTHREAD_MUTEX_INITIALIZER),
-       release_count(0),
-       alive_count_cond(PTHREAD_COND_INITIALIZER),
-       alive_count_lock(PTHREAD_MUTEX_INITIALIZER),
-       alive_count(0),
-       flags_lock(PTHREAD_MUTEX_INITIALIZER),
-       flags(0) {}
+        //worker pool wakeup
+        pthread_cond_t threads_ready_cond;
+        mutable pthread_mutex_t threads_ready_lock;
+
+    public:
+        // -- [methods]
+        //ctors
+        _worker_concurrency(const int wkr_count) noexcept
+         : release_count_cond(PTHREAD_COND_INITIALIZER),
+           release_count_lock(PTHREAD_MUTEX_INITIALIZER),
+           release_count(0),
+           alive_count_cond(PTHREAD_COND_INITIALIZER),
+           alive_count_lock(PTHREAD_MUTEX_INITIALIZER),
+           alive_count(0),
+           flags_lock(PTHREAD_MUTEX_INITIALIZER),
+           flags(0),
+           threads_ready_cond(PTHREAD_COND_INITIALIZER),
+           threads_ready_lock(PTHREAD_MUTEX_INITIALIZER) {}
+        _worker_concurrency(
+            const _worker_concurrency & wkr_concur) = delete;
+        _worker_concurrency(
+            const _worker_concurrency && wkr_concur) = delete;
+
+        // - worker calls
+
+        //concurrency operators - counts
+        void wkr_release_wait() noexcept;
+        void wkr_enter() noexcept;
+        void wkr_exit(const bool is_error) noexcept;
+
+        // - worker & worker pool calls
+
+        //concurrency operators - flags
+        void set_flags(const cm_byte bitmask) noexcept;
+        [[nodiscard]] cm_byte get_flags() const noexcept;
+};
+
+
+//references to attributes of the worker pool
+class _worker_pool_cache {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        //options
+        const sc::opt *  opts;
+        const sc::_opt_scan * opts_scan; 
+
+        //scan object reference
+        sc::_scan * scan;
+
+    public:
+        // -- [methods]
+        //ctors
+        _worker_pool_cache(
+            const sc::opt * const & opts,
+            const sc::_opt_scan * const & opts_scan,
+            sc::_scan * const & scan) noexcept
+             : opts(opts),
+               opts_scan(opts_scan),
+               scan(scan) {}
+        _worker_pool_cache(const _worker_pool_cache & pool_cache) = delete;
+        _worker_pool_cache(const _worker_pool_cache && pool_cache) = delete;
+
+        //getters & setters
+        void set_opts(const sc::opt * opts) noexcept;
+        [[nodiscard]] const sc::opt * get_opts() const noexcept;
+
+        void set_opts_scan(const sc::_opt_scan * opts_scan) noexcept; 
+        [[nodiscard]] const sc::_opt_scan * get_opts_scan() const noexcept;
+
+        void set_scan(const sc::_scan * scan) noexcept;
+        [[nodiscard]] sc::_scan * get_scan() const noexcept;
 };
 
 
 /*
- *  This class represents a single thread used for scanning some set of
- *  a selected `map_area_set`.
+ *  NOTE: This class represents a single thread used for scanning
+ *         some set of a selected `map_area_set`.
  */
+
 class _worker {
 
     _SC_DBG_PRIVATE:
@@ -271,74 +344,54 @@ class _worker {
          *        the user supplied a new `map_area_set`.
          */
         
-        //[attributes]
-        const cm_vct /* <cm_vct<const cm_lst_node *>> */ & scan_area_sets;
-        const int scan_area_sets_idx;
+        // -- [attributes]
+        const cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
         const mc_session * session;
 
-        /*
-         *  Pointers to the worker manager's cache.
-         */
-
-        sc::opt ** const opts;
-        sc::_opt_scan ** const opts_scan;
-        sc::_scan ** scan;
-
-        //concurrency variables
-        struct _worker_concurrency & concur;
+        //shared state
+        const struct sc::_worker_pool_cache & pool_cache;
+        const struct sc::_worker_concurrency & concur;
 
         //read buffer
         cm_byte * buf;
 
-        //[methods]
+        // -- [methods]
         [[nodiscard]] int read_buffer_smart(
                               struct _scan_arg & arg) noexcept;
-        void do_under_mutex(pthread_mutex_t & mutex,
-                            void (* callback)(void *));
-        void do_under_mutex_critical(pthread_mutex_t & mutex,
-                                     void (* callback)(void *),
-                                     const char * msg);
-                                    
-        //synchronisation
-        [[nodiscard]] int release_wait();
-        [[nodiscard]] int layer_wait() noexcept;
-        void exit_flag_handle();
-        void exit(bool is_error);
 
     public:
-        //[methods]
+        // -- [methods]
         //ctor
-        _worker(sc::opt ** const opts,
-                sc::_opt_scan ** const opts_scan,
-                sc::_scan ** scan,
-                const cm_vct
-                    /* <cm_vct<const cm_lst_node *>> */ & scan_area_sets,
-                const int scan_area_index,
-                const mc_session * session,
-                struct sc::_worker_concurrency & concur);
+        _worker(const struct sc::_worker_pool_cache & pool_cache,
+                struct sc::_worker_concurrency & concur, 
+                const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
+                const mc_session *& session) noexcept;
+        _worker(const _worker & wkr) = delete;
+        _worker(const _worker && wkr) = delete;
 
-        void main();
+        void main() noexcept;
 };
 
 
-//used to sort a `map_area_set` hashmap into a vector by size
-class _sa_sort_entry {
+//worker unit managed by the worker pool
+class _worker_bundle {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
-        size_t size;
-        /* const */ cm_lst_node * area_node;
+        // -- [attributes]
+        sc::_worker worker;
+        pthread_t thread_id;
+        cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
 
     public:
-         //[methods]
-        _sa_sort_entry(const size_t size,
-                       const cm_lst_node * area_node)
-         : size(size),
-           area_node((cm_lst_node *) area_node) {}
-    
-        //setters & getters
-        size_t get_size() const noexcept;
-        const cm_lst_node * get_area_node() const noexcept;
+        // -- [methods]
+        //ctors
+        _worker_bundle(
+            const struct sc::_worker_pool_cache & pool_cache,
+            struct sc::_worker_concurrency & concur,
+            const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
+            const mc_session *& session) noexcept;
+        _worker_bundle(const _worker_bundle & wkr_bundle) = delete;
+        _worker_bundle(const _worker_bundle && wkr_bundle) = delete;
 };
 
 

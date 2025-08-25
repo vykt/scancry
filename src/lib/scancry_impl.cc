@@ -180,3 +180,52 @@ sc::_opt_scan & sc::_opt_scan::operator=(
     return *this;    
 }
 
+
+
+/*
+ *  --- [_SCAN_ARG] ---
+ */
+
+//reset buffer related attributes
+void sc::_scan_arg::reset_buffer(
+    const size_t new_buf_left, const cm_byte * new_cur_byte) noexcept {
+
+    this->buf_left = new_buf_left;
+    this->cur_byte = new_cur_byte;
+
+    return;
+}
+
+
+//advance the buffer
+void sc::_scan_arg::advance_buffer(const size_t advance) noexcept {
+
+    this->addr     += advance;
+    this->area_off += advance;
+    this->buf_left -= advance;
+    this->cur_byte += advance;
+
+    return;
+}
+
+
+//getters
+[[nodiscard]] uintptr_t sc::_scan_arg::get_addr() noexcept {
+    return this->addr;
+}
+
+[[nodiscard]] const cm_lst_node * sc::_scan_arg::get_area_node() noexcept {
+    return this->area_node;
+}
+
+[[nodiscard]] off_t sc::_scan_arg::get_area_off() noexcept {
+    return this->area_off;
+}
+
+[[nodiscard]] const cm_byte * sc::_scan_arg::get_cur_byte() noexcept {
+    return this->cur_byte;
+}
+
+[[nodiscard]] size_t sc::_scan_arg::get_buf_left() noexcept {
+    return this->buf_left;
+}

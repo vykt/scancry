@@ -39,12 +39,12 @@ namespace sc {
 class addr_range {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         uintptr_t start_addr;
         uintptr_t end_addr;
 
     public:
-        //[methods]
+        // -- [methods]
         //ctor
         addr_range(uintptr_t start_addr, uintptr_t end_addr)
          : start_addr(start_addr), end_addr(end_addr) {}
@@ -74,7 +74,7 @@ namespace val_bad {
 class opt_map_area : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:    
-        //[attributes]
+        // -- [attributes]
         cm_vct /* <const cm_lst_node *> */ omit_areas;
         cm_vct /* <const cm_lst_node *> */ omit_objs;
         cm_vct /* <const cm_lst_node *> */ exclusive_areas;
@@ -83,11 +83,11 @@ class opt_map_area : public _lockable, public _ctor_failable {
         cm_vct /* <sc::addr_range> */ exclusive_addr_ranges;
         cm_byte access;
 
-        //[methods]
+        // -- [methods]
         void do_copy(const sc::opt_map_area & opts_ma) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         //ctors & dtor
         opt_map_area() noexcept;
         opt_map_area(const sc::opt_map_area & opts_ma) noexcept;
@@ -149,14 +149,14 @@ class opt_map_area : public _lockable, public _ctor_failable {
 class map_area_set : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         cm_rbt /* <const cm_lst_node * : nullptr> */ set;
 
         //[methods]
         void do_copy(const sc::map_area_set & ma_set) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         //ctors & dtor
         map_area_set() noexcept;
         map_area_set(const sc::map_area_set & ma_set) noexcept;
@@ -212,7 +212,7 @@ namespace val_bad {
 class opt : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
 
         /*
          *  NOTE: The number of threads used during scans is determined 
@@ -237,7 +237,7 @@ class opt : public _lockable, public _ctor_failable {
         void do_copy(const sc::opt & opts) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         /* internal */ [[nodiscard]] sc::map_area_set &
             _get_scan_set_mut() noexcept;
         
@@ -320,7 +320,7 @@ namespace val_bad {
 class opt_ptrscan final : public _opt_scan {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         //address to scan for
         uintptr_t target_addr;
 
@@ -358,11 +358,11 @@ class opt_ptrscan final : public _opt_scan {
         //perform a smart pointer scan
         enum smart_scan smart_scan;
 
-        //[methods]
+        // -- [methods]
         void do_copy(const sc::opt_ptrscan & opts_ptr) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         /* internal */ [[nodiscard]] sc::map_area_set &
             _get_static_set_mut() noexcept;
     
@@ -425,39 +425,36 @@ namespace bits_worker {
     const constexpr cm_byte keep_scan_set = 0x1 << 1;
 }
 
-#if 0
-class worker_pool : public _lockable {
+
+class worker_pool : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
-        //worker threads
-        cm_vct /* <sc const::_worker> */ workers;
-        cm_vct /* <sc::pthread_t> */ worker_ids;
+        // -- [attributes]
+        //workers
+        cm_lst /* <_worker_bundle> */ wkr_bundles;
 
-        //local copy of the last provided scan set (`map_area_set`), sorted
-        //by area size
-        cm_vct /* <sc::_sa_sort_entry> */ sorted_entries;
-        //a scan set per worker
-        cm_vct /* <cm_vct <const cm_lst_node *>> */ worker_scan_sets;
+        //local copy of the last provided scan set, sorted by area size
+        cm_vct /* <cm_lst_node *> */ sorted_scan_areas;
 
-        //options cache
-        sc::opt * opts;
-        sc::_opt_scan * opts_scan;
-        sc::_scan * scan;
-
-        //concurrency
-        struct _worker_concurrency concur;
+        //cache & concurrency
+        _worker_pool_cache cache;
+        _worker_concurrency wkr_concur;
 
         //[methods]
-        [[nodiscard]] int spawn_workers() noexcept;
-        [[nodiscard]] int kill_workers() noexcept;
+        [[nodiscard]] int build_workers() noexcept;
+        [[nodiscard]] int teardown_workers() noexcept;
+
+        [[nodiscard]] int spawn_threads() noexcept;
+        [[nodiscard]] int kill_threads() noexcept;
+
+        [[nodiscard]] int teardown_scan_area_subsets() noexcept;
         [[nodiscard]] int sort_by_size(
             const map_area_set & scan_set) noexcept;
         [[nodiscard]] int update_scan_area_set(
             const map_area_set & scan_set) noexcept;
 
     public:
-        //[methods]
+        // -- [methods]
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _single_run() noexcept;
         
@@ -470,13 +467,19 @@ class worker_pool : public _lockable {
                                         const cm_byte flags) noexcept;
         
         //ctor & dtor
-        worker_pool();
-        worker_pool(const worker_pool & wp) = delete;
-        worker_pool(const worker_pool && wp) = delete;
-        ~worker_pool();
+        worker_pool() noexcept;
+        worker_pool(const worker_pool & wpool) = delete;
+        worker_pool(const worker_pool && wpool) = delete;
+        ~worker_pool() noexcept;
+
+        //operators
+        sc::worker_pool & operator=(
+            const sc::worker_pool & wpool) = delete;
+        sc::worker_pool & operator=(
+            const sc::worker_pool && wpool) = delete;
 
         //control workers
-        [[nodiscard]] int free_workers() noexcept;
+        [[nodiscard]] int reset() noexcept;
 };
 
 
@@ -485,6 +488,7 @@ class worker_pool : public _lockable {
  *  Pointer scanner. 
  */
 
+#if 0
 class _ptrscan_tree_node;
 class _ptrscan_tree;
 

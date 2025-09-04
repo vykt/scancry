@@ -710,9 +710,8 @@ _SC_DBG_STATIC int _to_cc_addr_range(
     void * void_dst, const void * void_src) {
 
     //restore types
-    sc::addr_range * dst = static_cast<sc::addr_range *>(void_dst);
-    const sc_addr_range * src
-        = static_cast<const sc_addr_range *>(void_src);
+    sc::addr_range * dst = (sc::addr_range *) void_dst;
+    const sc_addr_range * src = (const sc_addr_range *) void_src;
 
     //construct a new C++ address range
     *dst = sc::addr_range(src->start_addr, src->end_addr);
@@ -726,9 +725,8 @@ _SC_DBG_STATIC int _from_cc_addr_range(
     void * void_dst, const void * void_src) {
 
     //restore types
-    sc_addr_range * dst = static_cast<sc_addr_range *>(void_dst);
-    const sc::addr_range * src
-        = static_cast<const sc::addr_range *>(void_src);
+    sc_addr_range * dst = (sc_addr_range *) void_dst;
+    const sc::addr_range * src = (const sc::addr_range *) void_src;
 
     //build a new C address range
     dst->start_addr = src->get_start_addr();

@@ -187,7 +187,7 @@ sc::_opt_scan & sc::_opt_scan::operator=(
  */
 
 //reset buffer related attributes
-void sc::_scan_arg::reset_buffer(
+void sc::_scan_arg::reset_buf(
     const size_t new_buf_left, const cm_byte * new_cur_byte) noexcept {
 
     this->buf_left = new_buf_left;
@@ -198,7 +198,7 @@ void sc::_scan_arg::reset_buffer(
 
 
 //advance the buffer
-void sc::_scan_arg::advance_buffer(const size_t advance) noexcept {
+void sc::_scan_arg::advance_buf(const size_t advance) noexcept {
 
     this->addr     += advance;
     this->area_off += advance;

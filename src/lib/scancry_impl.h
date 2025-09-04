@@ -176,11 +176,11 @@ class _scan_arg {
         _scan_arg(const _scan_arg && scan_arg) = delete;
 
         //reset the buffer state
-        void reset_buffer(const size_t new_buf_left,
+        void reset_buf(const size_t new_buf_left,
                           const cm_byte * new_cur_byte) noexcept;
 
         //advance the buffer
-        void advance_buffer(const size_t advance) noexcept;
+        void advance_buf(const size_t advance) noexcept;
 
         //getters
         [[nodiscard]] uintptr_t get_addr() noexcept;
@@ -256,6 +256,10 @@ class _worker_concurrency {
         pthread_cond_t threads_ready_cond;
         mutable pthread_mutex_t threads_ready_lock;
 
+        //errno
+        mutable pthread_mutex_t errno_lock;
+        int wkr_errno;
+
     public:
         // -- [methods]
         //ctors
@@ -269,7 +273,9 @@ class _worker_concurrency {
            flags_lock(PTHREAD_MUTEX_INITIALIZER),
            flags(0),
            threads_ready_cond(PTHREAD_COND_INITIALIZER),
-           threads_ready_lock(PTHREAD_MUTEX_INITIALIZER) {}
+           threads_ready_lock(PTHREAD_MUTEX_INITIALIZER),
+           errno_lock(PTHREAD_MUTEX_INITIALIZER),
+           wkr_errno(0) {}
         _worker_concurrency(
             const _worker_concurrency & wkr_concur) = delete;
         _worker_concurrency(
@@ -282,7 +288,18 @@ class _worker_concurrency {
         void wkr_enter() noexcept;
         void wkr_exit(const bool is_error) noexcept;
 
+        //concurrency operators - error propagation
+        void wkr_set_errno(const int errno) noexcept;
+
+        // - worker pool calls
+
+        //concurrency operators - error propagation
+        void wp_reset_error() noexcept;
+
         // - worker & worker pool calls
+
+        //check errno
+        [[nodiscard]] int get_errno() noexcept;
 
         //concurrency operators - flags
         void set_flags(const cm_byte bitmask) noexcept;
@@ -332,7 +349,7 @@ class _worker_pool_cache {
  *         some set of a selected `map_area_set`.
  */
 
-class _worker {
+class _worker : public sc::_ctor_failable {
 
     _SC_DBG_PRIVATE:
 
@@ -345,18 +362,20 @@ class _worker {
          */
         
         // -- [attributes]
+        const int uid;
+        
         const cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
         const mc_session * session;
 
         //shared state
         const struct sc::_worker_pool_cache & pool_cache;
-        const struct sc::_worker_concurrency & concur;
+        struct sc::_worker_concurrency & concur;
 
         //read buffer
         cm_byte * buf;
 
         // -- [methods]
-        [[nodiscard]] int read_buffer_smart(
+        [[nodiscard]] int read_buf_smart(
                               struct _scan_arg & arg) noexcept;
 
     public:
@@ -368,6 +387,7 @@ class _worker {
                 const mc_session *& session) noexcept;
         _worker(const _worker & wkr) = delete;
         _worker(const _worker && wkr) = delete;
+        ~_worker() noexcept;
 
         void main() noexcept;
 };

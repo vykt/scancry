@@ -174,6 +174,7 @@ class _scan_arg {
            buf_left(buf_left) {}
         _scan_arg(const _scan_arg & scan_arg) = delete;
         _scan_arg(const _scan_arg && scan_arg) = delete;
+        ~_scan_arg() noexcept {}
 
         //reset the buffer state
         void reset_buf(const size_t new_buf_left,
@@ -212,10 +213,11 @@ class _scan : public _lockable {
 
 //worker control flags
 namespace _worker_flag {
-    const constexpr cm_byte release_ready = 0x1;
-    const constexpr cm_byte exit          = 0x2;
-    const constexpr cm_byte cancel        = 0x4;
-    const constexpr cm_byte error         = 0x8;
+    const constexpr cm_byte release_ready = 0b1 << 0;
+    const constexpr cm_byte ctrl_run      = 0b1 << 1;
+    const constexpr cm_byte exit          = 0b1 << 2;
+    const constexpr cm_byte cancel        = 0b1 << 3;
+    const constexpr cm_byte error         = 0b1 << 4;
 }
 
 
@@ -224,7 +226,7 @@ const constexpr useconds_t _release_broadcast_wait = 50000;
 
 
 //concurrent variables shared by a worker pool and its workers
-class _worker_concurrency {
+class _worker_concurrency : public sc::_ctor_failable {
 
     /*
      * NOTE: Acquisition order:
@@ -241,20 +243,24 @@ class _worker_concurrency {
         //release adaptive barrier
         pthread_cond_t release_count_cond;
         mutable pthread_mutex_t release_count_lock;
-        volatile int release_count;
+        int release_count;
 
         //number of alive threads
         pthread_cond_t alive_count_cond;
         mutable pthread_mutex_t alive_count_lock;
-        volatile int alive_count;
+        int alive_count;
 
         //control flags
         mutable pthread_mutex_t flags_lock;
-        volatile cm_byte flags;
+        cm_byte flags;
 
         //worker pool wakeup
         pthread_cond_t threads_ready_cond;
         mutable pthread_mutex_t threads_ready_lock;
+
+        //number of threads to exit
+        mutable pthread_mutex_t exit_uids_lock;
+        cm_vct exit_uids;
 
         //errno
         mutable pthread_mutex_t errno_lock;
@@ -262,36 +268,34 @@ class _worker_concurrency {
 
     public:
         // -- [methods]
-        //ctors
-        _worker_concurrency(const int wkr_count) noexcept
-         : release_count_cond(PTHREAD_COND_INITIALIZER),
-           release_count_lock(PTHREAD_MUTEX_INITIALIZER),
-           release_count(0),
-           alive_count_cond(PTHREAD_COND_INITIALIZER),
-           alive_count_lock(PTHREAD_MUTEX_INITIALIZER),
-           alive_count(0),
-           flags_lock(PTHREAD_MUTEX_INITIALIZER),
-           flags(0),
-           threads_ready_cond(PTHREAD_COND_INITIALIZER),
-           threads_ready_lock(PTHREAD_MUTEX_INITIALIZER),
-           errno_lock(PTHREAD_MUTEX_INITIALIZER),
-           wkr_errno(0) {}
+        //ctor & dtor
+        _worker_concurrency() noexcept;
         _worker_concurrency(
             const _worker_concurrency & wkr_concur) = delete;
         _worker_concurrency(
             const _worker_concurrency && wkr_concur) = delete;
+        ~_worker_concurrency() noexcept;
 
         // - worker calls
 
-        //concurrency operators - counts
+        //concurrency operators - control
         void wkr_release_wait() noexcept;
         void wkr_enter() noexcept;
         void wkr_exit(const bool is_error) noexcept;
+        [[nodiscard]] int wkr_check_kill(
+            const int uid, bool & do_exit) noexcept;
 
         //concurrency operators - error propagation
-        void wkr_set_errno(const int errno) noexcept;
+        void wkr_set_errno(const int wkr_sc_errno) noexcept;
 
         // - worker pool calls
+
+        //concurrency operators - control
+        [[nodiscard]] int wp_await_wkrs() noexcept;
+        void wp_release_wkrs() noexcept;
+        
+        [[nodiscard]] int wp_wkr_kill(const int uid) noexcept;
+        void wp_wkr_kill_reset() noexcept;
 
         //concurrency operators - error propagation
         void wp_reset_error() noexcept;
@@ -303,6 +307,7 @@ class _worker_concurrency {
 
         //concurrency operators - flags
         void set_flags(const cm_byte bitmask) noexcept;
+        void unset_flags(const cm_byte bitmask) noexcept;
         [[nodiscard]] cm_byte get_flags() const noexcept;
 };
 
@@ -321,7 +326,7 @@ class _worker_pool_cache {
 
     public:
         // -- [methods]
-        //ctors
+        //ctor
         _worker_pool_cache(
             const sc::opt * const & opts,
             const sc::_opt_scan * const & opts_scan,
@@ -331,6 +336,7 @@ class _worker_pool_cache {
                scan(scan) {}
         _worker_pool_cache(const _worker_pool_cache & pool_cache) = delete;
         _worker_pool_cache(const _worker_pool_cache && pool_cache) = delete;
+        ~_worker_pool_cache() noexcept {}
 
         //getters & setters
         void set_opts(const sc::opt * opts) noexcept;
@@ -365,11 +371,14 @@ class _worker : public sc::_ctor_failable {
         const int uid;
         
         const cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
-        const mc_session * session;
+
+        //memcry session
+        const int session_idx;
+        mc_session * cached_session;
 
         //shared state
         const struct sc::_worker_pool_cache & pool_cache;
-        struct sc::_worker_concurrency & concur;
+        sc::_worker_concurrency & concur;
 
         //read buffer
         cm_byte * buf;
@@ -384,35 +393,45 @@ class _worker : public sc::_ctor_failable {
         _worker(const struct sc::_worker_pool_cache & pool_cache,
                 struct sc::_worker_concurrency & concur, 
                 const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
-                const mc_session *& session) noexcept;
+                const int & session_idx) noexcept;
         _worker(const _worker & wkr) = delete;
         _worker(const _worker && wkr) = delete;
         ~_worker() noexcept;
 
+        //thread main
         void main() noexcept;
+
+        //getters
+        [[nodiscard]] int get_uid() noexcept;
 };
 
 
 //worker unit managed by the worker pool
-class _worker_bundle {
+class _worker_bundle : public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
-        sc::_worker worker;
+        sc::_worker wkr;
         pthread_t thread_id;
-        cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
+        cm_vct /* <const cm_lst_node *> */ scan_area_subset;
 
     public:
         // -- [methods]
-        //ctors
+        //ctor & dtor
         _worker_bundle(
             const struct sc::_worker_pool_cache & pool_cache,
-            struct sc::_worker_concurrency & concur,
-            const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
-            const mc_session *& session) noexcept;
+            sc::_worker_concurrency & concur,
+            const int session_idx) noexcept;
         _worker_bundle(const _worker_bundle & wkr_bundle) = delete;
         _worker_bundle(const _worker_bundle && wkr_bundle) = delete;
+        ~_worker_bundle() noexcept;
+
+        //getters
+        [[nodiscard]] int get_wkr_uid() noexcept;
+        [[nodiscard]] cm_vct & get_scan_area_subset() noexcept;
 };
+
+#define _SC_GET_NODE_WKR_BUNDLE(node) ((sc::_worker_bundle *) (node->data))
 
 
 //defined in `ptrscan.hh`

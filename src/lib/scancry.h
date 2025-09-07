@@ -176,7 +176,11 @@ class map_area_set : public _lockable, public _ctor_failable {
         [[nodiscard]] int update_set(const sc::opt_map_area & opts_ma,
                                      const mc_vm_map & map) noexcept;
 
-        //getters & setters
+        //generate a sorted vector from the set
+        [[nodiscard]] int build_sorted_vct(
+            cm_vct /* <const cm_lst_node *> */ & sorted_vct) const noexcept;
+
+        //getters
         [[nodiscard]] const cm_rbt /* <const cm_lst_node *> */ &
             get_set() const noexcept;
 };
@@ -438,14 +442,15 @@ class worker_pool : public _lockable, public _ctor_failable {
 
         //cache & concurrency
         _worker_pool_cache cache;
-        _worker_concurrency wkr_concur;
+        _worker_concurrency concur;
 
         //[methods]
-        [[nodiscard]] int build_workers() noexcept;
-        [[nodiscard]] int teardown_workers() noexcept;
+        [[nodiscard]] int do_run() noexcept;
+        [[nodiscard]] int do_ctrl_run() noexcept;
+        [[nodiscard]] int do_scan_run() noexcept;
 
-        [[nodiscard]] int spawn_threads() noexcept;
-        [[nodiscard]] int kill_threads() noexcept;
+        [[nodiscard]] int change_wkr_count(const int count) noexcept;
+
 
         [[nodiscard]] int teardown_scan_area_subsets() noexcept;
         [[nodiscard]] int sort_by_size(
@@ -922,6 +927,8 @@ extern int sc_ma_set_reset(sc_map_area_set * ma_set);
 extern int sc_ma_set_update_set(sc_map_area_set * ma_set,
                                 const sc_opt_map_area * opts_ma,
                                 const mc_vm_map * map);
+extern int sc_ma_set_build_sorted_vct(const sc_map_area_set * ma_set,
+                                      cm_vct * sorted_vct);
 //pointer = success, -1 = error
 extern const cm_rbt * sc_get_set(const sc_map_area_set * ma_set);
 
@@ -1139,6 +1146,8 @@ extern __thread int sc_errno;
 // 3XX - environment errors
 #define SC_ERR_MEM            3300
 #define SC_ERR_FILE           3301
+#define SC_ERR_PAGESIZE       3302
+#define SC_ERR_WORKER_TIMEOUT 3303
 
 
 // [error code messages]
@@ -1188,8 +1197,11 @@ extern __thread int sc_errno;
 // 3XX - environment errors
 #define SC_ERR_MEM_MSG \
     "Failed to acquire the necessary memory.\n"
-
 #define SC_ERR_FILE_MSG \
     "Failed to open, read, or write to a file.\n"
+#define SC_ERR_PAGESIZE_MSG \
+    "Unable to fetch pagesize through sysconf().\n"
+#define SC_ERR_WORKER_TIMEOUT_MSG \
+    "Operation on worker threads timed out.\n"
 
 #endif //define SCANCRY_H

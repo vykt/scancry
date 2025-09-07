@@ -1886,6 +1886,183 @@ TEST_CASE(test_c_map_area_subtests[12]) {
 }
 
 
+// -- build sorted vector
+
+namespace _map_area_set {
+
+    namespace _build_sorted_vct {
+
+    //populate all constraints
+    static void _dump_sorted_vct(const cm_vct & sorted_vct) {
+
+        int ret;
+
+        cm_lst_node * area_node;
+        mc_vm_area * area;
+
+
+        //for all areas in the sorted vector
+        for (int i = 0; i < sorted_vct.len; ++i) {
+
+            //fetch area
+            ret = cm_vct_get(&sorted_vct, i, &area_node);
+            REQUIRE_EQ(ret, 0);
+            area = MC_GET_NODE_AREA(area_node);
+            REQUIRE_NE(area, nullptr);
+
+            //dump area
+            _memcry_helper::print_area(area);
+        }
+
+        return;
+    }
+
+    } //end namespace `build_sorted_vct`
+
+} //end namespace '_map_area_set'
+
+
+//C++ test
+TEST_CASE(test_cc_map_area_subtests[13]) {
+
+    int ret;
+
+    pid_t target_pid;
+    _memcry_helper::args mcry_args;
+    _opt_helper::cc::args opt_args;
+
+    sc::map_area_set ma_set;
+    cm_vct sorted_vct;
+
+
+    //setup a clean target
+    _target_helper::clean_targets();
+    target_pid = _target_helper::start_target();
+
+    //setup memcry
+    _memcry_helper::setup(mcry_args, target_pid, 1);
+
+
+    //setup map area options
+    _opt_helper::cc::setup(opt_args, mcry_args, [](auto & args){});
+
+    //update the set
+    ret = ma_set.update_set(opt_args.opts_ma, mcry_args.map);
+    REQUIRE_EQ(ret, 0);
+
+    //build a sorted vector of areas from the set
+    ret = ma_set.build_sorted_vct(sorted_vct);
+    REQUIRE_EQ(ret, 0);
+
+    //show test header
+    _common::title(_common::CC, "build_sorted_vct", "set vs. sorted_vct");
+    const char * explanation
+     = "\nFor this test, expect the regular set to show map areas in\n"
+       "any order. The `sorted_vct` set should show them in the correct\n"
+       "order with area addresses ascending.";
+    std::cout << explanation << std::endl;
+
+    //dump the set
+    _common::subtitle("build_sorted_set - set", "map dump:");
+    _class_helper::ma_set::print_set(ma_set);
+    
+    //dump the sorted vector
+    _common::subtitle("build_sorted_set - sorted_vct", "map dump:");
+    _map_area_set::_build_sorted_vct::_dump_sorted_vct(sorted_vct);
+
+
+    //teardown the sorted vector
+    cm_del_vct(&sorted_vct);
+
+    //teardown memcry
+    _memcry_helper::teardown(mcry_args);
+
+    //cleanup the target
+    _target_helper::end_target(target_pid);
+}
+
+
+//C test
+TEST_CASE(test_c_map_area_subtests[13]) {
+
+    int ret;
+
+    pid_t target_pid;
+    _memcry_helper::args mcry_args;
+    _opt_helper::c::args opt_args;
+
+    sc_map_area_set * ma_set;
+    cm_vct sorted_vct;
+
+
+    //setup a clean target
+    _target_helper::clean_targets();
+    target_pid = _target_helper::start_target();
+
+    //setup memcry
+    _memcry_helper::setup(mcry_args, target_pid, 1);
+
+    //setup a map area set
+    ma_set = sc_new_ma_set();
+    REQUIRE_NE(ma_set, nullptr);
+
+
+    //setup map area options
+    _opt_helper::c::setup(opt_args, mcry_args,
+
+        //provide all constraints
+        [&mcry_args](_opt_helper::c::args & args) {
+            _map_area_set::_update_set::_populate_all_constraints(
+                mcry_args, &args);
+        }
+    );
+
+    //update the set
+    ret = sc_ma_set_update_set(ma_set,
+                               opt_args.opts_ma, &mcry_args.map);
+    REQUIRE_EQ(ret, 0);
+
+    //build a sorted vector of areas from the set
+    ret = sc_ma_set_build_sorted_vector(ma_set, &sorted_vct);
+    REQUIRE_EQ(ret, 0);
+
+
+    //show test header
+    _common::title(_common::C, "build_sorted_vct", "set vs. sorted_vct");
+    const char * explanation
+     = "\nFor this test, expect the regular set to show map areas in\n"
+       "any order. The `sorted_vct` set should show them in the correct\n"
+       "order with area addresses ascending.";
+    std::cout << explanation << std::endl;
+
+    //dump the set
+    _common::subtitle("build_sorted_set - set", "map dump:");
+    _class_helper::ma_set::print_set(*(sc::map_area_set *) ma_set);
+    
+    //dump the sorted vector
+    _common::subtitle("build_sorted_set - sorted_vct", "map dump:");
+    _map_area_set::_build_sorted_vct::_dump_sorted_vct(sorted_vct);
+
+
+    //teardown the sorted vector
+    cm_del_vct(&sorted_vct);
+
+    //teardown the map area set
+    sc_del_ma_set(ma_set);
+
+    //teardown options
+    _opt_helper::c::teardown(opt_args);
+
+    //teardown memcry
+    _memcry_helper::teardown(mcry_args);
+
+    //cleanup the target
+    _target_helper::end_target(target_pid);
+
+    return;
+}
+
+
 // -- copy ctor
 
 namespace _map_area_set {
@@ -1927,7 +2104,7 @@ namespace _map_area_set {
 
 
 //C++ test
-TEST_CASE(test_cc_map_area_subtests[13]) {
+TEST_CASE(test_cc_map_area_subtests[14]) {
 
     int ret;
 
@@ -1982,7 +2159,7 @@ TEST_CASE(test_cc_map_area_subtests[13]) {
 
 
 //C test
-TEST_CASE(test_c_map_area_subtests[13]) {
+TEST_CASE(test_c_map_area_subtests[14]) {
 
     int ret;
 
@@ -2086,7 +2263,7 @@ namespace _map_area_set {
 
 
 //C++ test
-TEST_CASE(test_cc_map_area_subtests[14]) {
+TEST_CASE(test_cc_map_area_subtests[15]) {
 
     int ret;
 
@@ -2138,7 +2315,7 @@ TEST_CASE(test_cc_map_area_subtests[14]) {
 
 
 //C test
-TEST_CASE(test_c_map_area_subtests[14]) {
+TEST_CASE(test_c_map_area_subtests[15]) {
 
     int ret;
 
@@ -2219,7 +2396,7 @@ namespace _map_area_set {
 
 
 //C++ test
-TEST_CASE(test_cc_map_area_subtests[15]) {
+TEST_CASE(test_cc_map_area_subtests[16]) {
 
     int ret;
 
@@ -2268,7 +2445,7 @@ TEST_CASE(test_cc_map_area_subtests[15]) {
 
 
 //C test
-TEST_CASE(test_c_map_area_subtests[15]) {
+TEST_CASE(test_c_map_area_subtests[16]) {
 
     int ret;
 

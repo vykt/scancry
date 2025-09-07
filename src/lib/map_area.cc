@@ -37,7 +37,7 @@ enum _constraint_match {
 
 
 //comparison function for the map area set red-black tree
-_SC_DBG_STATIC enum cm_rbt_side map_area_set_compare(
+_SC_DBG_STATIC enum cm_rbt_side _map_area_set_compare(
     const void * area_node_0_erased, const void * area_node_1_erased) {
 
     cm_lst_node ** area_node_0 = (cm_lst_node **) area_node_0_erased;
@@ -53,8 +53,53 @@ _SC_DBG_STATIC enum cm_rbt_side map_area_set_compare(
 }
 
 
+_SC_DBG_STATIC int
+    _build_sorted_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
+
+    int ret;
+
+    cm_vct * vct_set;
+    mc_vm_area * area, * cmp_area;
+
+
+    //type cast context & node data
+    vct_set = (cm_vct *) ctx;
+    area = (mc_vm_area *) rbt_node->data;
+
+    /*
+     *  NOTE: Non-updated maps will store areas in order, meaning their
+     *        IDs will be sequential. As such, it is much faster to
+     *        iterate in reverse.
+     */
+
+    //for all existing areas
+    for (int i = vct_set->len; i <= 0; ++i) {
+
+        //always insert if this is the lowest address
+        if (i == 0) {
+            ret = cm_vct_ins(vct_set, 0, &area);
+            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            break;
+        }
+
+        //get the next area to compare against
+        ret = cm_vct_get(vct_set, i - 1, &cmp_area);
+        if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+        //insert here if new area's starting address is higher
+        if (area->start_addr > cmp_area->start_addr) {
+            ret = cm_vct_ins(vct_set, i, &area);
+            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            break;
+        }
+    }
+
+    return 0;
+}
+
+
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-enum _constraint_match is_blacklisted(const char * pathname) {
+enum _constraint_match _is_blacklisted(const char * pathname) {
 
     //for every blacklisted pathname
     for (int i = 0; i < map_meta::pathname_blacklist_len; ++i) {
@@ -69,8 +114,8 @@ enum _constraint_match is_blacklisted(const char * pathname) {
 
 
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-enum _constraint_match is_included(cm_lst_node * node, const cm_vct
-                                   /* <const cm_lst_node *> */ & node_vct) {
+enum _constraint_match _is_included(cm_lst_node * node, const cm_vct
+                                    /* <const cm_lst_node *> */ & node_vct) {
 
     int ret;
     const cm_lst_node * iter_node;
@@ -96,7 +141,7 @@ enum _constraint_match is_included(cm_lst_node * node, const cm_vct
 
 
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
+bool _is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 
     cm_byte area_access_bit, access_bitfield_bit, bitmask;
 
@@ -126,7 +171,7 @@ bool is_access(const cm_byte area_access, const cm_byte access_bitfield) {
 
 
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-enum _constraint_match in_addr_ranges(
+enum _constraint_match _in_addr_ranges(
     const mc_vm_area * area, sc::addr_range & match_range,
     const cm_vct /* <sc::addr_range> */ & addr_ranges) {
 
@@ -161,7 +206,7 @@ enum _constraint_match in_addr_ranges(
 
 
 [[nodiscard]] _SC_DBG_STATIC _SC_DBG_INLINE
-cm_lst_node * get_last_obj_area(mc_vm_obj * obj) {
+cm_lst_node * _get_last_obj_area(mc_vm_obj * obj) {
 
     cm_lst_node * area_node_ptr;
 
@@ -498,7 +543,7 @@ sc::map_area_set & sc::map_area_set::operator=(
 
     //create a new set
     cm_new_rbt(&this->set, sizeof(const cm_lst_node *),
-               sizeof(const mc_vm_area *), map_area_set_compare);
+               sizeof(const mc_vm_area *), _map_area_set_compare);
 
 
     //fetch scan constraints
@@ -536,7 +581,7 @@ sc::map_area_set & sc::map_area_set::operator=(
 
         //check if permissions do not match
         if (access != sc::val_unset::access) {
-            if (!is_access(area->access, access))
+            if (!_is_access(area->access, access))
                 goto _update_set_continue;
         }
 
@@ -552,20 +597,20 @@ sc::map_area_set & sc::map_area_set::operator=(
 
                     //check if this object is included in the omit
                     //object vector
-                    match = is_included(obj_node, omit_objs);
+                    match = _is_included(obj_node, omit_objs);
                     if (match == ERROR) goto _update_set_fail;
 
                     //if included, skip to the end of the current object
                     if (match == INCLUDED) {
-                        area_node = get_last_obj_area(obj);
+                        area_node = _get_last_obj_area(obj);
                         goto _update_set_continue;
                     }
                 }
 
                 //skip to the end of the current object if blacklisted
-                match = is_blacklisted(obj->pathname);
+                match = _is_blacklisted(obj->pathname);
                 if (match == INCLUDED) {
-                    area_node = get_last_obj_area(obj);
+                    area_node = _get_last_obj_area(obj);
                     goto _update_set_continue;
                 }
             }
@@ -577,7 +622,7 @@ sc::map_area_set & sc::map_area_set::operator=(
         if (omit_areas.is_init == true) {
 
             //check if this area is included in the omit object vector
-            match = is_included(area_node, omit_areas);
+            match = _is_included(area_node, omit_areas);
             if (match == ERROR) goto _update_set_fail;
 
             //if included, skip this area
@@ -592,7 +637,7 @@ sc::map_area_set & sc::map_area_set::operator=(
         if (omit_addr_ranges.is_init == true) {
 
             //check if this area is included in the omit address ranges
-            match = in_addr_ranges(area, addr_range, omit_addr_ranges);
+            match = _in_addr_ranges(area, addr_range, omit_addr_ranges);
             if (match == ERROR) goto _update_set_fail;
 
             //if included, skip all areas that still fit in this range
@@ -618,7 +663,7 @@ sc::map_area_set & sc::map_area_set::operator=(
         if (obj != nullptr && (exclusive_objs.is_init == true)) {
 
             //check if object is included in the exclusive objects vector
-            match = is_included(obj_node, exclusive_objs);
+            match = _is_included(obj_node, exclusive_objs);
             if (match == ERROR) goto _update_set_fail;
 
             //if included, add this area to the set            
@@ -629,7 +674,7 @@ sc::map_area_set & sc::map_area_set::operator=(
         if (exclusive_areas.is_init == true) {
 
             //check if this area is in the exclusive areas vector
-            match = is_included(area_node, exclusive_areas);            
+            match = _is_included(area_node, exclusive_areas);            
             if (match == ERROR) goto _update_set_fail;
 
             //if included, add this area to the set
@@ -640,7 +685,8 @@ sc::map_area_set & sc::map_area_set::operator=(
         if (exclusive_addr_ranges.is_init == true) {
 
             //check if this area is in the exclusive address ranges vector
-            match = in_addr_ranges(area, addr_range, exclusive_addr_ranges);
+            match = _in_addr_ranges(area, addr_range,
+                                    exclusive_addr_ranges);
             if (match == ERROR) goto _update_set_fail;
 
             //if included, add this area to the set
@@ -690,10 +736,27 @@ sc::map_area_set & sc::map_area_set::operator=(
 }
 
 
+//generate a sorted vector set
+[[nodiscard]] int sc::map_area_set::build_sorted_vct(
+    cm_vct /* <const cm_lst_node *> */ & sorted_vct) const noexcept {
+
+    int ret;
+
+
+    //initialise the set vector
+    ret = cm_new_vct(&sorted_vct, sizeof(const mc_vm_area *));
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //construct a sorted vector from the red-black tree set
+    ret = cm_rbt_iter(&this->set, _build_sorted_vct_cb, &sorted_vct);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    return 0;
+}
+
+
 //getters
 _DEFINE_RBT_GETTER(sc::map_area_set, set);
-
-
 
 
 
@@ -790,7 +853,7 @@ int sc_ma_set_update_set(sc_map_area_set * ma_set,
                          const sc_opt_map_area * opts_ma,
                          const mc_vm_map * map) {
 
-    sc::map_area_set * cc_ma_set  = (sc::map_area_set *) ma_set;
+    sc::map_area_set * cc_ma_set = (sc::map_area_set *) ma_set;
     const sc::opt_map_area * cc_opts_ma
         = (const sc::opt_map_area *) opts_ma;
     
@@ -798,6 +861,14 @@ int sc_ma_set_update_set(sc_map_area_set * ma_set,
 }
 
 
+int sc_ma_set_build_sorted_vct(const sc_map_area_set * ma_set,
+                               cm_vct * sorted_vct) {
+
+    sc::map_area_set * cc_ma_set = (sc::map_area_set *) ma_set;
+
+    return cc_ma_set->build_sorted_vct(*sorted_vct);
+}
+
+
 //setters & getters
 _DEFINE_C_RBT_GETTER(map_area_set, ma_set, sc, ma_set, set)
-

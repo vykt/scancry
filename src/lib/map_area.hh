@@ -1,10 +1,5 @@
 #pragma once
 
-//standard template library
-#include <optional>
-#include <unordered_set>
-#include <string>
-
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
@@ -107,6 +102,8 @@ int sc_ma_set_reset(sc_map_area_set * ma_set);
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
                          const sc_opt_map_area * opts_ma,
                          const mc_vm_map * map);
+int sc_ma_set_build_sorted_vector(const sc_map_area_set * ma_set,
+                                  cm_vct * sorted_vct);
 //pointer = success, -1 = error
 const cm_rbt * sc_get_set(const sc_map_area_set * ma_set);
 

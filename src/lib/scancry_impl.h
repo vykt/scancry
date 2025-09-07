@@ -393,7 +393,7 @@ class _worker : public sc::_ctor_failable {
         _worker(const struct sc::_worker_pool_cache & pool_cache,
                 struct sc::_worker_concurrency & concur, 
                 const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
-                const int & session_idx) noexcept;
+                const int session_idx) noexcept;
         _worker(const _worker & wkr) = delete;
         _worker(const _worker && wkr) = delete;
         ~_worker() noexcept;

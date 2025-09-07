@@ -102,8 +102,10 @@ int sc_ma_set_reset(sc_map_area_set * ma_set);
 int sc_ma_set_update_set(sc_map_area_set * ma_set,
                          const sc_opt_map_area * opts_ma,
                          const mc_vm_map * map);
-int sc_ma_set_build_sorted_vector(const sc_map_area_set * ma_set,
-                                  cm_vct * sorted_vct);
+int sc_ma_set_to_addr_ord_vct(const sc_map_area_set * ma_set,
+                              cm_vct * vct);
+int sc_ma_set_to_size_ord_vct(const sc_map_area_set * ma_set,
+                              cm_vct * vct);
 //pointer = success, -1 = error
 const cm_rbt * sc_get_set(const sc_map_area_set * ma_set);
 

@@ -176,9 +176,12 @@ class map_area_set : public _lockable, public _ctor_failable {
         [[nodiscard]] int update_set(const sc::opt_map_area & opts_ma,
                                      const mc_vm_map & map) noexcept;
 
-        //generate a sorted vector from the set
-        [[nodiscard]] int build_sorted_vct(
-            cm_vct /* <const cm_lst_node *> */ & sorted_vct) const noexcept;
+        //convert the set to an address ordered vector of areas
+        [[nodiscard]] int to_addr_ord_vct(
+            cm_vct /* <const cm_lst_node *> */ & vct) const noexcept;
+        //convert the set to a size ordered vector of areas
+        [[nodiscard]] int to_size_ord_vct(
+            cm_vct /* <const cm_lst_node *> */ & vct) const noexcept;
 
         //getters
         [[nodiscard]] const cm_rbt /* <const cm_lst_node *> */ &

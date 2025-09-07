@@ -54,7 +54,7 @@ _SC_DBG_STATIC enum cm_rbt_side _map_area_set_compare(
 
 
 _SC_DBG_STATIC int
-    _build_sorted_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
+    _to_addr_ord_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
 
     int ret;
 
@@ -73,7 +73,7 @@ _SC_DBG_STATIC int
      */
 
     //for all existing areas
-    for (int i = vct_set->len; i <= 0; ++i) {
+    for (int i = vct_set->len; i >= 0; --i) {
 
         //always insert if this is the lowest address
         if (i == 0) {
@@ -88,6 +88,48 @@ _SC_DBG_STATIC int
 
         //insert here if new area's starting address is higher
         if (area->start_addr > cmp_area->start_addr) {
+            ret = cm_vct_ins(vct_set, i, &area);
+            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            break;
+        }
+    }
+
+    return 0;
+}
+
+
+_SC_DBG_STATIC int
+    _to_size_ord_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
+
+    int ret;
+
+    cm_vct * vct_set;
+    mc_vm_area * area, * cmp_area;
+
+
+    //type cast context & node data
+    vct_set = (cm_vct *) ctx;
+    area = (mc_vm_area *) rbt_node->data;
+
+
+    //for all existing areas
+    for (int i = 0; i <= vct_set->len; ++i) {
+
+        //always insert if this is reached the end of the vector
+        if (i == vct_set->len) {
+            ret = cm_vct_apd(vct_set, &area);
+            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            break;
+        }
+
+        //get the next area to compare against
+        ret = cm_vct_get(vct_set, i - 1, &cmp_area);
+        if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+        //insert here if new area's address space size is higher
+        if ((area->end_addr - area->start_addr)
+             > (cmp_area->end_addr - cmp_area->start_addr)) {
+
             ret = cm_vct_ins(vct_set, i, &area);
             if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
@@ -736,20 +778,47 @@ sc::map_area_set & sc::map_area_set::operator=(
 }
 
 
-//generate a sorted vector set
-[[nodiscard]] int sc::map_area_set::build_sorted_vct(
-    cm_vct /* <const cm_lst_node *> */ & sorted_vct) const noexcept {
+//build a chronologically ordered vector of areas
+[[nodiscard]] int sc::map_area_set::to_addr_ord_vct(
+    cm_vct /* <const cm_lst_node *> */ & vct) const noexcept {
 
     int ret;
 
 
     //initialise the set vector
-    ret = cm_new_vct(&sorted_vct, sizeof(const mc_vm_area *));
+    ret = cm_new_vct(&vct, sizeof(const mc_vm_area *));
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
 
-    //construct a sorted vector from the red-black tree set
-    ret = cm_rbt_iter(&this->set, _build_sorted_vct_cb, &sorted_vct);
+    //construct a chronologically ordered vector from the set
+    ret = cm_rbt_iter(&this->set, _to_addr_ord_vct_cb, &vct);
+    if (ret != 0) {
+        cm_del_vct(&vct);
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+
+    return 0;
+}
+
+
+//build a size ordered vector of areas
+[[nodiscard]] int sc::map_area_set::to_size_ord_vct(
+    cm_vct /* <const cm_lst_node *> */ & vct) const noexcept {
+
+    int ret;
+
+
+    //initialise the set vector
+    ret = cm_new_vct(&vct, sizeof(const mc_vm_area *));
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //construct a chronologically ordered vector from the set
+    ret = cm_rbt_iter(&this->set, _to_addr_ord_vct_cb, &vct);
+    if (ret != 0) {
+        cm_del_vct(&vct);
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
 
     return 0;
 }
@@ -861,12 +930,21 @@ int sc_ma_set_update_set(sc_map_area_set * ma_set,
 }
 
 
-int sc_ma_set_build_sorted_vct(const sc_map_area_set * ma_set,
-                               cm_vct * sorted_vct) {
+int sc_ma_set_to_addr_ord_vct(const sc_map_area_set * ma_set,
+                                cm_vct * vct) {
 
     sc::map_area_set * cc_ma_set = (sc::map_area_set *) ma_set;
 
-    return cc_ma_set->build_sorted_vct(*sorted_vct);
+    return cc_ma_set->to_addr_ord_vct(*vct);
+}
+
+
+int sc_ma_set_to_size_ord_vct(const sc_map_area_set * ma_set,
+                             cm_vct * vct) {
+
+    sc::map_area_set * cc_ma_set = (sc::map_area_set *) ma_set;
+
+    return cc_ma_set->to_size_ord_vct(*vct);
 }
 
 

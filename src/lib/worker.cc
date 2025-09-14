@@ -1159,11 +1159,12 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     const sc::opt & opts,
     const sc::_opt_scan & opts_scan,
     sc::_scan & scan,
-    const sc::map_area_set & ma_set,
     const cm_byte flags) noexcept {
 
     int ret;
     int do_distrib;
+
+    const sc::map_area_set * scan_set;
 
 
     //read lock the worker pool
@@ -1184,7 +1185,16 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //re-cache the map area set unless explicitly skipped    
     if ((flags & sc::bits_worker::keep_scan_set) == false) {
-        ret = this->cache_areas(ma_set);
+
+        //fetch the scan set
+        scan_set = opts.get_scan_set();
+        if (scan_set == nullptr) {
+            sc_errno = SC_ERR_OPT_MISSING;
+            goto _setup_fail_2;
+        }
+
+        //cache the scan set
+        ret = this->cache_areas(*scan_set);
         if (ret != 0) goto _setup_fail_2;
     }
 

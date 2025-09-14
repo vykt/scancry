@@ -34,6 +34,10 @@ void _opt_helper::cc::setup(
     int ret;
 
 
+    //assign the address width
+    ret = opt_args.opts.set_addr_width((sc::addr_width) sizeof(uintptr_t));
+    REQUIRE_EQ(ret, 0);
+
     //assign the MemCry map to ScanCry options
     ret = opt_args.opts.set_map(&mcry_args.map);
     REQUIRE_EQ(ret, 0);

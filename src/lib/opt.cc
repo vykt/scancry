@@ -65,8 +65,12 @@ void sc::opt::do_copy(const sc::opt & opts) noexcept {
     }
     this->addr_width = addr_width;
 
-    //copy the scan set
-    this->scan_set = ((sc::opt &) opts)._get_scan_set_mut();
+    //copy the scan set pointer
+    this->scan_set = ((sc::opt &) opts).get_scan_set();
+
+    //lock the scan set
+    ret = this->scan_set->_lock_read();
+    if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //release the lock
     opts._unlock();
@@ -87,7 +91,7 @@ sc::opt::opt() noexcept
    file_pathname_in(nullptr),
    map(nullptr),
    addr_width(sc::val_unset::addr_width),
-   scan_set() {
+   scan_set(nullptr) {
 
     //zero out the sessions vector
     std::memset(&this->sessions, 0, sizeof(this->sessions));
@@ -121,6 +125,9 @@ sc::opt::~opt() noexcept {
     //destroy sessions
     _CTOR_VCT_DELETE_IF_INIT(this->sessions);
 
+    //unlock the scan set if one is present
+    if (this->scan_set != nullptr) this->scan_set->_unlock();
+
     return;
 }
 
@@ -152,8 +159,10 @@ sc::opt & sc::opt::operator=(const sc::opt & opts) noexcept {
     this->addr_width = sc::val_unset::addr_width;
 
     //reset the scan set
-    ret = this->scan_set.reset();
-    return (ret != 0) ? -1 : 0;
+    if (this->scan_set != nullptr) this->scan_set->_unlock();
+    this->scan_set = nullptr;
+    
+    return 0;
 }
 
 
@@ -175,7 +184,6 @@ _DEFINE_ENUM_GETTER(sc::opt, sc::addr_width, addr_width)
 
 _DEFINE_OBJ_SETTER(sc::opt, sc::map_area_set, scan_set)
 _DEFINE_OBJ_GETTER(sc::opt, sc::map_area_set, scan_set)
-_DEFINE_OBJ_GETTER_MUT(sc::opt, sc::map_area_set, scan_set)
 
 
 
@@ -206,12 +214,11 @@ void sc::opt_ptrscan::do_copy(const sc::opt_ptrscan & opts_ptr) noexcept {
     this->max_depth   = opts_ptr.get_max_depth();
 
     //copy the static area set
-    this->static_set = ((sc::opt_ptrscan &) opts_ptr)._get_static_set_mut();
-    if (this->_get_ctor_failed() == true) {
-        opts_ptr._unlock();
-        this->_set_ctor_failed(true);
-        return;
-    }
+    this->static_set = ((sc::opt_ptrscan &) opts_ptr).get_static_set();
+
+    //lock the scan set
+    ret = this->static_set->_lock_read();
+    if (ret != 0) { this->_set_ctor_failed(true); return; }
 
     //copy the preset offsets vector
     _CTOR_VCT_COPY_IF_INIT_UNLOCK(
@@ -269,6 +276,10 @@ sc::opt_ptrscan::~opt_ptrscan() noexcept {
     //destroy preset offsets
     _CTOR_VCT_DELETE_IF_INIT(this->preset_offsets);
 
+    //reset the static set
+    if (this->static_set != nullptr) this->static_set->_unlock();
+    this->static_set = nullptr;
+
     return;
 }
 
@@ -301,12 +312,9 @@ sc::opt_ptrscan & sc::opt_ptrscan::operator=(
     //reset preset offsets
     common::del_vct_if_init(this->preset_offsets);
 
-    //reset the static areas set
-    ret = this->static_set.reset();
-    if (ret != 0) {
-        _UNLOCK
-        return -1;
-    }
+    //reset the static set
+    if (this->static_set != nullptr) this->static_set->_unlock();
+    this->static_set = nullptr;
 
     //release the lock
     _UNLOCK
@@ -334,7 +342,6 @@ _DEFINE_VALUE_GETTER(sc::opt_ptrscan, int,
 
 _DEFINE_OBJ_SETTER(sc::opt_ptrscan, sc::map_area_set, static_set)
 _DEFINE_OBJ_GETTER(sc::opt_ptrscan, sc::map_area_set, static_set)
-_DEFINE_OBJ_GETTER_MUT(sc::opt_ptrscan, sc::map_area_set, static_set)
 
 _DEFINE_VCT_SETTER(sc::opt_ptrscan, preset_offsets)
 _DEFINE_VCT_GETTER(sc::opt_ptrscan, preset_offsets)

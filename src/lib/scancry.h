@@ -238,16 +238,13 @@ class opt : public _lockable, public _ctor_failable {
         enum addr_width addr_width;
 
         //set of areas to scan
-        sc::map_area_set scan_set;
+        const sc::map_area_set * scan_set;
 
         //[methods]
         void do_copy(const sc::opt & opts) noexcept;
 
     public:
         // -- [methods]
-        /* internal */ [[nodiscard]] sc::map_area_set &
-            _get_scan_set_mut() noexcept;
-        
         //ctors & dtor
         opt() noexcept;
         opt(const sc::opt & opts) noexcept;
@@ -286,8 +283,8 @@ class opt : public _lockable, public _ctor_failable {
             enum sc::addr_width & addr_width) const noexcept;
 
         [[nodiscard]] int set_scan_set(
-            const sc::map_area_set & scan_set) noexcept;
-        [[nodiscard]] const sc::map_area_set &
+            const sc::map_area_set * scan_set) noexcept;
+        [[nodiscard]] const sc::map_area_set *
             get_scan_set() const noexcept;
 };
 
@@ -341,7 +338,7 @@ class opt_ptrscan final : public _opt_scan {
         int max_depth;
 
         //areas to treat as terminal nodes (areas holding static globals)
-        sc::map_area_set static_set;
+        const sc::map_area_set * static_set;
 
         //first N offsets
         cm_vct /* <off_t> */ preset_offsets;
@@ -370,9 +367,6 @@ class opt_ptrscan final : public _opt_scan {
 
     public:
         // -- [methods]
-        /* internal */ [[nodiscard]] sc::map_area_set &
-            _get_static_set_mut() noexcept;
-    
         //ctors & dtor
         opt_ptrscan() noexcept;
         opt_ptrscan(const sc::opt_ptrscan & opts_ptr) noexcept;
@@ -403,8 +397,8 @@ class opt_ptrscan final : public _opt_scan {
         [[nodiscard]] int get_max_depth() const noexcept;
 
         [[nodiscard]] int set_static_set(
-            const sc::map_area_set & static_set) noexcept;
-        [[nodiscard]] const sc::map_area_set &
+            const sc::map_area_set * static_set) noexcept;
+        [[nodiscard]] const sc::map_area_set *
             get_static_set() const noexcept;
 
         [[nodiscard]] int set_preset_offsets(
@@ -463,7 +457,6 @@ class worker_pool : public _lockable, public _ctor_failable {
             const sc::opt & opts,
             const sc::_opt_scan & opts_scan,
             sc::_scan & scan,
-            const sc::map_area_set & ma_set,
             const cm_byte flags) noexcept;
 
         /* internal */ [[nodiscard]] int _teardown() noexcept;

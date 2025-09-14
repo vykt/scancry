@@ -28,6 +28,8 @@ namespace _class_helper {
         void setup_stub(char *& str);
     }
 
+
+
     /*
      *  Vector helpers
      */
@@ -90,6 +92,67 @@ namespace _class_helper {
 
 
     /*
+     *  List helpers
+     */
+
+    namespace lst {
+
+    //setup a stub list
+    void setup_stub(cm_lst & lst);
+
+
+    //setup a list with real values
+    template <typename elem_T>
+    void populate(cm_lst & lst,
+                  const elem_T * elem_arr, const size_t elem_count) {
+
+        cm_rbt_node * ret_node;
+
+
+        //initialise the list
+        cm_new_lst(&lst, sizeof(elem_T));
+
+        //populate the list with elements
+        for (int i = 0; i < elem_count; ++i) {
+
+            ret_node = cm_lst_apd(&lst, &elem_arr[i]);
+            REQUIRE_NE(ret_node, nullptr);
+        }
+
+        return;
+    }
+
+
+    //check if two lists are equal
+    template <typename elem_T>
+    void assert_eq(const cm_lst & lst_0, const cm_lst & lst_1,
+                   std::function<void(
+                       const elem_T & elem_0, const elem_T & elem_1)>
+                       elem_assert_cb) {
+
+        elem_T * elem_0, * elem_1;
+
+        
+        REQUIRE_EQ(lst_0.is_init, lst_1.is_init);
+        if (lst_0.is_init == false) return;
+        
+        REQUIRE_EQ(lst_0.len, lst_1.len);
+        for (int i = 0; i < lst_0.len; ++i) {
+            elem_0 = (elem_T *) cm_lst_get_p(&lst_0, i);
+            REQUIRE_NE(elem_0, nullptr);
+            elem_1 = (elem_T *) cm_lst_get_p(&lst_1, i);
+            REQUIRE_NE(elem_1, nullptr);
+            REQUIRE_NE(elem_0, elem_1);
+            elem_assert_cb(*elem_0, *elem_1);
+        }
+    }
+    
+
+    } //end namespace `lst`
+
+
+
+    /*
      *  Red-black tree helpers
      */
 
@@ -97,6 +160,34 @@ namespace _class_helper {
 
     //setup a stub red-black tree
     void setup_stub(cm_rbt & rbt);
+
+
+    //setup a red-black tree with real values
+    enum cm_rbt_side _compare(const void *, const void *);
+
+    template <typename key_T, typename data_T>
+    void populate(cm_rbt & rbt,
+                  const key_T * key_arr, const data_T * data_arr,
+                  const size_t key_data_count) {
+
+        cm_rbt_node * ret_node;
+
+
+        //initialise the red-black tree
+        cm_new_rbt(&rbt, sizeof(key_T), sizeof(data_T),
+                   _class_helper::rbt::_compare);
+
+        //populate the red-black tree with elements
+        for (int i = 0; i < key_data_count; ++i) {
+
+            ret_node = cm_rbt_set(&rbt,
+                                  (const void *) &key_arr[i],
+                                  (const void *) &data_arr[i]);
+            REQUIRE_NE(ret_node, nullptr);
+        }
+
+        return;
+    }
 
 
     //check if two red-black trees are equal
@@ -128,34 +219,6 @@ namespace _class_helper {
                 *(const data_T *) node_1->data
             );
         }
-    }
-
-
-    //setup a red-black tree with real values
-    enum cm_rbt_side _compare(const void *, const void *);
-
-    template <typename key_T, typename data_T>
-    void populate(cm_rbt & rbt,
-                  const key_T * key_arr, const data_T * data_arr,
-                  const size_t key_data_count) {
-
-        cm_rbt_node * ret_node;
-
-
-        //initialise the red-black tree
-        cm_new_rbt(&rbt, sizeof(key_T), sizeof(data_T),
-                   _class_helper::rbt::_compare);
-
-        //populate the red-black tree with elements
-        for (int i = 0; i < key_data_count; ++i) {
-
-            ret_node = cm_rbt_set(&rbt,
-                                  (const void *) &key_arr[i],
-                                  (const void *) &data_arr[i]);
-            REQUIRE_NE(ret_node, nullptr);
-        }
-
-        return;
     }
     
     } //end namespace `rbt`
@@ -497,21 +560,21 @@ namespace _class_helper {
     //an object setter & getter test
     template <typename obj_T, typename obj_val_T>
     void test_obj_setter_getter(
-        const obj_val_T & new_obj,
-        int (obj_T::*setter_fn)(const obj_val_T &),
-        const obj_val_T & (obj_T::*getter_fn)() const,
+        const obj_val_T * new_obj,
+        int (obj_T::*setter_fn)(const obj_val_T *),
+        const obj_val_T * (obj_T::*getter_fn)() const,
         std::function<
-            void(const obj_T &, const obj_val_T &)> dflt_getter_assert_cb,
+            void(const obj_T &, const obj_val_T *)> dflt_getter_assert_cb,
         std::function<void(const obj_T &)> setter_assert_cb,
         std::function<
-            void(const obj_T &, const obj_val_T &)> new_getter_assert_cb) {
+            void(const obj_T &, const obj_val_T *)> new_getter_assert_cb) {
 
         int ret;
         obj_T obj;
 
 
         //run the default pointer getter checks
-        const obj_val_T & _dflt_obj = (obj.*getter_fn)();
+        const obj_val_T * _dflt_obj = (obj.*getter_fn)();
         dflt_getter_assert_cb(obj, _dflt_obj);
 
         //run the new pointer setter checks
@@ -520,7 +583,7 @@ namespace _class_helper {
         setter_assert_cb(obj);
 
         //run the new pointer getter checks
-        const obj_val_T & _new_obj = (obj.*getter_fn)();
+        const obj_val_T * _new_obj = (obj.*getter_fn)();
         new_getter_assert_cb(obj, _new_obj);
 
         return;

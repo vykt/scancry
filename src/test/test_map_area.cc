@@ -1534,7 +1534,6 @@ namespace _map_area_set {
                 ret = sc_opt_ma_set_exclusive_addr_ranges(
                           args_cast->opts_ma, &exclusive_addr_ranges);
                 REQUIRE_EQ(ret, 0);
-
             }
 
 

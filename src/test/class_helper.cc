@@ -45,6 +45,33 @@ void _class_helper::vct::setup_stub(cm_vct & vct) {
 }
 
 
+void _class_helper::lst::setup_stub(cm_lst & lst) {
+
+    int num;
+    cm_lst_node * node;
+
+
+    //set a false number of elements
+    node = (cm_lst_node *) std::malloc(sizeof(cm_lst_node));
+    REQUIRE_NE(node, nullptr);
+
+    //allocate a data area
+    node->data = std::malloc(10);
+    REQUIRE_NE(node->data, nullptr);
+
+    //setup the node & list
+    node->prev = nullptr;
+    node->next = nullptr;
+
+    lst.is_init = true;
+    lst.head = node;
+    lst.len = 1;
+    lst.data_sz = 10;
+
+    return;
+}
+
+
 enum cm_rbt_side _class_helper::rbt::_compare(
     const void *, const void *) { return CM_RBT_LESS; }
 
@@ -55,7 +82,7 @@ void _class_helper::rbt::setup_stub(cm_rbt & rbt) {
 
 
     //allocate a new node;
-    node = (cm_rbt_node *) std::malloc(sizeof(cm_rbt_node)); //FIXME LEAK
+    node = (cm_rbt_node *) std::malloc(sizeof(cm_rbt_node));
     REQUIRE_NE(node, nullptr);
 
     //allocate a key & data area
@@ -73,6 +100,8 @@ void _class_helper::rbt::setup_stub(cm_rbt & rbt) {
     rbt.is_init = true;
     rbt.root = node;
     rbt.size = 1;
+    rbt.data_sz = 10;
+    rbt.key_sz = 10;
 
     return;
 }

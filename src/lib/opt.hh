@@ -104,7 +104,7 @@ int sc_opt_ptr_get_max_depth(const sc_opt_ptrscan * opts_ptr);
 
 //0 = success, -1 = error
 int sc_opt_ptr_set_static_set(sc_opt_ptrscan * opts_ptr,
-                                     const sc_map_area_set * static_set);
+                              const sc_map_area_set * static_set);
 //pointer to a private map area set (can't fail)
 const sc_map_area_set *
     sc_opt_ptr_get_static_set(const sc_opt_ptrscan * opts_ptr);

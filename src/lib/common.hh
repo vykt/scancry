@@ -377,50 +377,38 @@
 
 //define an object setter
 #define _DEFINE_OBJ_SETTER(namespace, type, obj)                    \
-[[nodiscard]] int namespace::set_##obj(const type & obj) noexcept { \
+[[nodiscard]] int namespace::set_##obj(const type * obj) noexcept { \
                                                                     \
-    int ret, ret_val = 0;                                           \
+    int ret;                                                        \
                                                                     \
                                                                     \
     /* acquire a write lock */                                      \
     _LOCK_WRITE(-1)                                                 \
                                                                     \
-    /* acquire a read lock on the source object */                  \
-    ret = obj._lock_read();                                         \
+    /* release lock on any pre-existing object pointer */           \
+    if (this->obj != nullptr) { this->obj->_unlock(); }             \
+                                                                    \
+    /* acquire a read lock on the new object pointer */             \
+    ret = obj->_lock_read();                                        \
     if (ret != 0) {                                                 \
         _UNLOCK                                                     \
         return -1;                                                  \
     }                                                               \
                                                                     \
-    this->obj = obj;                                                \
-    if (this->_get_ctor_failed() == true) ret_val = -1;             \
-                                                                    \
-    /* release the lock on the source object */                     \
-    obj._unlock();                                                  \
-                                                                    \
     /* release the lock */                                          \
     _UNLOCK                                                         \
                                                                     \
-    return ret_val;                                                 \
+    return 0;                                                       \
 }                                                                   \
 
 
 //define an object getter
 #define _DEFINE_OBJ_GETTER(namespace, type, obj) \
-[[nodiscard]] const type &                       \
+[[nodiscard]] const type *                       \
     namespace::get_##obj() const noexcept {      \
                                                  \
     return this->obj;                            \
 }                                                \
-
-
-//define an object reference getter
-#define _DEFINE_OBJ_GETTER_MUT(namespace, type, obj) \
-[[nodiscard]] type &                                 \
-    namespace::_get_##obj##_mut() noexcept {         \
-                                                     \
-    return this->obj;                                \
-}                                                    \
 
 
 namespace common {
@@ -904,7 +892,7 @@ int sc_##short_hdl_type##_set_##obj(                    \
     namespace::type * cc_##obj                          \
         = (namespace::type *) obj;                      \
                                                         \
-    return cc_##hdl->set_##obj(*cc_##obj);              \
+    return cc_##hdl->set_##obj(cc_##obj);               \
 }                                                       \
 
 
@@ -917,6 +905,6 @@ const sc_##type * sc_##short_hdl_type##_get_##obj(      \
     namespace::hdl_type * cc_##hdl                      \
         = (namespace::hdl_type *) hdl;                  \
                                                         \
-    return (const sc_##type *) &cc_##hdl->get_##obj();  \
+    return (const sc_##type *) cc_##hdl->get_##obj();   \
 }                                                       \
 

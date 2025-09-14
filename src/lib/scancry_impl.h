@@ -150,6 +150,7 @@ class worker_pool;
 //argument passed from a worker to the `process_addr()` function
 class _scan_arg {
 
+    _SC_DBG_PRIVATE:
         // -- [attributes]
         uintptr_t addr;
     
@@ -380,7 +381,7 @@ class _worker : public sc::_ctor_failable {
         mc_session * cached_session;
 
         //shared state
-        const struct sc::_worker_pool_cache & pool_cache;
+        const sc::_worker_pool_cache & pool_cache;
         sc::_worker_concurrency & concur;
 
         //read buffer

@@ -1,6 +1,5 @@
 //standard template library
 #include <string>
-#include <iostream>
 #include <functional>
 
 //C standard library
@@ -27,6 +26,16 @@
  */
 
 namespace _shared {
+
+/*
+ *  NOTE: Because setters of the scan and static sets attempt to lock 
+ *        the object passed to them by pointer, an empty set is
+ *        provided here.
+ */
+
+//map area set
+static sc::map_area_set ma_set;
+
 
 //compare memcry sessions (vector)
 static void _session_elem_eq(const mc_session & elem_0,
@@ -68,20 +77,6 @@ static void _populate_opt(sc::opt & opts) {
     mc_session ses[4];
     std::memset(ses, 0xFA, sizeof(mc_session) * 4);
     cm_vct new_sessions;
-
-    cm_lst_node * nodes[4] = {
-        (cm_lst_node *) 0x10101010,
-        (cm_lst_node *) 0x20202020,
-        (cm_lst_node *) 0x30303030,
-        (cm_lst_node *) 0x40404040
-    };
-    mc_vm_area * areas[4] = {
-        (mc_vm_area *) 0x50505050,
-        (mc_vm_area *) 0x60606060,
-        (mc_vm_area *) 0x70707070,
-        (mc_vm_area *) 0x80808080
-    };
-    sc::map_area_set new_scan_set;
     
 
     /*
@@ -91,11 +86,6 @@ static void _populate_opt(sc::opt & opts) {
 
     //build new sessions
     _class_helper::vct::populate(new_sessions, ses, 4);
-
-    #ifdef SC_DEBUG
-    //build a new scan set
-    _class_helper::rbt::populate(new_scan_set.set, nodes, areas, 4);
-    #endif
 
 
     //call setters
@@ -114,7 +104,7 @@ static void _populate_opt(sc::opt & opts) {
     ret = opts.set_addr_width(sc::AW64);
     REQUIRE_EQ(ret, 0);
 
-    ret = opts.set_scan_set(new_scan_set);
+    ret = opts.set_scan_set(&_shared::ma_set);
     REQUIRE_EQ(ret, 0);
 
     //cleanup
@@ -132,20 +122,6 @@ static void _populate_opt_ptrscan(sc::opt_ptrscan & opts_ptr) {
 
     off_t offs[4] = { 0x10, 0x20, 0x30, 0x40 };
     cm_vct new_preset_offsets;
-    
-    cm_lst_node * nodes[4] = {
-        (cm_lst_node *) 0x10101010,
-        (cm_lst_node *) 0x20202020,
-        (cm_lst_node *) 0x30303030,
-        (cm_lst_node *) 0x40404040
-    };
-    mc_vm_area * areas[4] = {
-        (mc_vm_area *) 0x50505050,
-        (mc_vm_area *) 0x60606060,
-        (mc_vm_area *) 0x70707070,
-        (mc_vm_area *) 0x80808080
-    };
-    sc::map_area_set new_static_set;
     
 
     /*
@@ -175,7 +151,7 @@ static void _populate_opt_ptrscan(sc::opt_ptrscan & opts_ptr) {
     ret = opts_ptr.set_max_depth(5);
     REQUIRE_EQ(ret, 0);
 
-    ret = opts_ptr.set_static_set(new_static_set);
+    ret = opts_ptr.set_static_set(&_shared::ma_set);
     REQUIRE_EQ(ret, 0);
 
     ret = opts_ptr.set_preset_offsets(new_preset_offsets);
@@ -220,7 +196,7 @@ namespace _opt {
         REQUIRE_EQ(opts.map, nullptr);
         //assert miscellaneous
         REQUIRE_EQ(opts.addr_width, sc::val_unset::addr_width);
-        REQUIRE_EQ(opts.scan_set.set.is_init, false);
+        REQUIRE_EQ(opts.scan_set, nullptr);
         #endif
     }
 
@@ -236,7 +212,6 @@ namespace _opt {
         _class_helper::vct::setup_stub(opts.sessions);
         opts.map = (mc_vm_map *) 0x10203040;
         //(fixture) setup miscellaneous
-        _class_helper::rbt::setup_stub(opts.scan_set.set);
         opts.addr_width = sc::AW64;
         #endif
     }
@@ -249,7 +224,7 @@ namespace _opt {
         /* note: use sanitizer to check file pathname dealloc */
         //assert destructors were run
         REQUIRE_EQ(opts.sessions.is_init, false);
-        REQUIRE_EQ(opts.scan_set.set.is_init, false);
+        REQUIRE_EQ(opts.scan_set, nullptr);
         #endif
     }
 
@@ -748,72 +723,27 @@ namespace _opt {
 
     namespace _scan_set {
 
-    //setter value
-    static const cm_lst_node * _nodes[4] = {
-        (cm_lst_node *) 0x10101010,
-        (cm_lst_node *) 0x20202020,
-        (cm_lst_node *) 0x30303030,
-        (cm_lst_node *) 0x40404040
-    };
-    static const mc_vm_area * _areas[4] = {
-        (mc_vm_area *) 0x50505050,
-        (mc_vm_area *) 0x60606060,
-        (mc_vm_area *) 0x70707070,
-        (mc_vm_area *) 0x80808080
-    };
-    static sc::map_area_set _new_scan_set;
-
-
-    //setup data
-    static void _setup_data() {
-        
-        #ifdef SC_DEBUG
-        //build a new scan set
-        _class_helper::rbt::populate(_new_scan_set.set, _nodes, _areas, 4);
-        #endif
-    }
-
-    //teardown data
-    static void _teardown_data() {
-
-        #ifdef SC_DEBUG
-        //destroy the new scan set
-        cm_del_rbt(&_new_scan_set.set);
-        #endif
-    }
-
-
     //default getter asserts
     static void _default_getter_asserts(
-        const sc::opt & opts, const sc::map_area_set & ma_set) {
+        const sc::opt & opts, const sc::map_area_set * ma_set) {
 
-        REQUIRE_EQ(ma_set.get_set().is_init, false);
+        REQUIRE_EQ(ma_set, nullptr);
     }
 
     //new setter asserts
     static void _new_setter_asserts(const sc::opt & opts) {
 
         #ifdef SC_DEBUG
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-
-            opts.scan_set.set,
-            _new_scan_set.set,
-            _shared::_cm_node_key_data_eq);
+        REQUIRE_EQ(opts.scan_set, &_shared::ma_set);
         #endif
     }
 
     //new getter asserts
     static void _new_getter_asserts(
-        const sc::opt & opts, const sc::map_area_set & ma_set) {
+        const sc::opt & opts, const sc::map_area_set * ma_set) {
 
         #ifdef SC_DEBUG
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-
-            opts.scan_set.set,
-            _new_scan_set.set,
-            _shared::_cm_node_key_data_eq);
+        REQUIRE_EQ(ma_set, *_shared::ma_set);
         #endif
     }
     
@@ -829,15 +759,12 @@ TEST_CASE(test_cc_opt_subtests[6]) {
     _common::release_warning("opt - scan_set");
     #endif
 
-    //setup a new scan set
-    _opt::_scan_set::_setup_data();
-
     //run test helper
     _class_helper::cc::test_obj_setter_getter<
         sc::opt, sc::map_area_set> (
 
         //provide test helper requirements
-        _opt::_scan_set::_new_scan_set,
+        &_shared::ma_set,
         &sc::opt::set_scan_set,
         &sc::opt::get_scan_set,
 
@@ -851,9 +778,6 @@ TEST_CASE(test_cc_opt_subtests[6]) {
         _opt::_scan_set::_new_getter_asserts
     );
 
-    //teardown the scan set
-    _opt::_scan_set::_teardown_data();
-
     return;
 }
 
@@ -865,17 +789,12 @@ TEST_CASE(test_c_opt_subtests[6]) {
     _common::release_warning(" (C) opt - scan_set");
     #endif
 
-    //setup a new scan set
-    _opt::_scan_set::_setup_data();
-
-
-
     //run test helper
     _class_helper::c::test_obj_setter_getter<
         sc_opt, sc::opt, sc_map_area_set> (
 
         //provide test helper requirements
-        (sc_map_area_set *) &_opt::_scan_set::_new_scan_set,
+        (const sc_map_area_set *) &_shared::ma_set,
 
         //fn pointers
         sc_new_opt,
@@ -886,7 +805,7 @@ TEST_CASE(test_c_opt_subtests[6]) {
         //default getter asserts
         [](const sc::opt & opts, const sc_map_area_set * ma_set) {
             _opt::_scan_set::_default_getter_asserts(
-                opts, *(sc::map_area_set *) ma_set);
+                opts, (sc::map_area_set *) ma_set);
         },
 
         //new setter asserts
@@ -895,12 +814,9 @@ TEST_CASE(test_c_opt_subtests[6]) {
         //new getter asserts
         [](const sc::opt & opts, const sc_map_area_set * ma_set) {
             _opt::_scan_set::_new_getter_asserts(
-                opts, *(sc::map_area_set *) ma_set);
+                opts, (sc::map_area_set *) ma_set);
         }
     );
-
-    //teardown the scan set
-    _opt::_scan_set::_teardown_data();
 
     return;
 }
@@ -914,7 +830,6 @@ namespace _opt {
 
     //setup data
     static int _old_vct_len;
-    static int _old_rbt_size;
 
 
     //copy ctor asserts
@@ -927,7 +842,6 @@ namespace _opt {
         #ifdef SC_DEBUG
         //save old lengths
         _old_vct_len  = dst_opts.sessions.len;
-        _old_rbt_size = dst_opts.scan_set.set.size;
 
         //assert pathnames
         REQUIRE_NE(dst_opts.file_pathname_out,
@@ -948,12 +862,7 @@ namespace _opt {
 
         //miscellaneous
         REQUIRE_EQ(dst_opts.addr_width, src_opts.addr_width);
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-
-            dst_opts.scan_set.set,
-            src_opts.scan_set.set,
-            _shared::_cm_node_key_data_eq);
+        REQUIRE_EQ(dst_opts.scan_set, src_opts.scan_set);
         #endif      
     }
     
@@ -970,8 +879,7 @@ namespace _opt {
         REQUIRE_NE(opts.map, nullptr);
         //assert miscellaneous
         REQUIRE_EQ(opts.addr_width, sc::AW64);
-        REQUIRE_EQ(opts.scan_set.set.is_init, true);
-        REQUIRE_EQ(opts.scan_set.set.size, _old_rbt_size);
+        REQUIRE_EQ(opts.scan_set, &_shared::ma_set);
         #endif
     }
 
@@ -980,7 +888,7 @@ namespace _opt {
         
         #ifdef SC_DEBUG
         REQUIRE_EQ(opts.sessions.is_init, false);
-        REQUIRE_EQ(opts.scan_set.set.is_init, false);
+        REQUIRE_EQ(opts.scan_set, nullptr);
         #endif
     }
 
@@ -1001,7 +909,6 @@ TEST_CASE(test_cc_opt_subtests[7]) {
 
         //source object setup
         _shared::_populate_opt,
-
 
         //copy ctor asserts
         _opt::_copy_ctor::_copy_ctor_asserts,
@@ -1065,7 +972,7 @@ namespace _opt {
         opts.map = (mc_vm_map *) 0x10203040;
         //(fixture) setup miscellaneous
         opts.addr_width = sc::AW64;
-        _class_helper::rbt::setup_stub(opts.scan_set.set);
+        opts.scan_set = nullptr;
         #endif
     }
 
@@ -1097,18 +1004,14 @@ namespace _opt {
 
         //miscellaneous
         REQUIRE_EQ(dst_opts.addr_width, src_opts.addr_width);
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-            
-            dst_opts.scan_set.set,
-            src_opts.scan_set.set,
-            _shared::_cm_node_key_data_eq);
+        REQUIRE_EQ(dst_opts.scan_set, src_opts.scan_set);
         #endif
     }
 
     } //end namespace `_copy_assign`
 
 } //end namespace `_opt`
+
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[8]) {
@@ -1122,7 +1025,6 @@ TEST_CASE(test_cc_opt_subtests[8]) {
 
         //source object setup
         _shared::_populate_opt,
-
         
         //destination object setup
         _opt::_copy_assign::_dst_obj_setup,
@@ -1185,7 +1087,7 @@ namespace _opt {
 
         //miscellaneous asserts
         REQUIRE_EQ(opts.addr_width, sc::val_unset::addr_width);
-        REQUIRE_EQ(opts.scan_set.set.is_init, false);
+        REQUIRE_EQ(opts.scan_set, false);
         #endif
     }
 
@@ -1266,8 +1168,8 @@ namespace _opt_ptrscan {
                        sc::val_default::max_obj_sz);
             REQUIRE_EQ(opts_ptr.max_depth,
                        sc::val_default::max_depth);
+            REQUIRE_EQ(opts_ptr.static_set, nullptr);
             //assert composites
-            REQUIRE_EQ(opts_ptr.static_set.set.is_init,false);
             REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
             //assert smart scan
             REQUIRE_EQ(opts_ptr.smart_scan, sc::val_default::smart_scan);
@@ -1284,7 +1186,6 @@ namespace _opt_ptrscan {
             opts_ptr.max_obj_sz  = 0x800;
             opts_ptr.max_depth   = 5;
             //(fixture) setup composites
-            _class_helper::rbt::setup_stub(opts_ptr.static_set.set);
             _class_helper::vct::setup_stub(opts_ptr.preset_offsets);
             #endif
         }
@@ -1294,12 +1195,11 @@ namespace _opt_ptrscan {
 
             #ifdef SC_DEBUG
             //assert destructors were run
-            REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
+            REQUIRE_EQ(opts_ptr.static_set, nullptr);
             REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
             #endif
         }
     
-
     } //end namespace `_ctor_dtor`
     
 } //end namespace `opt_ptrscan`
@@ -1788,47 +1688,12 @@ namespace _opt_ptrscan {
 
     namespace _static_set {
 
-    //setter value    
-    static const cm_lst_node * _nodes[4] = {
-        (cm_lst_node *) 0x10101010,
-        (cm_lst_node *) 0x20202020,
-        (cm_lst_node *) 0x30303030,
-        (cm_lst_node *) 0x40404040
-    };
-    static const mc_vm_area * _areas[4] = {
-        (mc_vm_area *) 0x50505050,
-        (mc_vm_area *) 0x60606060,
-        (mc_vm_area *) 0x70707070,
-        (mc_vm_area *) 0x80808080
-    };
-    sc::map_area_set _new_static_set;
-
-
-    //setup data
-    static void _setup_data() {
-    
-        #ifdef SC_DEBUG
-        //build a new scan set
-        _class_helper::rbt::populate(
-            _new_static_set.set, _nodes, _areas, 4);
-        #endif
-    }
-
-    //teardown data
-    static void _teardown_data() {
-
-        #ifdef SC_DEBUG
-        cm_del_rbt(&_new_static_set.set);
-        #endif
-    }
-
-
     //default object asserts
     static void _default_getter_asserts(
         const sc::opt_ptrscan & opts_ptr,
-        const sc::map_area_set & ma_set) {
+        const sc::map_area_set * ma_set) {
 
-        REQUIRE_EQ(ma_set.get_set().is_init, false);
+        REQUIRE_EQ(ma_set, nullptr);
     }
     
     //new object setter asserts
@@ -1836,28 +1701,16 @@ namespace _opt_ptrscan {
         const sc::opt_ptrscan & opts_ptr) {
     
         #ifdef SC_DEBUG
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-
-            opts_ptr.static_set.set,
-            _new_static_set.set,
-            _shared::_cm_node_key_data_eq);
+        REQUIRE_EQ(opts_ptr.static_set, &_shared::ma_set);
         #endif
     }
 
     //new object getter asserts
     static void _new_getter_asserts(
         const sc::opt_ptrscan & opts_ptr,
-        const sc::map_area_set & ma_set) {
+        const sc::map_area_set * ma_set) {
 
-        #ifdef SC_DEBUG
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-
-            opts_ptr.static_set.set,
-            _new_static_set.set,
-            _shared::_cm_node_key_data_eq);
-        #endif
+        REQUIRE_EQ(ma_set, &_shared::ma_set);
     }
 
     } //end namespace `_static_set`
@@ -1872,15 +1725,12 @@ TEST_CASE(test_cc_opt_subtests[15]) {
     _common::release_warning("opt_ptrscan - static_set");
     #endif
 
-    //setup a new static set
-    _opt_ptrscan::_static_set::_setup_data();
-
     //run test helper
     _class_helper::cc::test_obj_setter_getter<
         sc::opt_ptrscan, sc::map_area_set> (
 
         //provide test helper requirements
-        _opt_ptrscan::_static_set::_new_static_set,
+        &_shared::ma_set,
         &sc::opt_ptrscan::set_static_set,
         &sc::opt_ptrscan::get_static_set,
 
@@ -1895,9 +1745,6 @@ TEST_CASE(test_cc_opt_subtests[15]) {
         _opt_ptrscan::_static_set::_new_getter_asserts
     );
 
-    //teardown a new static set
-    _opt_ptrscan::_static_set::_teardown_data();
-
     return;
 }
 
@@ -1909,16 +1756,12 @@ TEST_CASE(test_c_opt_subtests[15]) {
     _common::release_warning(" (C) opt_ptrscan - static_set");
     #endif
 
-    //setup a new static set
-    _opt_ptrscan::_static_set::_setup_data();
-
     //run test helper
     _class_helper::c::test_obj_setter_getter<
         sc_opt_ptrscan, sc::opt_ptrscan, sc_map_area_set> (
 
         //provide test helper requirements
-        (const sc_map_area_set *)
-            &_opt_ptrscan::_static_set::_new_static_set,
+        (const sc_map_area_set *) &_shared::ma_set,
 
         //fn pointers
         sc_new_opt_ptr,
@@ -1931,7 +1774,7 @@ TEST_CASE(test_c_opt_subtests[15]) {
         [](const sc::opt_ptrscan & opts_ptr,
            const sc_map_area_set * ma_set) {
             _opt_ptrscan::_static_set::_default_getter_asserts(
-                opts_ptr, *(sc::map_area_set *) ma_set);
+                opts_ptr, (sc::map_area_set *) ma_set);
         },
         
         //new object setter asserts
@@ -1941,12 +1784,9 @@ TEST_CASE(test_c_opt_subtests[15]) {
         [](const sc::opt_ptrscan & opts_ptr,
            const sc_map_area_set * ma_set) {
             _opt_ptrscan::_static_set::_new_getter_asserts(
-                opts_ptr, *(sc::map_area_set *) ma_set);
+                opts_ptr, (sc::map_area_set *) ma_set);
         }
     );
-
-    //setup a new static set
-    _opt_ptrscan::_static_set::_teardown_data();
 
     return;
 }
@@ -2145,7 +1985,6 @@ namespace _opt_ptrscan {
     namespace _copy_ctor {
 
     //setup data
-    static size_t _old_rbt_size;
     static size_t _old_vct_len;
 
 
@@ -2159,7 +1998,6 @@ namespace _opt_ptrscan {
 
         #ifdef SC_DEBUG
         //save old lengths
-        _old_rbt_size = dst_opts_ptr.static_set.set.size;
         _old_vct_len  = dst_opts_ptr.preset_offsets.len;
 
         //assert primitives
@@ -2169,13 +2007,7 @@ namespace _opt_ptrscan {
         REQUIRE_EQ(dst_opts_ptr.max_depth, src_opts_ptr.max_depth);
 
         //assert composites
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-            
-            dst_opts_ptr.static_set.set,
-            src_opts_ptr.static_set.set,
-            _shared::_cm_node_key_data_eq
-        );
+        REQUIRE_EQ(dst_opts_ptr.static_set, src_opts_ptr.static_set);
             
         _class_helper::vct::assert_eq<off_t>(
             dst_opts_ptr.preset_offsets,
@@ -2197,9 +2029,8 @@ namespace _opt_ptrscan {
         REQUIRE_EQ(opts_ptr.alignment, 0x10);
         REQUIRE_EQ(opts_ptr.max_obj_sz, 0x800);
         REQUIRE_EQ(opts_ptr.max_depth, 5);
+        REQUIRE_EQ(opts_ptr.static_set, nullptr);
         //assert composites are initialised
-        REQUIRE_EQ(opts_ptr.static_set.set.is_init, true);
-        REQUIRE_EQ(opts_ptr.static_set.set.size, _old_rbt_size);
         REQUIRE_EQ(opts_ptr.preset_offsets.is_init, true);
         REQUIRE_EQ(opts_ptr.preset_offsets.len, _old_vct_len);
         //assert smart scan
@@ -2212,7 +2043,7 @@ namespace _opt_ptrscan {
 
         #ifdef SC_DEBUG
         //assert compositers are uninitialised
-        REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
+        REQUIRE_EQ(opts_ptr.static_set, nullptr);
         REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
         #endif
     }
@@ -2293,8 +2124,8 @@ namespace _opt_ptrscan {
         opts_ptr.alignment   = 0x10;
         opts_ptr.max_obj_sz  = 0x800;
         opts_ptr.max_depth   = 5;
+        opts_ptr.static_set  = nullptr;
         //(fixture) setup composites
-        _class_helper::rbt::setup_stub(opts_ptr.static_set.set);
         _class_helper::vct::setup_stub(opts_ptr.preset_offsets);
         //(fixture) setup smart scan
         opts_ptr.smart_scan = sc::SMART_SCAN_ENABLED;
@@ -2319,16 +2150,9 @@ namespace _opt_ptrscan {
         REQUIRE_EQ(dst_opts_ptr.alignment, src_opts_ptr.alignment);
         REQUIRE_EQ(dst_opts_ptr.max_obj_sz, src_opts_ptr.max_obj_sz);
         REQUIRE_EQ(dst_opts_ptr.max_depth, src_opts_ptr.max_depth);
+        REQUIRE_EQ(dst_opts_ptr.static_set, src_opts_ptr.static_set);
 
         //assert composites
-        _class_helper::rbt::assert_eq<
-            cm_lst_node *, mc_vm_area *>(
-            
-            dst_opts_ptr.static_set.set,
-            src_opts_ptr.static_set.set,
-            _shared::_cm_node_key_data_eq
-        );
-            
         _class_helper::vct::assert_eq<off_t>(
             dst_opts_ptr.preset_offsets,
             src_opts_ptr.preset_offsets,
@@ -2417,9 +2241,9 @@ namespace _opt_ptrscan {
         REQUIRE_EQ(opts_ptr.alignment, sc::val_default::alignment);
         REQUIRE_EQ(opts_ptr.max_obj_sz, sc::val_default::max_obj_sz);
         REQUIRE_EQ(opts_ptr.max_depth, sc::val_default::max_depth);
+        REQUIRE_EQ(opts_ptr.static_set, nullptr);
 
         //assert composites
-        REQUIRE_EQ(opts_ptr.static_set.set.is_init, false);
         REQUIRE_EQ(opts_ptr.preset_offsets.is_init, false);
 
         //assert smart scan

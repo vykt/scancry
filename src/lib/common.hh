@@ -1,8 +1,5 @@
 #pragma once
 
-//C++ standard library
-#include <new>
-
 //C standard library
 #include <cstdlib>
 #include <cstring>

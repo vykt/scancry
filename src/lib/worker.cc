@@ -1,3 +1,6 @@
+//C++ standard library
+#include <new>
+
 //C standard library
 #include <cstdlib>
 #include <cstddef>
@@ -26,6 +29,10 @@
 #endif
 
 
+
+      /* =============== * 
+ ===== *  C++ INTERFACE  * =====
+       * =============== */
 
 /*
  *  --- [WORKER_CONCURRENCY | INTERNAL] ---
@@ -209,7 +216,8 @@ const constexpr unsigned long _nsec_in_sec = 1000000000;
 const constexpr useconds_t _release_timeout_sec = 10;
 
 //allow a worker pool to wait for workers to ready
-[[nodiscard]] int sc::_worker_concurrency::wp_await_wkrs() noexcept {
+[[nodiscard]] int sc::_worker_concurrency::wp_await_wkrs(
+    const bool do_timeout) noexcept {
 
     int ret;
 
@@ -218,13 +226,15 @@ const constexpr useconds_t _release_timeout_sec = 10;
     struct timespec wake_time;
 
 
-    //get the timeout time
-    ret = gettimeofday(&timeout_time, nullptr);
-    if (ret != 0) {
-        sc_errno = SC_ERR_TIMESPEC;
-        return -1;
+    //get the timeout time if requested
+    if (do_timeout == true ) {
+        ret = gettimeofday(&timeout_time, nullptr);
+        if (ret != 0) {
+            sc_errno = SC_ERR_TIMESPEC;
+            return -1;
+        }
+        timeout_time.tv_sec += _release_timeout_sec;
     }
-    timeout_time.tv_sec += _release_timeout_sec;
 
 
     //wait for workers to be released until a timeout is hit
@@ -253,12 +263,14 @@ const constexpr useconds_t _release_timeout_sec = 10;
         }
 
         //exit if timeout exceeded
-        if ((cur_time.tv_sec > timeout_time.tv_sec)
-            || ((cur_time.tv_sec == timeout_time.tv_sec)
-                && (cur_time.tv_usec > timeout_time.tv_sec))) {
-            sc_errno = SC_ERR_WORKER_TIMEOUT;
-            return -1;
-        } 
+        if (do_timeout == true) {
+            if ((cur_time.tv_sec > timeout_time.tv_sec)
+                || ((cur_time.tv_sec == timeout_time.tv_sec)
+                    && (cur_time.tv_usec > timeout_time.tv_sec))) {
+                sc_errno = SC_ERR_WORKER_TIMEOUT;
+                return -1;
+            }
+        }
 
         //calculate absolute wake time
         wake_time.tv_sec = cur_time.tv_sec;
@@ -393,35 +405,77 @@ void sc::_worker_concurrency::unset_flags(const cm_byte bitmask) noexcept {
  *  --- [WORKER_POOL_CACHE | INTERNAL] ---
  */
 
-//getters & setters
-void sc::_worker_pool_cache::set_opts(const sc::opt * opts) noexcept {
-    this->opts = opts;
+//dtor
+sc::_worker_pool_cache::~_worker_pool_cache() noexcept {
+
+    if (this->is_locked == true) this->unlock();
     return;
 }
 
+
+//lock & unlock cache
+[[nodiscard]] int sc::_worker_pool_cache::lock() noexcept {
+
+    int ret;
+
+    int iter;
+    bool is_err = false;
+
+    const sc::_lockable * lockables[3] = {
+        this->opts,
+        this->opts_scan,
+        this->scan
+    };
+
+
+    //for all cached objects to lock
+    for (iter = 0; iter < 3; ++iter) {
+        ret = lockables[iter]->_lock_read();
+        if (ret != 0) { is_err = true; break; }
+    }
+
+    //unlock locked objects on error
+    if (is_err == false) { this->is_locked = true; return 0; }
+    for (int i = 0; i < iter; ++i) {
+        lockables[i]->_unlock();
+    }
+
+    return -1;
+}
+
+
+void sc::_worker_pool_cache::unlock() noexcept {
+
+    const sc::_lockable * lockables[3] = {
+        this->opts,
+        this->opts_scan,
+        this->scan
+    };
+
+
+    //exit pre-emptively if not locked
+    if (this->is_locked == false) return;
+
+    //for all cached objects
+    for (int i = 0; i < 3; ++i) {
+        lockables[i]->_unlock();
+    }
+
+    return;
+}
+
+
+//getters
 [[nodiscard]] const sc::opt *
     sc::_worker_pool_cache::get_opts() const noexcept {
 
     return this->opts;
 }
 
-void sc::_worker_pool_cache::set_opts_scan(
-    const sc::_opt_scan * opts_scan) noexcept {
-
-    this->opts_scan = opts_scan;
-    return;
-}
-
 [[nodiscard]] const sc::_opt_scan *
     sc::_worker_pool_cache::get_opts_scan() const noexcept {
 
     return this->opts_scan;
-}
-
-
-void sc::_worker_pool_cache::set_scan(const sc::_scan * scan) noexcept {
-    this->scan = (sc::_scan *) scan;
-    return;
 }
 
 [[nodiscard]] sc::_scan *
@@ -810,14 +864,14 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
  *  --- [WORKER_POOL | PRIVATE] ---
  */
 
-//perform a single run
+//signal a single run
 [[nodiscard]] int sc::worker_pool::do_run() noexcept {
 
     int ret;
 
 
     //wait for workers to be ready
-    ret = this->concur.wp_await_wkrs();
+    ret = this->concur.wp_await_wkrs(false);
     if (ret != 0) return -1;
 
     //perform a run
@@ -829,8 +883,21 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         return -1;
     }
 
-    return 0;    
+    return 0;
+}
 
+
+//await a single run to finish
+[[nodiscard]] int sc::worker_pool::await_run() noexcept {
+
+    int ret;
+
+
+    //wait for workers to be ready
+    ret = this->concur.wp_await_wkrs(false);
+    if (ret != 0) return -1;
+
+    return 0;
 }
 
 
@@ -867,6 +934,11 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     return 0;    
 }
 
+
+/*
+ *  NOTE: Returns `1` if there is a change in worker count,
+ *        `0` if there is no change, and `-1` on error.
+ */
 
 [[nodiscard]] int
     sc::worker_pool::change_wkr_count(const int count) noexcept {
@@ -918,6 +990,9 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
         // - run a control run
         ret = this->do_ctrl_run();
+        if (ret != 0) return -1;
+
+        ret = this->concur.wp_await_wkrs(true);
         if (ret != 0) return -1;
 
         // - cleanup workers
@@ -974,7 +1049,104 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         }
     }
 
+    return (diff != 0) ? 1 : 0;
+}
+
+
+[[nodiscard]] int sc::worker_pool::cache_areas(
+    const sc::map_area_set & ma_set) noexcept {
+
+    int ret;
+
+
+    //destroy any existing cached areas
+    common::del_vct_if_init(this->sorted_areas_cache);
+
+    //convert the set (red-black tree) to a sorted vector
+    ret = ma_set.to_size_ord_vct(this->sorted_areas_cache);
+    if (ret != 0) return -1;
+
     return 0;
+}
+
+
+[[nodiscard]] int sc::worker_pool::distrib_areas() noexcept {
+
+    int ret;
+
+    cm_vct sums;
+    size_t sum;
+    size_t * sum_p;
+    size_t min;
+    int min_idx;
+    
+    cm_lst_node * area_node;
+    mc_vm_area * area;
+    
+    sc::_worker_bundle * wkr_bundle;
+    
+
+    //create a vector to store size sums for each worker
+    ret = cm_new_vct(&sums, sizeof(size_t));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+    cm_vct_rsz(&sums, this->wkr_bundles.len);
+    std::memset(sums.data, 0, sums.data_sz * sums.len);
+    
+
+    //for all cached areas
+    for (int i = 0; i < this->sorted_areas_cache.len; ++i) {
+
+        //get next cached area
+        ret = cm_vct_get(&this->sorted_areas_cache, i, &area_node);
+        if (ret != 0) {
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+        area = MC_GET_NODE_AREA(area_node);
+
+        //for all sums
+        min = SIZE_MAX;
+        for (int j = 0; j < sums.len; ++j) {
+
+            //fetch next sum
+            ret = cm_vct_get(&sums, j, &sum);
+            if (ret != 0) {
+                sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+
+            //update sum
+            if (sum < min) { min = sum; min_idx = j; }
+
+        } //end for all sums
+
+
+        // - add this area to the smallest sum
+
+        //increment the sum
+        sum_p = (size_t *) cm_vct_get_p(&sums, min_idx);
+        if (sum_p == nullptr) {
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+
+        //fetch relevant worker bundle
+        ret = cm_lst_get(&this->wkr_bundles, min_idx, &wkr_bundle);
+        if (ret != 0) {
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+
+        //add this area to this worker bundle
+        cm_vct & wkr_areas = wkr_bundle->get_scan_area_subset();
+        ret = cm_vct_apd(&wkr_areas, &area_node);
+        if (ret != 0) {
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+
+    } //end for all cached areas
+
+    cm_del_vct(&sums);
+    return -1;
+
+    //cleanup
+    _distrib_areas_fail:
+    cm_del_vct(&sums);
+    return -1;
 }
 
 
@@ -982,19 +1154,115 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
  *  --- [WORKER_POOL | INTERNAL] ---
  */
 
-[[nodiscard]] int sc::worker_pool::_single_run() noexcept {
+//entry & exit functions for scans
+[[nodiscard]] int sc::worker_pool::_setup(
+    const sc::opt & opts,
+    const sc::_opt_scan & opts_scan,
+    sc::_scan & scan,
+    const sc::map_area_set & ma_set,
+    const cm_byte flags) noexcept {
 
-    this->concur.
+    int ret;
+    int do_distrib;
+
+
+    //read lock the worker pool
+    ret = this->_lock_read();
+    if (ret != 0) return -1;
+
+    //setup cache
+    this->cache.~_worker_pool_cache();
+    new (&this->cache) sc::_worker_pool_cache(&opts, &opts_scan, &scan);
+    ret = this->cache.lock();
+    if (ret != 0) goto _setup_fail_1;
+
+    //update workers
+    ret = this->change_wkr_count(
+              this->cache.get_opts()->get_sessions().len);
+    if (ret < 0) goto _setup_fail_2;
+    do_distrib = ret;
+
+    //re-cache the map area set unless explicitly skipped    
+    if ((flags & sc::bits_worker::keep_scan_set) == false) {
+        ret = this->cache_areas(ma_set);
+        if (ret != 0) goto _setup_fail_2;
+    }
+
+    //re-distribute the map area set if the scan set has changed
+    //OR if the number of workers has changed
+    if (((flags & sc::bits_worker::keep_scan_set) == false)
+         || (do_distrib == 1)) {
+
+        ret = this->distrib_areas();
+        if (ret != 0) goto _setup_fail_2;
+    }
+
+    return 0;
+
+    //cleanup
+    _setup_fail_2:
+    this->cache.unlock();
+
+    _setup_fail_1:
+    this->_unlock();
+
+    return -1;
 }
 
 
-/*
- *  TODO:
- *
- *    1) Setup using provided red-black tree set.
- *         > Allow a smart way to only destroy some workers.
- *         > Also, for all operations, write lock the worker pool.
- */
+[[nodiscard]] int sc::worker_pool::_teardown() noexcept {
+
+    int ret;
+    
+
+    //unlock cache
+    this->cache.unlock();
+
+    //unlock write lock
+    ret = this->_lock_write();
+    if (ret != 0) return -1;
+    
+    return 0;
+}
+
+
+//dispatch a single pass over the scan set
+[[nodiscard]] int sc::worker_pool::_single_run() noexcept {
+
+    int ret;
+
+
+    //acquire a read lock
+    ret = this->_lock_read();
+    if (ret != 0) return -1;
+
+    //signal workers for a single pass
+    ret = this->do_scan_run();
+    if (ret != 0) { this->_unlock(); return -1; }
+
+    this->_unlock();
+    return 0;
+}
+
+
+//await for a single pass over the scan set to finish
+[[nodiscard]] int sc::worker_pool::_await_run() noexcept {
+
+    int ret;
+
+
+    //acquire a read lock
+    ret = this->_lock_read();
+    if (ret != 0) return -1;
+
+    //await for the workers to be ready
+    ret = this->await_run();
+    if (ret != 0) { this->_unlock(); return -1; }
+
+    this->_unlock();
+    return 0;
+}
+
 
 
 /*
@@ -1029,7 +1297,7 @@ sc::worker_pool::~worker_pool() noexcept {
 
 
     //destroy sorted scan areas
-    cm_del_vct(&this->sorted_scan_areas);
+    cm_del_vct(&this->sorted_areas_cache);
 
     //if the worker bundles list is initialised
     if (this->wkr_bundles.is_init == true) {
@@ -1044,4 +1312,53 @@ sc::worker_pool::~worker_pool() noexcept {
     }
 
     return;
+}
+
+
+//reset - kill all workers & remove cache
+[[nodiscard]] int sc::worker_pool::reset() noexcept {
+
+    int ret;
+
+
+    //acquire a write lock
+    ret = this->_lock_write();
+    if (ret != 0) return -1;
+
+    //kill workers
+    ret = this->change_wkr_count(0);
+    if (ret < 0) { this->_unlock(); return -1; }
+
+    //empty scan set cache
+    cm_vct_emp(&this->sorted_areas_cache);
+    
+    this->_unlock();
+    return 0;
+}
+
+
+
+      /* ============= * 
+ ===== *  C INTERFACE  * =====
+       * ============= */
+
+/*
+ *  --- [WORKER POOL | EXTERNAL] ---
+ */
+
+//ctor & dtor
+_DEFINE_C_CTOR(worker_pool, w_pool, sc);
+_DEFINE_C_DTOR(worker_pool, w_pool, sc, w_pool);
+
+
+int sc_wp_reset(sc_worker_pool * w_pool) {
+
+    int ret;
+
+
+    sc::worker_pool * cc_w_pool = (sc::worker_pool *) w_pool;
+    ret = cc_w_pool->reset();
+    if (ret != 0) return -1;
+
+    return 0;    
 }

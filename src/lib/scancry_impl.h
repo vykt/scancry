@@ -291,7 +291,7 @@ class _worker_concurrency : public sc::_ctor_failable {
         // - worker pool calls
 
         //concurrency operators - control
-        [[nodiscard]] int wp_await_wkrs() noexcept;
+        [[nodiscard]] int wp_await_wkrs(const bool do_timeout) noexcept;
         void wp_release_wkrs() noexcept;
         
         [[nodiscard]] int wp_wkr_kill(const int uid) noexcept;
@@ -317,8 +317,11 @@ class _worker_pool_cache {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
+        //state
+        bool is_locked;
+
         //options
-        const sc::opt *  opts;
+        const sc::opt * opts;
         const sc::_opt_scan * opts_scan; 
 
         //scan object reference
@@ -328,24 +331,24 @@ class _worker_pool_cache {
         // -- [methods]
         //ctor
         _worker_pool_cache(
-            const sc::opt * const & opts,
-            const sc::_opt_scan * const & opts_scan,
-            sc::_scan * const & scan) noexcept
-             : opts(opts),
+            const sc::opt * opts,
+            const sc::_opt_scan * opts_scan,
+            sc::_scan * scan) noexcept
+             : is_locked(false),
+               opts(opts),
                opts_scan(opts_scan),
                scan(scan) {}
         _worker_pool_cache(const _worker_pool_cache & pool_cache) = delete;
         _worker_pool_cache(const _worker_pool_cache && pool_cache) = delete;
-        ~_worker_pool_cache() noexcept {}
+        ~_worker_pool_cache() noexcept;
 
-        //getters & setters
-        void set_opts(const sc::opt * opts) noexcept;
+        //lock & unlock cache
+        [[nodiscard]] int lock() noexcept;
+        void unlock() noexcept;
+
+        //getters
         [[nodiscard]] const sc::opt * get_opts() const noexcept;
-
-        void set_opts_scan(const sc::_opt_scan * opts_scan) noexcept; 
         [[nodiscard]] const sc::_opt_scan * get_opts_scan() const noexcept;
-
-        void set_scan(const sc::_scan * scan) noexcept;
         [[nodiscard]] sc::_scan * get_scan() const noexcept;
 };
 

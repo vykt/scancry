@@ -428,8 +428,7 @@ class opt_ptrscan final : public _opt_scan {
 
 //worker_pool::update_workers() behavioural flags
 namespace bits_worker {
-    const constexpr cm_byte keep_workers  = 0x1 << 0;
-    const constexpr cm_byte keep_scan_set = 0x1 << 1;
+    const constexpr cm_byte keep_scan_set = 0b1 << 0;
 }
 
 
@@ -441,7 +440,7 @@ class worker_pool : public _lockable, public _ctor_failable {
         cm_lst /* <_worker_bundle> */ wkr_bundles;
 
         //local copy of the last provided scan set, sorted by area size
-        cm_vct /* <cm_lst_node *> */ sorted_scan_areas;
+        cm_vct /* <cm_lst_node *> */ sorted_areas_cache;
 
         //cache & concurrency
         _worker_pool_cache cache;
@@ -449,31 +448,31 @@ class worker_pool : public _lockable, public _ctor_failable {
 
         //[methods]
         [[nodiscard]] int do_run() noexcept;
+        [[nodiscard]] int await_run() noexcept;
         [[nodiscard]] int do_ctrl_run() noexcept;
         [[nodiscard]] int do_scan_run() noexcept;
 
         [[nodiscard]] int change_wkr_count(const int count) noexcept;
-
-
-        [[nodiscard]] int teardown_scan_area_subsets() noexcept;
-        [[nodiscard]] int sort_by_size(
-            const map_area_set & scan_set) noexcept;
-        [[nodiscard]] int update_scan_area_set(
-            const map_area_set & scan_set) noexcept;
+        [[nodiscard]] int cache_areas(
+            const sc::map_area_set & ma_set) noexcept;
+        [[nodiscard]] int distrib_areas() noexcept;
 
     public:
         // -- [methods]
+        /* internal */ [[nodiscard]] int _setup(
+            const sc::opt & opts,
+            const sc::_opt_scan & opts_scan,
+            sc::_scan & scan,
+            const sc::map_area_set & ma_set,
+            const cm_byte flags) noexcept;
+
+        /* internal */ [[nodiscard]] int _teardown() noexcept;
+        
+
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _single_run() noexcept;
-        
-        //setup ahead of a scan
-        /* internal */ [[nodiscard]] int _setup(
-                                        sc::opt & opts,
-                                        sc::_opt_scan & opts_scan,
-                                        sc::_scan & scan,
-                                        const sc::map_area_set & ma_set,
-                                        const cm_byte flags) noexcept;
-        
+        /* internal */ [[nodiscard]] int _await_run() noexcept;
+
         //ctor & dtor
         worker_pool() noexcept;
         worker_pool(const worker_pool & wpool) = delete;
@@ -1061,20 +1060,21 @@ extern int sc_opt_ptr_set_smart_scan(sc_opt_ptrscan * opts_ptr,
 extern int sc_opt_ptr_get_smart_scan(const sc_opt_ptrscan * opts_ptr,
                                      sc_smart_scan * smart_scan);
 
-#if 0
+
 /*
  *  --- [WORKER_POOL] ---
  */
 
 //return: opaque handle to `worker_pool` object, or NULL on error
-extern sc_worker_pool sc_new_worker_pool();
+extern sc_worker_pool * sc_new_w_pool();
 //return: 0 on success, -1 on error
-extern int sc_del_worker_pool(sc_worker_pool w_pool);
+extern void sc_del_w_pool(sc_worker_pool * w_pool);
 
 //return: 0 on success, -1 on error
-extern int sc_wp_free_workers(sc_worker_pool w_pool);
+extern int sc_wp_reset(sc_worker_pool * w_pool);
 
 
+#if 0
 /*
  *  --- [SERIALISER] --- 
  */

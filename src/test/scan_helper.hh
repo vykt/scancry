@@ -1,5 +1,8 @@
 #pragma once
 
+//standard template libraru
+#include <atomic>
+
 //C standard library
 #include <cstdint>
 
@@ -37,50 +40,62 @@ class _fixture_opts : public sc::_opt_scan {
 class _fixture_scan : public sc::_scan {
 
     private:
-        //[attributes]
+        // -- [attributes]
+        //behaviour modifiers
+        int mod;
         bool do_checks;
-        bool do_crash_one;
+        bool do_delay;
+        std::atomic<bool> do_crash_one;
         bool do_crash_all;
 
+        //inter-call state
         cm_byte expected_byte;
         off_t read_off;
-        int mod;
+
+        //statistics
         long call_count;
 
     public:
-        //[methods]
+        // -- [methods]        
         /* internal */ [[nodiscard]] virtual _SC_DBG_INLINE off_t
             _process_addr(
-                const struct sc::_scan_arg arg, const sc::opt * const opts,
-                const sc::_opt_scan * const opts_scan);
+                const struct sc::_scan_arg & arg,
+                const sc::opt & opts,
+                const sc::_opt_scan & opts_fxt);
 
-        /* internal */ [[nodiscard]] virtual int _generate_body(
-                std::vector<cm_byte> & buf, off_t hdr_off);
-        /* internal */ [[nodiscard]] virtual int _process_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off,
-                const mc_vm_map & map);
-        /* internal */ [[nodiscard]] virtual int _read_body(
-                const std::vector<cm_byte> & buf, off_t hdr_off);
+        //ctor & dtor
+        _fixture_scan() noexcept;
+        _fixture_scan(const
+            _scan_helper::_fixture_scan & fix_scan) noexcept = delete;
+        _fixture_scan(const
+            _scan_helper::_fixture_scan && fix_scan) noexcept = delete;
+        ~_fixture_scan() noexcept {};
 
-        _fixture_scan() : expected_byte(0), read_off(0), mod(1) {}
-        void set_mod(int mod) { this->mod = mod; }
+        //operators
+        _scan_helper::_fixture_scan & operator=(
+            const _scan_helper::_fixture_scan & scan_fxt) = delete;
+        _scan_helper::_fixture_scan & operator=(
+            const _scan_helper::_fixture_scan && scan_fxt) = delete;
 
+        //behaviour modifiers
+        void set_mod(const int mod) noexcept;
+        void set_do_checks(const bool do_checks) noexcept;
+        void set_do_delay(const bool do_delay) noexcept;
+        void set_do_crash_one(const bool do_crash_one) noexcept;
+        void set_do_crash_all(const bool do_crash_all) noexcept;
+
+        //statistics getters
+        [[nodiscard]] long get_call_count() const noexcept;
+
+
+        //interface
         [[nodiscard]] int scan(
                     sc::opt & opts,
-                    _fixture_opts & opts_ptrscan,
+                    _fixture_opts & opts_fxt,
                     sc::map_area_set & ma_set,
                     sc::worker_pool & w_pool,
                     cm_byte flags);
-
-        void set_do_checks(bool do_checks) { this->do_checks = do_checks; };
-        void set_do_crash_one(bool do_crash_one) {
-            this->do_crash_one = do_crash_one;
-        };
-        void set_do_crash_all(bool do_crash_all) {
-            this->do_crash_all = do_crash_all;
-        };
-        long get_call_count() { return this->call_count; }
-        [[nodiscard]] virtual int reset();
+        [[nodiscard]] virtual int reset() noexcept;
 };
 
 //ptrscan header fixture values

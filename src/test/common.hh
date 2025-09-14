@@ -52,4 +52,7 @@ namespace _common {
                const std::string test, const std::string subtest);
     void subtitle(const std::string tag, const std::string subtitle);
     void release_warning(const std::string _class);
+
+    //dump a buffer
+    void hexdump(const cm_byte * buf, const size_t sz);
 }

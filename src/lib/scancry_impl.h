@@ -184,11 +184,11 @@ class _scan_arg {
         void advance_buf(const size_t advance) noexcept;
 
         //getters
-        [[nodiscard]] uintptr_t get_addr() noexcept;
-        [[nodiscard]] const cm_lst_node * get_area_node() noexcept;
-        [[nodiscard]] off_t get_area_off() noexcept;
-        [[nodiscard]] const cm_byte * get_cur_byte() noexcept;
-        [[nodiscard]] size_t get_buf_left() noexcept;
+        [[nodiscard]] uintptr_t get_addr() const noexcept;
+        [[nodiscard]] const cm_lst_node * get_area_node() const noexcept;
+        [[nodiscard]] off_t get_area_off() const noexcept;
+        [[nodiscard]] const cm_byte * get_cur_byte() const noexcept;
+        [[nodiscard]] size_t get_buf_left() const noexcept;
 };
 
 

@@ -250,8 +250,8 @@ class opt : public _lockable, public _ctor_failable {
         
         //ctors & dtor
         opt() noexcept;
-        opt(const opt & opts) noexcept;
-        opt(const opt && opts) = delete;
+        opt(const sc::opt & opts) noexcept;
+        opt(const sc::opt && opts) = delete;
         ~opt() noexcept;
 
         //operators
@@ -375,8 +375,8 @@ class opt_ptrscan final : public _opt_scan {
     
         //ctors & dtor
         opt_ptrscan() noexcept;
-        opt_ptrscan(const opt_ptrscan & opts_ptr) noexcept;
-        opt_ptrscan(const opt_ptrscan && opts_ptr) = delete;
+        opt_ptrscan(const sc::opt_ptrscan & opts_ptr) noexcept;
+        opt_ptrscan(const sc::opt_ptrscan && opts_ptr) = delete;
         ~opt_ptrscan() noexcept override final;
 
         //operators
@@ -475,15 +475,15 @@ class worker_pool : public _lockable, public _ctor_failable {
 
         //ctor & dtor
         worker_pool() noexcept;
-        worker_pool(const worker_pool & wpool) = delete;
-        worker_pool(const worker_pool && wpool) = delete;
+        worker_pool(const sc::worker_pool & w_pool) = delete;
+        worker_pool(const sc::worker_pool && w_pool) = delete;
         ~worker_pool() noexcept;
 
         //operators
         sc::worker_pool & operator=(
-            const sc::worker_pool & wpool) = delete;
+            const sc::worker_pool & w_pool) = delete;
         sc::worker_pool & operator=(
-            const sc::worker_pool && wpool) = delete;
+            const sc::worker_pool && w_pool) = delete;
 
         //control workers
         [[nodiscard]] int reset() noexcept;

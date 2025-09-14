@@ -1,6 +1,9 @@
+//standard template library
+#include <iostream>
+#include <iomanip>
+
 //local headers
 #include "common.hh"
-#include <type_traits>
 
 
 //toggle colour mode
@@ -63,4 +66,38 @@ void _common::release_warning(const std::string _class) {
                   << _class << "> "
                   << _common::release_warn << std::endl;
     }
+}
+
+
+//dump buffer contents 16 bytes per line
+void _common::hexdump(const cm_byte * buf, const size_t sz) {
+
+    const constexpr int line_bytes = 16;
+    int line_num = ((sz - 1) / 16) + 1;
+    off_t buf_off = 0x0;
+
+    //for every line
+    std::cout << std::hex;
+    for (const cm_byte * line_start = buf;
+         line_start < (line_start + (line_bytes * line_num));
+         line_start += line_bytes) {
+
+        //print buffer offset
+        std::cout << "0x" << std::setw(8)
+                  << std::setfill('0') << buf_off << ":";
+
+        //for every byte on a line
+        for (const cm_byte * line_byte = line_start;
+             line_byte < (line_start + line_bytes);
+             line_byte += 1) {
+
+            //display bytes
+            std::cout << (((uintptr_t) line_byte % 2) ? "" : " ")
+                      << *line_byte;
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << std::dec;
+    return;
 }

@@ -79,7 +79,7 @@ static void _assert_worker_pool_cache(
     const sc::_worker_pool_cache & cache,
     const bool is_locked,
     const sc::opt * opts,
-    const sc::opt * opts_scan,
+    const sc::_opt_scan * opts_scan,
     const sc::_scan * scan) {
 
     #ifdef SC_DEBUG
@@ -121,11 +121,10 @@ static void _assert_worker(
 
 //assert worker bundle
 static void _assert_worker_bundle(
-    const sc::_worker_bundle & wkr_bundle,
-    const int scan_area_subset_len) {
+    const sc::_worker_bundle & wkr_bundle) {
 
     #ifdef SC_DEBUG
-    REQUIRE_EQ(wkr_bundle.scan_area_subset.len, scan_area_subset_len);
+    REQUIRE_EQ(wkr_bundle.scan_area_subset.is_init, true);
     #endif
 
     return;
@@ -135,11 +134,85 @@ static void _assert_worker_bundle(
 //assert worker pool
 static void _assert_worker_pool(
     const sc::worker_pool & w_pool,
-    const int wkr_bundles_len) {
+    const int wkr_bundles_len,
+    const int sorted_areas_cache_len) {
 
     #ifdef SC_DEBUG
     REQUIRE_EQ(w_pool.wkr_bundles.len, wkr_bundles_len);
+    REQUIRE_EQ(w_pool.sorted_areas_cache.len, sorted_areas_cache_len);
     #endif
+}
+
+
+//assert everything
+static void _assert_all_state(
+    //inspection target
+    const sc::worker_pool & w_pool,
+    //parameters
+    const int wkr_bundles_len,
+    const std::vector<int> wkr_uids,
+    const std::vector<int> wkr_session_idxs,
+    const cm_vct & wkr_sessions,
+    const int sorted_areas_cache_len,
+    const bool cache_is_locked,
+    const sc::opt * cache_opts,
+    const sc::_opt_scan * cache_opts_scan,
+    const sc::_scan * cache_scan,
+    const int concur_release_count,
+    const int concur_alive_count,
+    const cm_byte concur_flags,
+    const int concur_exit_uids_len,
+    const int concur_wkr_errno) {
+
+    sc::_worker_bundle * wkr_bundle;
+    sc::_worker * wkr;
+
+
+    //assert the worker pool
+    _shared::_assert_worker_pool(
+        w_pool, wkr_bundles_len, sorted_areas_cache_len);
+
+    #ifdef SC_DEBUG
+    //assert all workers
+    for (int i = 0; i < wkr_bundles_len; ++i) {
+
+        //fetch the next worker bundle
+        wkr_bundle = (sc::_worker_bundle *)
+                         cm_lst_get_p(&w_pool.wkr_bundles, i);
+        _shared::_assert_worker_bundle(*wkr_bundle);
+
+        //fetch the next worker
+        wkr = &wkr_bundle->wkr;
+        _shared::_assert_worker(
+            *wkr,
+            wkr_uids[i],
+            wkr_bundle->scan_area_subset,
+            wkr_session_idxs[i],
+            &((mc_session *) wkr_sessions.data)[i],
+            w_pool.cache,
+            w_pool.concur,
+            false);
+    }
+
+    //assert the worker pool cache
+    _shared::_assert_worker_pool_cache(
+        w_pool.cache,
+        cache_is_locked,
+        cache_opts,
+        cache_opts_scan,
+        cache_scan);
+
+    //assert concurrency
+    _shared::_assert_worker_concurrency(
+        w_pool.concur,
+        concur_release_count,
+        concur_alive_count,
+        concur_flags,
+        concur_exit_uids_len,
+        concur_wkr_errno);
+    #endif
+
+    return;
 }
 
 } //end namespace `_shared`
@@ -162,10 +235,10 @@ namespace _worker_pool {
     static void _ctor_asserts(const sc::worker_pool & w_pool) {
 
         //assert constructor succeeded
-        REQUIRE_EQ(w_pool._get_ctor_failed(), false);
+        REQUIRE_EQ(w_pool.get_ctor_failed(), false);
 
         //assert worker pool
-        _shared::_assert_worker_pool(w_pool, 0);
+        _shared::_assert_worker_pool(w_pool, 0, 0);
 
         #ifdef SC_DEBUG
         _shared::_assert_worker_pool_cache(
@@ -338,36 +411,93 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
     _opt_helper::cc::args opt_args;
 
     sc::map_area_set ma_set;
+
+    sc::worker_pool w_pool;
+    _scan_helper::_fixture_opts opts_fxt;
     _scan_helper::_fixture_scan scan_fxt;
 
+    cm_vct sessions;
+    
+
+
+    // -- fixture
 
     //setup a clean target
     _target_helper::clean_targets();
     target_pid = _target_helper::start_target();
 
     //setup memcry
-    _memcry_helper::setup(mcry_args, target_pid, 1);
+    _memcry_helper::setup(mcry_args, target_pid, 8);
 
-    //setup map area options
-    _opt_helper::cc::setup(opt_args, mcry_args,
+    //manually setup options
+    ret = opt_args.opts.set_addr_width((sc::addr_width) sizeof(uintptr_t));
+    REQUIRE_EQ(ret, 0);
+    ret = opt_args.opts.set_map(&mcry_args.map);
+    REQUIRE_EQ(ret, 0);
 
-        //scan only memory mapped pattern files
-        [&mcry_args](auto & args){
-            _worker_pool::_setup::_populate_pattern_constraints(
-                mcry_args, &args);
-    });
+    //setup scan set options
+    _worker_pool::_setup::_populate_pattern_constraints(
+        mcry_args, &opt_args);
 
     //update the set
     ret = ma_set.update_set(opt_args.opts_ma, mcry_args.map);
     REQUIRE_EQ(ret, 0);
 
+    //set the updated set as the scan set
+    ret = opt_args.opts.set_scan_set(&ma_set);
+    REQUIRE_EQ(ret, 0);
+
+
+    // -- subtests
+
+    /*
+     *  NOTE: To quickly manage sessions, we create a duplicate of the
+     *        `mcry_args` vector containing 8 open sessions, and resize
+     *        it to the needed number of sessions.
+     */
+
     //spawn and terminate workers
     SUBCASE(test_cc_worker_pool_subtests[2]) {
 
-        //start one thread
-        opt_args.opts.set_sessions
+        // -- case 1: a single worker
+
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.sessions);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 1);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            1,
+            {0},
+            {0},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            1,
+            1,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
     }
+
     
+    // -- fixture teardown
 
     //teardown memcry
     _memcry_helper::teardown(mcry_args);

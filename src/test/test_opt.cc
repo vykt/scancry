@@ -185,7 +185,7 @@ namespace _opt {
     static void _ctor_asserts(const sc::opt & opts) {
     
         //assert the constructor succeeded
-        REQUIRE_EQ(opts._get_ctor_failed(), false);
+        REQUIRE_EQ(opts.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //assert file pathnames
@@ -837,7 +837,7 @@ namespace _opt {
         const sc::opt & dst_opts, const sc::opt & src_opts) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_opts._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //save old lengths
@@ -982,7 +982,7 @@ namespace _opt {
         const sc::opt & dst_opts, const sc::opt & src_opts) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_opts._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //assert pathnames
@@ -1157,7 +1157,7 @@ namespace _opt_ptrscan {
         static void _ctor_asserts(const sc::opt_ptrscan & opts_ptr) {
 
             //assert the constructor succeeded
-            REQUIRE_EQ(opts_ptr._get_ctor_failed(), false);
+            REQUIRE_EQ(opts_ptr.get_ctor_failed(), false);
 
             #ifdef SC_DEBUG
             //assert primitives
@@ -1994,7 +1994,7 @@ namespace _opt_ptrscan {
         const sc::opt_ptrscan & src_opts_ptr) {
 
         //check ctor succeeded
-        REQUIRE_EQ(dst_opts_ptr._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts_ptr.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //save old lengths
@@ -2138,7 +2138,7 @@ namespace _opt_ptrscan {
         const sc::opt_ptrscan & src_opts_ptr) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_opts_ptr._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts_ptr.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         int ret;
@@ -2233,7 +2233,7 @@ namespace _opt_ptrscan {
     static void _reset_asserts(const sc::opt_ptrscan & opts_ptr) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(opts_ptr._get_ctor_failed(), false);
+        REQUIRE_EQ(opts_ptr.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //assert primitives

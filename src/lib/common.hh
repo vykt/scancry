@@ -474,7 +474,7 @@ sc_##type * sc_new_##short_type() {                     \
     obj = new(alloc) namespace::type();                 \
                                                         \
     /* abort & cleanup if constructor failed */         \
-    if (obj->_get_ctor_failed() == true) {              \
+    if (obj->get_ctor_failed() == true) {               \
         obj->~type();                                   \
         free(alloc);                                    \
         return NULL;                                    \
@@ -521,7 +521,7 @@ sc_##type * sc_copy_##short_type(const sc_##type * src_obj) { \
     cc_src_obj->_unlock();                                    \
                                                               \
     /* abort & cleanup if constructor failed */               \
-    if (obj->_get_ctor_failed() == true) {                    \
+    if (obj->get_ctor_failed() == true) {                    \
         obj->~type();                                         \
         free(alloc);                                          \
         return NULL;                                          \
@@ -568,7 +568,7 @@ int sc_copy_assign_##short_type(                            \
     cc_##src_obj->_unlock();                                \
                                                             \
     /* abort & cleanup if constructor failed */             \
-    if (cc_##dst_obj->_get_ctor_failed() == true) {         \
+    if (cc_##dst_obj->get_ctor_failed() == true) {          \
         cc_##dst_obj->~type();                              \
         cc_##dst_obj->_unlock();                            \
         return -1;                                          \

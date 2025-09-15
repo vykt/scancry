@@ -26,6 +26,12 @@
 #ifdef __cplusplus
 namespace sc {
 
+/*
+ *  NOTE: For all classes inheriting the `_ctor_failable` parent,
+ *        call `get_ctor_failed()` after construction to determine
+ *        if the constructor succeeded.
+ */
+
 
 /*
  *  --- [CLASSES] ---
@@ -458,7 +464,6 @@ class worker_pool : public _lockable, public _ctor_failable {
             const sc::_opt_scan & opts_scan,
             sc::_scan & scan,
             const cm_byte flags) noexcept;
-
         /* internal */ [[nodiscard]] int _teardown() noexcept;
         
 

@@ -808,7 +808,7 @@ sc::_worker_bundle::_worker_bundle(
 
 
     //abort early if worker constructor failed
-    if (this->wkr._get_ctor_failed() == true) {
+    if (this->wkr.get_ctor_failed() == true) {
         this->_set_ctor_failed(true);
         return;
     }
@@ -836,7 +836,7 @@ sc::_worker_bundle::_worker_bundle(
 sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //if a thread was never started
-    if (this->_get_ctor_failed() == true) return;
+    if (this->get_ctor_failed() == true) return;
 
     //join the worker thread
     pthread_join(this->thread_id, nullptr);
@@ -1286,7 +1286,7 @@ sc::worker_pool::worker_pool() noexcept
       concur() {
 
     //check if concurrency constructor failed
-    if (this->concur._get_ctor_failed()) {
+    if (this->concur.get_ctor_failed()) {
         this->_set_ctor_failed(true);
         return;
     }

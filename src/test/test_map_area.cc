@@ -193,7 +193,7 @@ namespace _opt_map_area {
     static void _ctor_asserts(const sc::opt_map_area & opts_ma) {
 
         //assert constructor succeeded
-        REQUIRE_EQ(opts_ma._get_ctor_failed(), false);
+        REQUIRE_EQ(opts_ma.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         //assert vector attributes
@@ -1030,7 +1030,7 @@ namespace _opt_map_area {
         const sc::opt_map_area & src_opts_ma) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts_ma.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG    
         //save old vector lengths
@@ -1198,7 +1198,7 @@ namespace _opt_map_area {
         const sc::opt_map_area & src_opts_ma) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_opts_ma._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_opts_ma.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         _class_helper::vct::assert_eq<cm_lst_node *>(
@@ -1377,7 +1377,7 @@ namespace _map_area_set {
     static void _ctor_asserts(const sc::map_area_set & ma_set) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(ma_set._get_ctor_failed(), false);
+        REQUIRE_EQ(ma_set.get_ctor_failed(), false);
 
         #ifdef SC_DEBUG
         REQUIRE_EQ(ma_set.set.is_init, false);
@@ -2251,7 +2251,7 @@ namespace _map_area_set {
         const sc::map_area_set & src_map_set) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_map_set._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_map_set.get_ctor_failed(), false);
 
         //assert both sets are equal
         _class_helper::rbt::assert_eq<cm_lst_node *, mc_vm_area *>(
@@ -2417,7 +2417,7 @@ namespace _map_area_set {
         const sc::map_area_set & src_map_set) {
 
         //assert the constructor succeeded
-        REQUIRE_EQ(dst_map_set._get_ctor_failed(), false);
+        REQUIRE_EQ(dst_map_set.get_ctor_failed(), false);
 
         //assert both sets are equal
         _class_helper::rbt::assert_eq<cm_lst_node *, mc_vm_area *>(

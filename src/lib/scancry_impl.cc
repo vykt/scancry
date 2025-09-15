@@ -128,7 +128,7 @@ sc::_ctor_failable & sc::_ctor_failable::operator=(
 
 
 //setter & getter
-[[nodiscard]] bool sc::_ctor_failable::_get_ctor_failed() const noexcept {
+[[nodiscard]] bool sc::_ctor_failable::get_ctor_failed() const noexcept {
     return this->ctor_failed;
 }
 

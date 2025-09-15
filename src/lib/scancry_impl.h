@@ -106,7 +106,7 @@ class _ctor_failable {
             const sc::_ctor_failable && ctor_failable) = delete;
 
         //getter
-        [[nodiscard]] bool _get_ctor_failed() const noexcept;
+        [[nodiscard]] bool get_ctor_failed() const noexcept;
         void _set_ctor_failed(const bool failed) noexcept;
 };
 

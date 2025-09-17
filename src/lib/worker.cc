@@ -1274,6 +1274,23 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 }
 
 
+//cancel a running single pass
+[[nodiscard]] int sc::worker_pool::_cancel() noexcept {
+
+    int ret;
+
+
+    //acquire a read lock
+    ret = this->_lock_read();
+    if (ret != 0) return -1;
+
+    //set the cancel flag
+    this->concur.set_flags(sc::_worker_flag::cancel);
+
+    this->_unlock();
+    return 0;
+}
+
 
 /*
  *  --- [WORKER_POOL | PUBLIC] ---

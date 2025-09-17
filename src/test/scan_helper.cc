@@ -27,7 +27,7 @@
  *        of an incrementing byte pattern for the first kilobyte, followed
  *        by a decrementing pattern for the next kilobyte.
  *
- *        FIXME: This only supports offsets of 1 and 4.
+ *        TODO: Currently this only supports offsets of 1 and 4.
  */
 
 
@@ -152,6 +152,7 @@ void _scan_helper::_fixture_scan::set_do_crash_all(
 [[nodiscard]] int _scan_helper::_fixture_scan::reset() noexcept {
 
     this->do_checks     = false;
+    this->do_delay      = false;
     this->do_crash_one  = false;
     this->do_crash_all  = false;
     this->expected_byte = 0;

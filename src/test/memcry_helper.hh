@@ -20,6 +20,7 @@ namespace _memcry_helper {
 
         mc_vm_map map;
         cm_vct /* <mc_session> */ sessions;
+        cm_vct /* <mc_session *> */ session_ptrs;
     };
 
     void setup(args & mcry_args, const pid_t pid, const int session_num);

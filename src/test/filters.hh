@@ -120,9 +120,9 @@ inline const constexpr char * test_cc_worker_pool_subtests[] = {
     "test_cc_worker_pool",
     "test_cc_worker_pool_setup",
     "test_cc_worker_pool_workers",
-
-    "test_cc_worker_pool_setup_flags",
+    "test_cc_worker_pool_flags",
     "test_cc_worker_pool_scan",
+    
     "test_cc_worker_pool_scan_threaded",
     "test_cc_worker_pool_scan_terminated",
     "test_cc_worker_pool_reset"

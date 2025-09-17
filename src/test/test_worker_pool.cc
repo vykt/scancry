@@ -215,6 +215,29 @@ static void _assert_all_state(
     return;
 }
 
+
+//assert everything
+static void _to_sess_ptr_vct(
+    const cm_vct & sess_vct, cm_vct & sess_ptr_vct) {
+
+    int ret;
+    mc_session * sess;
+
+
+    //initialise the session pointers vector
+    ret = cm_new_vct(&sess_ptr_vct, sizeof(mc_session *));
+    REQUIRE_EQ(ret, 0);
+
+    //populate the session pointers vector
+    for (int i = 0; i < sess_vct.len; ++i) {
+        sess = (mc_session *) cm_vct_get_p(&sess_vct, i);
+        REQUIRE_NE(sess, nullptr);
+    }
+
+    return;
+}
+
+
 } //end namespace `_shared`
 
 
@@ -456,13 +479,13 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
      *        it to the needed number of sessions.
      */
 
-    //spawn and terminate workers
+    //test spawning and terminating workers
     SUBCASE(test_cc_worker_pool_subtests[2]) {
 
         // -- case 1: a single worker
 
         //setup a single memcry session
-        ret = cm_vct_cpy(&sessions, &mcry_args.sessions);
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
         REQUIRE_EQ(ret, 0);
         ret = cm_vct_rsz(&sessions, 1);
         REQUIRE_EQ(ret, 0);
@@ -490,10 +513,513 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
             0
         );
 
+        //cleanup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool.reset();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 2: multiple workers
+
+        //setup multiple memcry sessions
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            8,
+            {1, 2, 3, 4, 5, 6, 7, 8},
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            8,
+            8,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //cleanup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 3: decrease workers
+
+        //decrease number of memcry sessions
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 4);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            4,
+            {1, 2, 3, 4},
+            {0, 1, 2, 3},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            4,
+            4,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //cleanup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 4: increase workers
+
+        //increase number of memcry sessions
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            4,
+            {1, 2, 3, 4, 9, 10, 11, 12},
+            {0, 1, 2, 3, 8, 9, 10, 11},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            8,
+            8,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
         //teardown the setup
         ret = w_pool._teardown();
         REQUIRE_EQ(ret, 0);
         cm_del_vct(&sessions);
+    }
+
+
+    //test applying flags during setup
+    SUBCASE(test_cc_worker_pool_subtests[3]) {
+
+        //setup multiple threads
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+
+        // -- case 1: no flags
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            8,
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            8,
+            8,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        
+
+        // -- case 2: keep scan set
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt,
+                            sc::bits_worker::keep_scan_set);
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            8,
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            8,
+            8,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+    }
+
+
+    //test applying flags during setup
+    SUBCASE(test_cc_worker_pool_subtests[3]) {
+
+        // -- case 1: single-threaded scan - every byte
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 1);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_mod(1);
+        scan_fxt.set_do_checks(true);
+        scan_fxt.set_do_delay(false);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            1,
+            {0},
+            {0},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            1,
+            1,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 2: single-threaded scan - every 4th byte
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 1);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_mod(4);
+        scan_fxt.set_do_checks(true);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 3: single-threaded scan - crash
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 1);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_do_crash_all(true);
+        scan_fxt.set_do_checks(true);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            1,
+            {0},
+            {0},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            0,
+            0,
+            sc::_worker_flag::error | sc::_worker_flag::exit,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+
+        // -- case 4: single-threaded scan - cancel run
+        
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 1);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_do_delay(true);
+        scan_fxt.set_do_checks(true);
+
+        //run once & immediately cancel
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._cancel();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            1,
+            {0},
+            {0},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            1,
+            1,
+            sc::_worker_flag::cancel,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool.reset();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+  
+
+        // -- case 5: multi-threaded scan - every byte
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 2);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_mod(1);
+        scan_fxt.set_do_checks(true);
+        scan_fxt.set_do_delay(false);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            2,
+            {1, 2},
+            {1, 2},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            2,
+            2,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 6: multi-threaded scan - every 4th byte
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 2);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_mod(4);
+        scan_fxt.set_do_checks(true);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+        
+        // -- case 7: multi-threaded scan - crash one
+                
+        //setup a single memcry session
+        ret = cm_vct_cpy(&sessions, &mcry_args.session_ptrs);
+        REQUIRE_EQ(ret, 0);
+        ret = cm_vct_rsz(&sessions, 2);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the worker pool
+        ret = w_pool._setup(opt_args.opts, opts_fxt, scan_fxt, 0b0);
+        REQUIRE_EQ(ret, 0);
+
+        //setup the fixture scan object
+        scan_fxt.set_do_crash_one(true);
+        scan_fxt.set_do_checks(true);
+
+        //run once
+        ret = w_pool._single_run();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._await_run();
+        REQUIRE_EQ(ret, 0);
+
+        //assert state
+        _shared::_assert_all_state(
+            w_pool,
+            2,
+            {1, 2},
+            {1, 2},
+            sessions,
+            2,
+            true,
+            &opt_args.opts,
+            &opts_fxt,
+            &scan_fxt,
+            2,
+            2,
+            sc::_worker_flag::release_ready,
+            0,
+            0
+        );
+
+        //teardown the setup
+        ret = scan_fxt.reset();
+        REQUIRE_EQ(ret, 0);
+        ret = w_pool._teardown();
+        REQUIRE_EQ(ret, 0);
+        cm_del_vct(&sessions);
+
+
+        /*
+         *  TODO: Add a case for crash all, and cancel.
+         *        Because the code repeat here is absurd, extract
+         *        everything to a function that defines the test
+         *        body and takes callbacks as parameters.
+         */
+
     }
 
     

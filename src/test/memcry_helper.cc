@@ -41,6 +41,19 @@ void _memcry_helper::setup(_memcry_helper::args & mcry_args,
         REQUIRE_EQ(ret, 0);
     }
 
+    //setup a session pointer vector
+    ret = cm_new_vct(&mcry_args.session_ptrs, sizeof(mc_session *));
+    REQUIRE_EQ(ret, 0);
+
+    for (int i = 0; i < mcry_args.sessions.len; ++i) {
+
+        session = (mc_session *) cm_vct_get_p(&mcry_args.sessions, i);
+        REQUIRE_NE(session, nullptr);
+
+        ret = cm_vct_apd(&mcry_args.session_ptrs, &session);
+        REQUIRE_EQ(ret, 0);
+    }
+
     //initialise a memcry map of the target
     mc_new_vm_map(&mcry_args.map);
 
@@ -70,6 +83,9 @@ void _memcry_helper::teardown(_memcry_helper::args & mcry_args) {
 
     //destroy the sessions vector
     cm_del_vct(&mcry_args.sessions);
+
+    //destroy the session pointers vector
+    cm_del_vct(&mcry_args.session_ptrs);
     
     //destroy the memory map
     ret = mc_del_vm_map(&mcry_args.map);

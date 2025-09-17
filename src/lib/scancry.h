@@ -470,6 +470,7 @@ class worker_pool : public _lockable, public _ctor_failable {
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _single_run() noexcept;
         /* internal */ [[nodiscard]] int _await_run() noexcept;
+        /* internal */ [[nodiscard]] int _cancel() noexcept;
 
         //ctor & dtor
         worker_pool() noexcept;

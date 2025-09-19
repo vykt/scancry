@@ -24,8 +24,13 @@ namespace _common {
     //preset warnings
     const constexpr char * release_warn_tag
         = "release build";
-    const constexpr char * release_warn =
-        "performing an incomplete test";
+    const constexpr char * release_warn
+        = "performing an incomplete test";
+
+    const constexpr char * concur_warn_tag
+        = "concurrency";
+    const constexpr char * concur_warn
+        = "this thread relies on a race condition that may fail in a pathological case";
 
     //specify C/C++ interface
     enum test_iface_type {
@@ -52,6 +57,7 @@ namespace _common {
                const std::string test, const std::string subtest);
     void subtitle(const std::string tag, const std::string subtitle);
     void release_warning(const std::string _class);
+    void concur_warning(const std::string _class);
 
     //dump a buffer
     void hexdump(const cm_byte * buf, const size_t sz);

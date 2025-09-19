@@ -13,11 +13,6 @@
 #include "scancry_impl.h"
 
 
-/*
- *  FIXME: Make C++ includes only see the C++ part of this file. At the 
- *         same time, compiling the library has to see both.
- */
-
 
       /* =============== * 
  ===== *  C++ INTERFACE  * =====

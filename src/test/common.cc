@@ -51,12 +51,30 @@ void _common::subtitle(const std::string tag, const std::string subtitle) {
 }
 
 
-//print a warning
+//print a release build warning
 void _common::release_warning(const std::string _class) {
 
     //print tag
     if (use_colour == true) {
         std::cout << "[" << colour::RED << _common::release_warn_tag
+                  << colour::RESET << "]<" << colour::YELLOW
+                  << _class << colour::RESET << "> "
+                  << _common::release_warn << std::endl;
+        
+    } else {
+        std::cout << "[" << _common::release_warn_tag << "]<"
+                  << _class << "> "
+                  << _common::release_warn << std::endl;
+    }
+}
+
+
+//print a concurrency warning
+void _common::concur_warning(const std::string _class) {
+
+    //print tag
+    if (use_colour == true) {
+        std::cout << "[" << colour::CYAN << _common::release_warn_tag
                   << colour::RESET << "]<" << colour::YELLOW
                   << _class << colour::RESET << "> "
                   << _common::release_warn << std::endl;

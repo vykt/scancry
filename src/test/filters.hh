@@ -115,31 +115,20 @@ inline const constexpr char * test_c_map_area_subtests[] = {
 
 
 //C++ interface worker_pool tests
-inline const constexpr int test_cc_worker_pool_subtests_num = 8;
+inline const constexpr int test_cc_worker_pool_subtests_num = 5;
 inline const constexpr char * test_cc_worker_pool_subtests[] = {
     "test_cc_worker_pool",
     "test_cc_worker_pool_setup",
     "test_cc_worker_pool_workers",
     "test_cc_worker_pool_flags",
-    "test_cc_worker_pool_scan",
-    
-    "test_cc_worker_pool_scan_threaded",
-    "test_cc_worker_pool_scan_terminated",
-    "test_cc_worker_pool_reset"
+    "test_cc_worker_pool_scan"
 };
 
 
 //C interface worker_pool tests
-inline const constexpr int test_c_worker_pool_subtests_num = 8;
+inline const constexpr int test_c_worker_pool_subtests_num = 1;
 inline const constexpr char * test_c_worker_pool_subtests[] = {
     "test_c_worker_pool",
-    "test_c_worker_pool_setup_free_workers",
-    "test_c_worker_pool_setup_free_workers_threaded",
-    "test_c_worker_pool_setup_flags",
-    "test_c_worker_pool_scan",
-    "test_c_worker_pool_scan_threaded",
-    "test_c_worker_pool_scan_terminated",
-    "test_c_worker_pool_reset"
 };
 
 

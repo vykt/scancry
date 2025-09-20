@@ -8,7 +8,8 @@
 #include "debug.hh"
 
 
-//local headers
+#ifdef SC_DEBUG
+//print a trace messgage
 void dbg::print_trace(const char * fmt, ...) noexcept {
 
     //setup variable arguments
@@ -24,3 +25,4 @@ void dbg::print_trace(const char * fmt, ...) noexcept {
 
     return;
 }
+#endif

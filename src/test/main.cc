@@ -2,9 +2,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 
 
-//standard template library
-#include <iostream>
-
 //C standard library
 #include <cstdint>
 

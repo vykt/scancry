@@ -126,7 +126,10 @@ sc::opt::~opt() noexcept {
     _CTOR_VCT_DELETE_IF_INIT(this->sessions);
 
     //unlock the scan set if one is present
-    if (this->scan_set != nullptr) this->scan_set->_unlock();
+    if (this->scan_set != nullptr) {
+        this->scan_set->_unlock();
+        this->scan_set = nullptr;
+    }
 
     return;
 }
@@ -144,9 +147,6 @@ sc::opt & sc::opt::operator=(const sc::opt & opts) noexcept {
 //resetter
 [[nodiscard]] int sc::opt::reset() noexcept {
 
-    int ret;
-
-
     //reset file pathnames
     common::del_str_if_init(this->file_pathname_in);
     common::del_str_if_init(this->file_pathname_out);
@@ -159,8 +159,10 @@ sc::opt & sc::opt::operator=(const sc::opt & opts) noexcept {
     this->addr_width = sc::val_unset::addr_width;
 
     //reset the scan set
-    if (this->scan_set != nullptr) this->scan_set->_unlock();
-    this->scan_set = nullptr;
+    if (this->scan_set != nullptr) {
+        this->scan_set->_unlock();
+        this->scan_set = nullptr;
+    }
     
     return 0;
 }
@@ -252,6 +254,7 @@ sc::opt_ptrscan::opt_ptrscan() noexcept
    alignment(sc::val_default::alignment),
    max_obj_sz(sc::val_default::max_obj_sz),
    max_depth(sc::val_default::max_depth),
+   static_set(nullptr),
    smart_scan(sc::val_default::smart_scan) {
 
     //zero out the preset offsets vector
@@ -277,8 +280,10 @@ sc::opt_ptrscan::~opt_ptrscan() noexcept {
     _CTOR_VCT_DELETE_IF_INIT(this->preset_offsets);
 
     //reset the static set
-    if (this->static_set != nullptr) this->static_set->_unlock();
-    this->static_set = nullptr;
+    if (this->static_set != nullptr) {
+        this->static_set->_unlock();
+        this->static_set = nullptr;
+    }
 
     return;
 }
@@ -296,9 +301,6 @@ sc::opt_ptrscan & sc::opt_ptrscan::operator=(
 //resetter
 [[nodiscard]] int sc::opt_ptrscan::reset() noexcept {
 
-    int ret;
-
-
     //acquire a write lock
     _LOCK_WRITE(-1)
 
@@ -313,8 +315,10 @@ sc::opt_ptrscan & sc::opt_ptrscan::operator=(
     common::del_vct_if_init(this->preset_offsets);
 
     //reset the static set
-    if (this->static_set != nullptr) this->static_set->_unlock();
-    this->static_set = nullptr;
+    if (this->static_set != nullptr) {
+        this->static_set->_unlock();
+        this->static_set = nullptr;
+    }
 
     //release the lock
     _UNLOCK

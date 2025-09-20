@@ -132,11 +132,6 @@ static void _populate_opt_ptrscan(sc::opt_ptrscan & opts_ptr) {
     //build new preset offsets
     _class_helper::vct::populate(new_preset_offsets, offs, 4);
 
-    #ifdef SC_DEBUG
-    //build a new static set
-    _class_helper::rbt::populate(new_static_set.set, nodes, areas, 4);
-    #endif
-
 
     //call setters
     ret = opts_ptr.set_target_addr(0x1337);
@@ -743,7 +738,7 @@ namespace _opt {
         const sc::opt & opts, const sc::map_area_set * ma_set) {
 
         #ifdef SC_DEBUG
-        REQUIRE_EQ(ma_set, *_shared::ma_set);
+        REQUIRE_EQ(ma_set, &_shared::ma_set);
         #endif
     }
     
@@ -1087,7 +1082,7 @@ namespace _opt {
 
         //miscellaneous asserts
         REQUIRE_EQ(opts.addr_width, sc::val_unset::addr_width);
-        REQUIRE_EQ(opts.scan_set, false);
+        REQUIRE_EQ(opts.scan_set, nullptr);
         #endif
     }
 
@@ -2029,7 +2024,7 @@ namespace _opt_ptrscan {
         REQUIRE_EQ(opts_ptr.alignment, 0x10);
         REQUIRE_EQ(opts_ptr.max_obj_sz, 0x800);
         REQUIRE_EQ(opts_ptr.max_depth, 5);
-        REQUIRE_EQ(opts_ptr.static_set, nullptr);
+        REQUIRE_EQ(opts_ptr.static_set, &_shared::ma_set);
         //assert composites are initialised
         REQUIRE_EQ(opts_ptr.preset_offsets.is_init, true);
         REQUIRE_EQ(opts_ptr.preset_offsets.len, _old_vct_len);

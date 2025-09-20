@@ -24,7 +24,7 @@
 #include "error.hh"
 
 //debug headers
-#ifdef SC_TRACE
+#ifdef SC_DEBUG
 #include "debug.hh"
 #endif
 
@@ -51,8 +51,8 @@ sc::_worker_concurrency::_worker_concurrency() noexcept
       flags(0),
       threads_ready_cond(PTHREAD_COND_INITIALIZER),
       threads_ready_lock(PTHREAD_MUTEX_INITIALIZER),
-      errno_lock(PTHREAD_MUTEX_INITIALIZER),
       exit_uids_lock(PTHREAD_MUTEX_INITIALIZER),
+      errno_lock(PTHREAD_MUTEX_INITIALIZER),
       wkr_errno(0) {
 
     int ret;
@@ -276,7 +276,10 @@ const constexpr useconds_t _release_timeout_sec = 10;
         wake_time.tv_sec = cur_time.tv_sec;
         wake_time.tv_nsec = cur_time.tv_usec * 1000
                             + _single_run_sleep_ival_nsec;
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wsign-compare"
         if (wake_time.tv_nsec >= _nsec_in_sec) {
+        #pragma GCC diagnostic pop
             wake_time.tv_sec += wake_time.tv_nsec / _nsec_in_sec;
             wake_time.tv_nsec = wake_time.tv_nsec % _nsec_in_sec;
         }
@@ -359,13 +362,13 @@ void sc::_worker_concurrency::wp_reset_error() noexcept {
 //fetch the current scancry errno
 [[nodiscard]] int sc::_worker_concurrency::get_errno() noexcept {
 
-    int errno;
+    int concur_errno;
 
     pthread_mutex_lock(&this->errno_lock);
-    errno = this->wkr_errno;
+    concur_errno = this->wkr_errno;
     pthread_mutex_unlock(&this->errno_lock);
 
-    return errno;
+    return concur_errno;
 }
 
 
@@ -570,9 +573,7 @@ sc::_worker::~_worker() noexcept {
     off_t addr_off;
 
     #ifdef SC_TRACE_WORKER
-    namespace _trace {
-        mc_vm_obj * obj;
-    }
+        mc_vm_obj * _trace_obj;
     #endif
 
 
@@ -581,12 +582,12 @@ sc::_worker::~_worker() noexcept {
 
     #ifdef SC_TRACE_WORKER
     //log object & area starting address of current buffer read
-    _trace::obj = nullptr;
+    _trace_obj = nullptr;
     if (area->obj_node_p != nullptr)
-        _trace::obj = MC_GET_NODE_OBJ(area->obj_node_p);
+        _trace_obj = MC_GET_NODE_OBJ(area->obj_node_p);
     dbg::print_trace("buffer from: %s - 0x%lx\n",
-                     (_trace::obj == nullptr)
-                     ? "N/A" : _trace::obj->basename, area->start_addr);
+                     (_trace_obj == nullptr)
+                     ? "N/A" : _trace_obj->basename, area->start_addr);
     #endif
 
     /*
@@ -660,10 +661,8 @@ void sc::_worker::main() noexcept {
     sc::addr_width addr_width;
 
     #ifdef SC_TRACE_WORKER
-    namespace trace {
-        int iter;
-        mc_vm_obj * obj;
-    }
+    int _trace_iter;
+    mc_vm_obj * _trace_obj;
     #endif
     
 
@@ -746,10 +745,10 @@ void sc::_worker::main() noexcept {
             #ifdef SC_TRACE_WORKER
             //log area
             if (area->obj_node_p != nullptr)
-                _trace::obj = MC_GET_NODE_OBJ(area_node);
+                _trace_obj = MC_GET_NODE_OBJ(area_node);
             dbg::print_trace("[worker %d] scan area: %s - 0x%lx\n",
                              area->obj_node_p == nullptr ? "<anon>"
-                             : _trace::obj->basename);
+                             : _trace_obj->basename);
             #endif
 
             //create a new scan arg
@@ -947,7 +946,6 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     int diff;
     int iter_lim;
-    int session_start_idx;
     
     cm_lst_node * wkr_bndl_node, * rmv_wkr_bndl_node;
     sc::_worker_bundle * wkr_bndl;
@@ -1029,7 +1027,6 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         }
 
         //for all new requested workers
-        session_start_idx = this->wkr_bundles.len;
         for (int i = 0; i < diff; ++i) {
 
             //find the index of the session for this worker
@@ -1043,7 +1040,6 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
             }
 
             //construct the worker in the new node
-            const mc_session * foo = (const mc_session *) 0x1337;
             wkr_bndl = new (wkr_bndl_node->data) sc::_worker_bundle(
                 this->cache, this->concur, session_idx);
         }
@@ -1311,14 +1307,15 @@ sc::worker_pool::worker_pool() noexcept
     //initialise a new worker bundles list
     cm_new_lst(&this->wkr_bundles, sizeof(sc::_worker_bundle));
 
+    //zero out the sorted areas cache
+    std::memset(&this->sorted_areas_cache,
+                0, sizeof(this->sorted_areas_cache));
     return;
 }
 
 
 sc::worker_pool::~worker_pool() noexcept {
 
-    int ret;
-    
     cm_lst_node * wkr_node;
     sc::_worker_bundle * wkr;
 

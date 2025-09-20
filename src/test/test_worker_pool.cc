@@ -1,6 +1,7 @@
 //standard template library
-#include <string>
+#include <optional>
 #include <variant>
+#include <string>
 #include <functional>
 
 //C standard library
@@ -134,11 +135,15 @@ static void _assert_worker_bundle(
 static void _assert_worker_pool(
     const sc::worker_pool & w_pool,
     const int wkr_bundles_len,
-    const int sorted_areas_cache_len) {
+    const std::optional<int> sorted_areas_cache_len) {
 
     #ifdef SC_DEBUG
     REQUIRE_EQ(w_pool.wkr_bundles.len, wkr_bundles_len);
-    REQUIRE_EQ(w_pool.sorted_areas_cache.len, sorted_areas_cache_len);
+    if (sorted_areas_cache_len.has_value()) {
+        REQUIRE_EQ(w_pool.sorted_areas_cache.len, sorted_areas_cache_len);
+    } else {
+        REQUIRE_EQ(w_pool.sorted_areas_cache.is_init, false);
+    }
     #endif
 }
 
@@ -260,7 +265,7 @@ namespace _worker_pool {
         REQUIRE_EQ(w_pool.get_ctor_failed(), false);
 
         //assert worker pool
-        _shared::_assert_worker_pool(w_pool, 0, 0);
+        _shared::_assert_worker_pool(w_pool, 0, std::nullopt);
 
         #ifdef SC_DEBUG
         _shared::_assert_worker_pool_cache(
@@ -271,12 +276,10 @@ namespace _worker_pool {
 
 
     //fixture
-    static void _fixture(const sc::worker_pool & w_pool) {
+    static void _fixture(sc::worker_pool & w_pool) {
 
         #ifdef SC_DEBUG
-        _class_helper::lst::setup_stub(w_pool.wkr_bundles);
         _class_helper::vct::setup_stub(w_pool.sorted_areas_cache);
-        _class_helper::vct::setup_stub(w_pool.concur.exit_uids);
         #endif
     }
 
@@ -380,6 +383,10 @@ namespace _worker_pool {
             area = MC_GET_NODE_AREA(node);
             REQUIRE_NE(area, nullptr);
 
+            //skip areas without a basename
+            if (area->basename == nullptr)
+                goto _populate_pattern_constraints_skip;
+
             //check if this area's name matches a pattern file
             match = false;
             ret = strcmp(area->basename,
@@ -395,6 +402,10 @@ namespace _worker_pool {
                 ret = cm_vct_apd(&exclusive_areas, &node);
                 REQUIRE_EQ(ret, 0);
             }
+
+            _populate_pattern_constraints_skip:
+            //advance iteration
+            node = node->next;
             
         } //end for all areas in the map
 
@@ -1402,6 +1413,3 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
     return;
 }
-
-
-/* TODO: Consider a `reset()` test on the C interface. */

@@ -395,6 +395,9 @@
         return -1;                                                  \
     }                                                               \
                                                                     \
+    /* set the new object pointer */                                \
+    this->obj = obj;                                                \
+                                                                    \
     /* release the lock */                                          \
     _UNLOCK                                                         \
                                                                     \

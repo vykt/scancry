@@ -210,22 +210,24 @@ void sc::_scan_arg::advance_buf(const size_t advance) noexcept {
 
 
 //getters
-[[nodiscard]] uintptr_t sc::_scan_arg::get_addr() noexcept {
+[[nodiscard]] uintptr_t sc::_scan_arg::get_addr() const noexcept {
     return this->addr;
 }
 
-[[nodiscard]] const cm_lst_node * sc::_scan_arg::get_area_node() noexcept {
+[[nodiscard]] const cm_lst_node *
+    sc::_scan_arg::get_area_node() const noexcept {
+
     return this->area_node;
 }
 
-[[nodiscard]] off_t sc::_scan_arg::get_area_off() noexcept {
+[[nodiscard]] off_t sc::_scan_arg::get_area_off() const noexcept {
     return this->area_off;
 }
 
-[[nodiscard]] const cm_byte * sc::_scan_arg::get_cur_byte() noexcept {
+[[nodiscard]] const cm_byte * sc::_scan_arg::get_cur_byte() const noexcept {
     return this->cur_byte;
 }
 
-[[nodiscard]] size_t sc::_scan_arg::get_buf_left() noexcept {
+[[nodiscard]] size_t sc::_scan_arg::get_buf_left() const noexcept {
     return this->buf_left;
 }

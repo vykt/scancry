@@ -561,14 +561,14 @@ class ptrscan : public _scan {
         [[nodiscard]] sc::_ptrscan_fbuf_data_sz
             get_fbuf_data_sz() const noexcept;
 
-#if 0 //TODO FIXME: Just rewrite the serialiser, shit is awful (Thanks STL!)
+        
         [[nodiscard]] int handle_body_start(
             const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
         [[nodiscard]]
             std::optional<std::pair<uint32_t, std::vector<off_t>>>
                 handle_body_chain(
                     const std::vector<cm_byte> & buf, off_t & buf_off);
-#endif
+        
         [[nodiscard]] int flatten_tree();
 
         void do_reset();
@@ -584,14 +584,14 @@ class ptrscan : public _scan {
         /* internal */ [[nodiscard]] int _generate_body(
                     cm_vct /* <cm_byte> */ & buf,
                     const off_t hdr_off) noexcept override final;
-#if 0 //TODO FIXME: Just rewrite the serialiser pt. 2
+        
         /* internal */ [[nodiscard]] int _process_body(
                     const std::vector<cm_byte> & buf, off_t hdr_off,
                     const mc_vm_map & map) override final;
         /* internal */ [[nodiscard]] int _read_body(
                     const std::vector<cm_byte> & buf,
                     off_t hdr_off) override final;
-#endif
+
 
         //ctors
         ptrscan();

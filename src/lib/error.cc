@@ -105,9 +105,11 @@ void sc_perror(const char * prefix) {
 
         case SC_ERR_PAGESIZE:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_PAGESIZE_MSG);
+            break;
 
         case SC_ERR_WORKER_TIMEOUT:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_WORKER_TIMEOUT_MSG);
+            break;
 
         default:
             std::fprintf(stderr, "Undefined error code.\n");

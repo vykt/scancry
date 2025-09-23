@@ -124,7 +124,8 @@ void sc::_worker_concurrency::wkr_exit(const bool is_error) noexcept {
     --this->alive_count;
 
     //signal other workers to exit on error
-    this->set_flags(sc::_worker_flag::error | sc::_worker_flag::exit);
+    if (is_error == true)
+        this->set_flags(sc::_worker_flag::error | sc::_worker_flag::exit);
 
     //if all other threads are waiting, set the release ready flag
     if (this->release_count == this->alive_count) {
@@ -242,8 +243,10 @@ const constexpr useconds_t _release_timeout_sec = 10;
 
         //check if workers are ready
         pthread_mutex_lock(&this->flags_lock);
-        if (this->flags & sc::_worker_flag::release_ready)
+        if (this->flags & sc::_worker_flag::release_ready) {
+            pthread_mutex_unlock(&this->flags_lock);
             return 0;
+        }
         pthread_mutex_unlock(&this->flags_lock);
 
         //check if an error occurred
@@ -463,6 +466,9 @@ void sc::_worker_pool_cache::unlock() noexcept {
     for (int i = 0; i < 3; ++i) {
         lockables[i]->_unlock();
     }
+
+    //mark cache as unlocked
+    this->is_locked = false;
 
     return;
 }
@@ -948,15 +954,15 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     int iter_lim;
     
     cm_lst_node * wkr_bndl_node, * rmv_wkr_bndl_node;
-    sc::_worker_bundle * wkr_bndl;
 
+    sc::_worker_bundle * wkr_bndl;
     cm_byte wkr_bndl_stub[sizeof(sc::_worker_bundle)] = {0};
     int session_idx;
 
 
     //if already have `count` workers, just return
-    diff = this->wkr_bundles.len - count;
-    if (this->wkr_bundles.len - count) return 0;
+    diff = count - this->wkr_bundles.len;
+    if ((this->wkr_bundles.len - count) == 0) return 0;
 
     //if reducing the worker count is required
     if (diff < 0) {
@@ -972,8 +978,8 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
                         : this->wkr_bundles.head->prev;
 
         //for all workers that must be stopped
-        iter_lim = this->wkr_bundles.len - 1 - (diff * -1);
-        for (int i = this->wkr_bundles.len - 1; i < iter_lim; --i) {
+        iter_lim = this->wkr_bundles.len - 1 + diff;
+        for (int i = this->wkr_bundles.len - 1; i > iter_lim; --i) {
 
             //fetch this worker bundle
             wkr_bndl = _SC_GET_NODE_WKR_BUNDLE(wkr_bndl_node);
@@ -1001,8 +1007,8 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
                         : this->wkr_bundles.head->prev;
 
         //for all workers that must be stopped
-        iter_lim = this->wkr_bundles.len - 1 - (diff * -1);
-        for (int i = this->wkr_bundles.len - 1; i < iter_lim; --i) {
+        iter_lim = this->wkr_bundles.len - 1 + diff;
+        for (int i = this->wkr_bundles.len - 1; i > iter_lim; --i) {
 
             //fetch this worker bundle
             wkr_bndl = _SC_GET_NODE_WKR_BUNDLE(wkr_bndl_node);
@@ -1030,7 +1036,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         for (int i = 0; i < diff; ++i) {
 
             //find the index of the session for this worker
-            session_idx = this->wkr_bundles.len - 1;
+            session_idx = this->wkr_bundles.len;
 
             //create a new list node for the worker
             wkr_bndl_node = cm_lst_apd(&this->wkr_bundles, wkr_bndl_stub);
@@ -1084,13 +1090,10 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //create a vector to store size sums for each worker
     ret = cm_new_vct(&sums, sizeof(size_t));
-    if (ret != 0) {
-        sc_errno = SC_ERR_CMORE;
-        return -1;
-    }
-    cm_vct_rsz(&sums, this->wkr_bundles.len);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+    ret = cm_vct_rsz(&sums, this->wkr_bundles.len);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
     std::memset(sums.data, 0, sums.data_sz * sums.len);
-    
 
     //for all cached areas
     for (int i = 0; i < this->sorted_areas_cache.len; ++i) {
@@ -1122,10 +1125,12 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         sum_p = (size_t *) cm_vct_get_p(&sums, min_idx);
         if (sum_p == nullptr) {
             sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+        *sum_p += (area->end_addr - area->start_addr);
 
         //fetch relevant worker bundle
-        ret = cm_lst_get(&this->wkr_bundles, min_idx, &wkr_bundle);
-        if (ret != 0) {
+        wkr_bundle = (sc::_worker_bundle *)
+                         cm_lst_get_p(&this->wkr_bundles, min_idx);
+        if (wkr_bundle == nullptr) {
             sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
 
         //add this area to this worker bundle
@@ -1137,7 +1142,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     } //end for all cached areas
 
     cm_del_vct(&sums);
-    return -1;
+    return 0;
 
     //cleanup
     _distrib_areas_fail:
@@ -1163,8 +1168,8 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     const sc::map_area_set * scan_set;
 
 
-    //read lock the worker pool
-    ret = this->_lock_read();
+    //write lock the worker pool
+    ret = this->_lock_write();
     if (ret != 0) return -1;
 
     //setup cache
@@ -1216,19 +1221,15 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 }
 
 
-[[nodiscard]] int sc::worker_pool::_teardown() noexcept {
-
-    int ret;
-    
+void sc::worker_pool::_teardown() noexcept {
 
     //unlock cache
     this->cache.unlock();
 
-    //unlock write lock
-    ret = this->_lock_write();
-    if (ret != 0) return -1;
+    //unlock read lock
+    this->_unlock();
     
-    return 0;
+    return;
 }
 
 

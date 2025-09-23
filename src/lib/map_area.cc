@@ -59,17 +59,21 @@ _SC_DBG_STATIC int
     int ret;
 
     cm_vct * vct_set;
+
+    cm_lst_node * area_node, * cmp_node;
     mc_vm_area * area, * cmp_area;
 
 
     //type cast context & node data
     vct_set = (cm_vct *) ctx;
-    area = (mc_vm_area *) rbt_node->data;
+
+    area_node = *(cm_lst_node **) rbt_node->key;
+    area = *(mc_vm_area **) rbt_node->data;
 
     /*
-     *  NOTE: Non-updated maps will store areas in order, meaning their
-     *        IDs will be sequential. As such, it is much faster to
-     *        iterate in reverse.
+     *  NOTE: Non-updated memcry maps will result in sets that store
+     *        areas in order, meaning their IDs will be sequential.
+     *        As such, it is much faster to iterate in reverse.
      */
 
     //for all existing areas
@@ -77,18 +81,19 @@ _SC_DBG_STATIC int
 
         //always insert if this is the lowest address
         if (i == 0) {
-            ret = cm_vct_ins(vct_set, 0, &area);
+            ret = cm_vct_ins(vct_set, 0, &area_node);
             if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
 
         //get the next area to compare against
-        ret = cm_vct_get(vct_set, i - 1, &cmp_area);
+        ret = cm_vct_get(vct_set, i - 1, &cmp_node);
         if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+        cmp_area = MC_GET_NODE_AREA(cmp_node);
 
         //insert here if new area's starting address is higher
         if (area->start_addr > cmp_area->start_addr) {
-            ret = cm_vct_ins(vct_set, i, &area);
+            ret = cm_vct_ins(vct_set, i, &area_node);
             if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
@@ -809,7 +814,7 @@ sc::map_area_set & sc::map_area_set::operator=(
 
 
     //initialise the set vector
-    ret = cm_new_vct(&vct, sizeof(const mc_vm_area *));
+    ret = cm_new_vct(&vct, sizeof(const cm_lst_node *));
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
 
     //construct a chronologically ordered vector from the set

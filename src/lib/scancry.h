@@ -459,7 +459,7 @@ class worker_pool : public _lockable, public _ctor_failable {
             const sc::_opt_scan & opts_scan,
             sc::_scan & scan,
             const cm_byte flags) noexcept;
-        /* internal */ [[nodiscard]] int _teardown() noexcept;
+        /* internal */ void _teardown() noexcept;
         
 
         //perform a single pass over the scan set

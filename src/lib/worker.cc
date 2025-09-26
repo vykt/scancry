@@ -28,6 +28,8 @@
 #include "debug.hh"
 #endif
 
+//temporary debug includes
+#include <cstdio>
 
 
       /* =============== * 
@@ -507,9 +509,17 @@ void * _bootstrap_worker(void * arg) {
     //typecast worker
     sc::_worker * worker = (sc::_worker *) arg;
 
+    #ifdef SC_TRACE_WORKER
+    dbg::print_trace("[worker %d] created\n", worker->get_uid());
+    #endif
+
     //call main
     worker->main();
 
+    #ifdef SC_TRACE_WORKER
+    dbg::print_trace("[worker %d] exited\n", worker->get_uid());
+    #endif
+    
     return nullptr;
 }
 
@@ -667,7 +677,6 @@ void sc::_worker::main() noexcept {
     sc::addr_width addr_width;
 
     #ifdef SC_TRACE_WORKER
-    int _trace_iter;
     mc_vm_obj * _trace_obj;
     #endif
     
@@ -1317,24 +1326,23 @@ sc::worker_pool::worker_pool() noexcept
 
 sc::worker_pool::~worker_pool() noexcept {
 
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-variable"
+    #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+    int ret;
     cm_lst_node * wkr_node;
     sc::_worker_bundle * wkr;
+    #pragma GCC diagnostic pop
 
+
+    //kill any active threads
+    ret = this->change_wkr_count(0);
 
     //destroy sorted scan areas
     cm_del_vct(&this->sorted_areas_cache);
 
-    //if the worker bundles list is initialised
-    if (this->wkr_bundles.is_init == true) {
-
-        //destroy all worker bundles
-        wkr_node = this->wkr_bundles.head;
-        for (int i = 0; i < this->wkr_bundles.len; ++i) {
-            wkr = _SC_GET_NODE_WKR_BUNDLE(wkr_node);
-            wkr->~_worker_bundle();
-        }
-        cm_del_lst(&this->wkr_bundles);
-    }
+    //destroy worker bundles list
+    cm_del_lst(&this->wkr_bundles);
 
     return;
 }

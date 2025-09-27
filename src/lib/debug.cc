@@ -1,5 +1,3 @@
-#pragma once
-
 //C standard library
 #include <cstdio>
 #include <cstdarg>

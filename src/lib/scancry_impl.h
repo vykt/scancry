@@ -372,7 +372,7 @@ class _worker : public sc::_ctor_failable {
          */
         
         // -- [attributes]
-        const int uid;
+        const int & uid;
         
         const cm_vct /* <const cm_lst_node *> */ & scan_area_subset;
 
@@ -394,7 +394,8 @@ class _worker : public sc::_ctor_failable {
     public:
         // -- [methods]
         //ctor
-        _worker(const struct sc::_worker_pool_cache & pool_cache,
+        _worker(const int & uid,
+                const struct sc::_worker_pool_cache & pool_cache,
                 struct sc::_worker_concurrency & concur, 
                 const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
                 const int session_idx) noexcept;
@@ -415,6 +416,7 @@ class _worker_bundle : public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
+        int uid;
         sc::_worker wkr;
         pthread_t thread_id;
         cm_vct /* <const cm_lst_node *> */ scan_area_subset;
@@ -423,6 +425,7 @@ class _worker_bundle : public _ctor_failable {
         // -- [methods]
         //ctor & dtor
         _worker_bundle(
+            const int uid,
             const struct sc::_worker_pool_cache & pool_cache,
             sc::_worker_concurrency & concur,
             const int session_idx) noexcept;

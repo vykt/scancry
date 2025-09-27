@@ -501,9 +501,6 @@ void sc::_worker_pool_cache::unlock() noexcept {
  *  --- [WORKER | INTERNAL] ---
  */
 
-//worker globals
-static int wkr_next_uid = 0;
-
 void * _bootstrap_worker(void * arg) {
 
     //typecast worker
@@ -526,22 +523,19 @@ void * _bootstrap_worker(void * arg) {
 
 //ctor & dtor
 sc::_worker::_worker(
+    const int & uid,
     const struct sc::_worker_pool_cache & pool_cache,
     struct sc::_worker_concurrency & concur,
     const cm_vct /* <const cm_lst_node *> */ & scan_area_subset,
     const int session_idx) noexcept
     : _ctor_failable(),
-      uid(wkr_next_uid),
+      uid(uid),
       scan_area_subset(scan_area_subset),
       session_idx(session_idx),
       pool_cache(pool_cache),
       concur(concur) {
 
     long page_size;
-
-
-    //increment next worker ID
-    ++wkr_next_uid;
 
     /*
      *  NOTE: '_SC_' prefix here stands for 'sysconf', not 'scancry'.
@@ -573,6 +567,7 @@ sc::_worker::~_worker() noexcept {
 }
 
 
+//return `1` if reached end of area, else `0`
 [[nodiscard]] _SC_DBG_INLINE int
     sc::_worker::read_buf_smart(_scan_arg & arg) noexcept {
 
@@ -661,7 +656,7 @@ sc::_worker::~_worker() noexcept {
     //reset `_scan_arg` state related to the read buffer
     arg.reset_buf(this->cached_session->page_size, this->buf);
 
-    return 0;
+    return ((arg.get_area_off() + arg.get_buf_left()) == area_sz) ? 1 : 0;
 }
 
 
@@ -669,7 +664,9 @@ void sc::_worker::main() noexcept {
 
     int ret;
     off_t buf_adv;
+
     bool do_exit;
+    bool is_area_end;
 
     cm_lst_node * area_node;
     mc_vm_area * area;
@@ -686,11 +683,7 @@ void sc::_worker::main() noexcept {
 
     //fetch address width
     ret = this->pool_cache.get_opts()->get_addr_width(addr_width);
-    if (ret != 0) {
-        this->concur.wkr_set_errno(sc_errno); //sc_errno is thread local
-        this->concur.wkr_exit(true);
-        return;
-    }
+    if (ret != 0) goto _worker_main_fail;
 
 
     //repeatedly perform requested scans
@@ -712,7 +705,7 @@ void sc::_worker::main() noexcept {
             //check if this thread was asked to exit
             ret = this->concur.wkr_check_kill(this->uid, do_exit);
             if (ret != 0) {
-                this->concur.wkr_exit(true);
+                this->concur.wkr_exit(false);
                 return;
             }
 
@@ -732,11 +725,7 @@ void sc::_worker::main() noexcept {
         //cache memcry session
         ret = cm_vct_get(&this->pool_cache.get_opts()->get_sessions(),
                          this->session_idx, &this->cached_session);
-        if (ret != 0) {
-            this->concur.wkr_set_errno(SC_ERR_CMORE);
-            this->concur.wkr_exit(true);
-            return;
-        }
+        if (ret != 0) goto _worker_main_fail_cmore;
 
         #ifdef SC_TRACE_WORKER
         //log scan set
@@ -750,17 +739,15 @@ void sc::_worker::main() noexcept {
 
             //fetch the next area
             ret = cm_vct_get(&this->scan_area_subset, i, &area_node);
-            if (ret != 0) {
-                this->concur.wkr_set_errno(SC_ERR_CMORE);
-                this->concur.wkr_exit(true);
-                return;
-            }
+            if (ret != 0) goto _worker_main_fail_cmore;
+
             area = MC_GET_NODE_AREA(area_node);
+            is_area_end = false;
 
             #ifdef SC_TRACE_WORKER
             //log area
             if (area->obj_node_p != nullptr)
-                _trace_obj = MC_GET_NODE_OBJ(area_node);
+                _trace_obj = MC_GET_NODE_OBJ(area->obj_node_p);
             dbg::print_trace("[worker %d] scan area: %s - 0x%lx\n",
                              area->obj_node_p == nullptr ? "<anon>"
                              : _trace_obj->basename);
@@ -775,18 +762,25 @@ void sc::_worker::main() noexcept {
             while (scan_arg.get_addr() < area->end_addr) {
 
                 //if current buffer has run out, fetch the next one
-                if (scan_arg.get_buf_left() <= (size_t) addr_width)
-                    ret = this->read_buf_smart(scan_arg);
+                if (__builtin_expect(
+                    (scan_arg.get_buf_left() <= (size_t) addr_width)
+                    && (is_area_end == false), 0)) {
+
+                        //read buffer
+                        ret = this->read_buf_smart(scan_arg);
+                        if (__builtin_expect((ret == -1), 0))
+                            goto _worker_main_fail;
+                        if (__builtin_expect((ret == 1), 0))
+                            is_area_end = true;
+                }
 
                 //send address to the scanner
                 buf_adv = this->pool_cache.get_scan()->_process_addr(
                     scan_arg,
                     *this->pool_cache.get_opts(),
                     *this->pool_cache.get_opts_scan());
-                if (buf_adv == -1) {
-                    this->concur.wkr_set_errno(sc_errno);
-                    this->concur.wkr_exit(true);
-                    return;
+                if (__builtin_expect((buf_adv == -1), 0)) {
+                    goto _worker_main_fail;
                 }
 
                 //advance buffer
@@ -797,6 +791,16 @@ void sc::_worker::main() noexcept {
         } //end for every area in the scan set
 
     } //end repeatedly perform requested scans
+
+    _worker_main_fail:
+    this->concur.wkr_set_errno(sc_errno);
+    this->concur.wkr_exit(true);
+    return;
+
+    _worker_main_fail_cmore:
+    this->concur.wkr_set_errno(SC_ERR_CMORE);
+    this->concur.wkr_exit(true);
+    return;
 }
 
 
@@ -807,16 +811,18 @@ void sc::_worker::main() noexcept {
 
 
 /*
- *  --- [WORKER_BUNDLE | INTERNAL] ---
+ *  --- [WORKER BUNDLE | INTERNAL] ---
  */
 
 //ctor & dtor
 sc::_worker_bundle::_worker_bundle(
+    const int uid,
     const struct sc::_worker_pool_cache & pool_cache,
     sc::_worker_concurrency & concur,
     const int session_idx) noexcept
     : _ctor_failable(),
-      wkr(pool_cache, concur, scan_area_subset, session_idx) {
+      uid(uid),
+      wkr(this->uid, pool_cache, concur, scan_area_subset, session_idx) {
 
     int ret;
 
@@ -1056,7 +1062,13 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
             //construct the worker in the new node
             wkr_bndl = new (wkr_bndl_node->data) sc::_worker_bundle(
-                this->cache, this->concur, session_idx);
+                this->wkr_next_uid,
+                this->cache,
+                this->concur,
+                session_idx);
+
+            //increment next worker index
+            ++this->wkr_next_uid;
         }
     }
 
@@ -1194,7 +1206,8 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     do_distrib = ret;
 
     //re-cache the map area set unless explicitly skipped    
-    if ((flags & sc::bits_worker::keep_scan_set) == false) {
+    if (((flags & sc::bits_worker::keep_scan_set) == false)
+        || (this->sorted_areas_cache.is_init == false)) {
 
         //fetch the scan set
         scan_set = opts.get_scan_set();
@@ -1206,12 +1219,13 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         //cache the scan set
         ret = this->cache_areas(*scan_set);
         if (ret != 0) goto _setup_fail_2;
+
+        //request re-distribution of areas
+        do_distrib = 1;
     }
 
-    //re-distribute the map area set if the scan set has changed
-    //OR if the number of workers has changed
-    if (((flags & sc::bits_worker::keep_scan_set) == false)
-         || (do_distrib == 1)) {
+    //re-distribute the map area set if anything changed
+    if (do_distrib == 1) {
 
         ret = this->distrib_areas();
         if (ret != 0) goto _setup_fail_2;
@@ -1248,15 +1262,10 @@ void sc::worker_pool::_teardown() noexcept {
     int ret;
 
 
-    //acquire a read lock
-    ret = this->_lock_read();
-    if (ret != 0) return -1;
-
     //signal workers for a single pass
     ret = this->do_scan_run();
     if (ret != 0) { this->_unlock(); return -1; }
 
-    this->_unlock();
     return 0;
 }
 
@@ -1305,6 +1314,7 @@ void sc::worker_pool::_teardown() noexcept {
 //ctor & dtor
 sc::worker_pool::worker_pool() noexcept
     : _ctor_failable(),
+      wkr_next_uid(0),
       cache(nullptr, nullptr, nullptr),
       concur() {
 

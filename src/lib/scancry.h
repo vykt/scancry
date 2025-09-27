@@ -433,6 +433,7 @@ class worker_pool : public _lockable, public _ctor_failable {
         // -- [attributes]
         //workers
         cm_lst /* <_worker_bundle> */ wkr_bundles;
+        int wkr_next_uid;
 
         //local copy of the last provided scan set, sorted by area size
         cm_vct /* <cm_lst_node *> */ sorted_areas_cache;

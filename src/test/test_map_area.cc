@@ -244,9 +244,9 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[0]) {
-
+    _common::title(_common::CC, "opt_map_area", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -268,9 +268,9 @@ TEST_CASE(test_cc_map_area_subtests[0]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[0]) {
-    
+    _common::title(_common::C, "opt_map_area", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -319,9 +319,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[1]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`omit_areas` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - omit_areas");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -352,9 +353,10 @@ TEST_CASE(test_cc_map_area_subtests[1]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[1]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`omit_areas` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - omit_areas");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -414,9 +416,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[2]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`omit_objs` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - omit_objs");
+    _common::release_warning();
     #endif
 
     //setup new omit objs
@@ -447,9 +450,10 @@ TEST_CASE(test_cc_map_area_subtests[2]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[2]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`omit_objs` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - omit_objs");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -509,9 +513,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[3]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`exclusive_areas` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - exclusive_areas");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -542,9 +547,10 @@ TEST_CASE(test_cc_map_area_subtests[3]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[3]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`exclusive_areas` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - exclusive_areas");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -604,9 +610,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[4]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`exclusive_objs` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - exclusive_objs");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -637,9 +644,10 @@ TEST_CASE(test_cc_map_area_subtests[4]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[4]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`exclusive_objs` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - exclusive_objs");
+    _common::release_warning();
     #endif
 
     //setup new omit areas
@@ -706,9 +714,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[5]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`omit_addr_ranges` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - omit_addr_ranges");
+    _common::release_warning();
     #endif
 
     //setup new omit addr ranges
@@ -746,9 +755,10 @@ TEST_CASE(test_cc_map_area_subtests[5]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[5]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`omit_addr_ranges` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - omit_addr_ranges");
+    _common::release_warning();
     #endif
 
     //setup new omit addr ranges
@@ -823,9 +833,11 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[6]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area",
+                   "`exclusive_addr_ranges` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - exclusive_addr_ranges");
+    _common::release_warning();
     #endif
 
     //setup new exclusive addr ranges
@@ -865,9 +877,11 @@ TEST_CASE(test_cc_map_area_subtests[6]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[6]) {
-
+    _common::title(_common::C,
+                   "opt_map_area",
+                   "`exclusive_addr_ranges` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - exclusive_addr_ranges");
+    _common::release_warning();
     #endif
 
     //setup new exclusive addr ranges
@@ -950,9 +964,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[7]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "`access` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - access");
+    _common::release_warning();
     #endif
     
     //run test helper
@@ -980,9 +995,10 @@ TEST_CASE(test_cc_map_area_subtests[7]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[7]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "`access` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - access");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1116,9 +1132,9 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[8]) {
-
+    _common::title(_common::CC, "opt_map_area", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1143,9 +1159,9 @@ TEST_CASE(test_cc_map_area_subtests[8]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[8]) {
-
+    _common::title(_common::C, "opt_map_area", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1236,9 +1252,10 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[9]) {
-
+    _common::title(_common::CC,
+                   "opt_map_area", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1260,9 +1277,10 @@ TEST_CASE(test_cc_map_area_subtests[9]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[9]) {
-
+    _common::title(_common::C,
+                   "opt_map_area", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1316,9 +1334,9 @@ namespace _opt_map_area {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[10]) {
-
+    _common::title(_common::CC, "opt_map_area", "reset");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_map_area - reset");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1337,9 +1355,9 @@ TEST_CASE(test_cc_map_area_subtests[10]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[10]) {
-
+    _common::title(_common::C, "opt_map_area", "reset");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_map_area - reset");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1407,9 +1425,9 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[11]) {
-
+    _common::title(_common::CC, "map_area_set", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("map_area_set - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1431,9 +1449,9 @@ TEST_CASE(test_cc_map_area_subtests[11]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[11]) {
-    
+    _common::title(_common::C, "map_area_set", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) map_area_set - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1732,6 +1750,11 @@ TEST_CASE(test_cc_map_area_subtests[12]) {
 
     //no constraints
     SUBCASE("no constraints") {
+        _common::title(_common::CC, "map_area_set", "no constraints set");
+        const char * explanation
+         = "For this test, expect the complete map of the target\n"
+           "process minus any blacklisted areas (like `[vvar]`)";
+        std::cout << explanation << std::endl;
 
         //setup map area options
         _opt_helper::cc::setup(opt_args, mcry_args, [](auto & args){});
@@ -1741,11 +1764,6 @@ TEST_CASE(test_cc_map_area_subtests[12]) {
         REQUIRE_EQ(ret, 0);
 
         //dump the set
-        _common::title(_common::CC, "update_set", "no constraints");
-        const char * explanation
-         = "\nFor this test, expect the complete map of the target\n"
-           "process minus any blacklisted areas (like `[vvar]`)";
-        std::cout << explanation << std::endl;
         _common::subtitle("update_set - no constraints", "map dump:");
         _class_helper::ma_set::print_set(ma_set);
     }
@@ -1753,6 +1771,14 @@ TEST_CASE(test_cc_map_area_subtests[12]) {
 
     //all constraints
     SUBCASE("all constraints") {
+        _common::title(_common::CC, "map_area_set", "all constraints set");
+        const char * explanation
+         = "For this test, expect:\n"
+           " > a read & write area from the main executable\n"
+           " > a `[heap]` area\n"
+           " > a read & write area from `libc.so.6`\n"
+           "For the exact constraints used, consult the sources.";
+        std::cout << explanation << std::endl;
 
         //setup map area options
         _opt_helper::cc::setup(opt_args, mcry_args,
@@ -1769,14 +1795,6 @@ TEST_CASE(test_cc_map_area_subtests[12]) {
         REQUIRE_EQ(ret, 0);
 
         //dump the set
-        _common::title(_common::CC, "update_set", "all constraints");
-        const char * explanation
-         = "For this test, expect:\n"
-           " > a read & write area from the main executable\n"
-           " > a `[heap]` area\n"
-           " > a read & write area from `libc.so.6`\n"
-           "For the exact constraints used, consult the sources.";
-        std::cout << explanation << std::endl;
         _common::subtitle("update_set - all constraints", "map dump:");
         _class_helper::ma_set::print_set(ma_set);
     }
@@ -1817,6 +1835,11 @@ TEST_CASE(test_c_map_area_subtests[12]) {
 
     //no constraints
     SUBCASE("no constraints") {
+        _common::title(_common::C, "map_area_set", "no constraints set");
+        const char * explanation
+         = "For this test, expect the complete map of the target\n"
+           "process minus any blacklisted areas (like `[vvar]`)";
+        std::cout << explanation << std::endl;
 
         //setup map area options
         _opt_helper::c::setup(opt_args, mcry_args, [](auto & args){});
@@ -1827,11 +1850,6 @@ TEST_CASE(test_c_map_area_subtests[12]) {
         REQUIRE_EQ(ret, 0);
 
         //dump the set
-        _common::title(_common::C, "update_set", "no constraints");
-        const char * explanation
-         = "\nFor this test, expect the complete map of the target\n"
-           "process minus any blacklisted areas (like `[vvar]`)";
-        std::cout << explanation << std::endl;
         _common::subtitle("update_set - no constraints", "map dump:");
         _class_helper::ma_set::print_set(*(sc::map_area_set *) ma_set);
 
@@ -1840,6 +1858,14 @@ TEST_CASE(test_c_map_area_subtests[12]) {
 
     //all constraints
     SUBCASE("all constraints") {
+        _common::title(_common::C, "map_area_set", "all constraints set");
+        const char * explanation
+         = "For this test, expect:\n"
+           " > a read & write area from the main executable\n"
+           " > a `[heap]` area\n"
+           " > a read & write area from `libc.so.6`\n"
+           "For the exact constraints used, consult the sources.";
+        std::cout << explanation << std::endl;
 
         //setup map area options
         _opt_helper::c::setup(opt_args, mcry_args,
@@ -1857,14 +1883,6 @@ TEST_CASE(test_c_map_area_subtests[12]) {
         REQUIRE_EQ(ret, 0);
 
         //dump the set
-        _common::title(_common::C, "update_set", "all constraints");
-        const char * explanation
-         = "For this test, expect:\n"
-           " > a read & write area from the main executable\n"
-           " > a `[heap]` area\n"
-           " > a read & write area from `libc.so.6`\n"
-           "For the exact constraints used, consult the sources.";
-        std::cout << explanation << std::endl;
         _common::subtitle("update_set - all constraints", "map dump:");
         _class_helper::ma_set::print_set(*(sc::map_area_set *) ma_set);
     }
@@ -1923,6 +1941,13 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[13]) {
+    _common::title(_common::CC, "build_sorted_vct", "set vs. address-ordered vector");
+    const char * explanation
+     = "For this test, expect the regular set to show map areas in\n"
+       "any order. The address ordered vector should show them in the\n"
+       "correct order with area addresses ascending.";
+    std::cout << explanation << std::endl;
+
 
     int ret;
 
@@ -1953,14 +1978,6 @@ TEST_CASE(test_cc_map_area_subtests[13]) {
     ret = ma_set.to_addr_ord_vct(addr_vct);
     REQUIRE_EQ(ret, 0);
 
-    //show test header
-    _common::title(_common::CC, "build_sorted_vct", "set vs. address-ordered vector");
-    const char * explanation
-     = "\nFor this test, expect the regular set to show map areas in\n"
-       "any order. The address ordered vector should show them in the\n"
-       "correct order with area addresses ascending.";
-    std::cout << explanation << std::endl;
-
     //dump the set
     _common::subtitle("build_sorted_set - set", "map dump:");
     _class_helper::ma_set::print_set(ma_set);
@@ -1983,6 +2000,12 @@ TEST_CASE(test_cc_map_area_subtests[13]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[13]) {
+    _common::title(_common::C, "build_sorted_vct", "set vs. address-ordered vector");
+    const char * explanation
+     = "For this test, expect the regular set to show map areas in\n"
+       "any order. The address ordered vector should show them in the\n"
+       "correct order with area addresses ascending.";
+    std::cout << explanation << std::endl;
 
     int ret;
 
@@ -2025,14 +2048,6 @@ TEST_CASE(test_c_map_area_subtests[13]) {
     ret = sc_ma_set_to_addr_ord_vct(ma_set, &addr_vct);
     REQUIRE_EQ(ret, 0);
 
-
-    //show test header
-    _common::title(_common::C, "build_sorted_vct", "set vs. address-ordered vector");
-    const char * explanation
-     = "\nFor this test, expect the regular set to show map areas in\n"
-       "any order. The address ordered vector should show them in the\n"
-       "correct order with area addresses ascending.";
-    std::cout << explanation << std::endl;
 
     //dump the set
     _common::subtitle("build_sorted_set - set", "map dump:");
@@ -2100,6 +2115,12 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[14]) {
+    _common::title(_common::CC, "build_sorted_vct", "set vs. size-ordered");
+    const char * explanation
+     = "For this test, expect the regular set to show map areas in\n"
+       "any order. The size ordered vector should show them in order of\n"
+       "size, largerst to smallest.";
+    std::cout << explanation << std::endl;
 
     int ret;
 
@@ -2130,13 +2151,6 @@ TEST_CASE(test_cc_map_area_subtests[14]) {
     ret = ma_set.to_size_ord_vct(size_vct);
     REQUIRE_EQ(ret, 0);
 
-    //show test header
-    _common::title(_common::CC, "build_sorted_vct", "set vs. size-ordered");
-    const char * explanation
-     = "\nFor this test, expect the regular set to show map areas in\n"
-       "any order. The size ordered vector should show them in order of\n"
-       "size, largerst to smallest.";
-    std::cout << explanation << std::endl;
 
     //dump the set
     _common::subtitle("build_sorted_set - set", "map dump:");
@@ -2160,6 +2174,12 @@ TEST_CASE(test_cc_map_area_subtests[14]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[14]) {
+    _common::title(_common::C, "build_sorted_vct", "set vs. size-ordered vector");
+    const char * explanation
+     = "For this test, expect the regular set to show map areas in\n"
+       "any order. The size ordered vector should show them in order of\n"
+       "size, largerst to smallest.";
+    std::cout << explanation << std::endl;
 
     int ret;
 
@@ -2202,14 +2222,6 @@ TEST_CASE(test_c_map_area_subtests[14]) {
     ret = sc_ma_set_to_size_ord_vct(ma_set, &size_vct);
     REQUIRE_EQ(ret, 0);
 
-
-    //show test header
-    _common::title(_common::C, "build_sorted_vct", "set vs. size-ordered vector");
-    const char * explanation
-     = "\nFor this test, expect the regular set to show map areas in\n"
-       "any order. The size ordered vector should show them in order of\n"
-       "size, largerst to smallest.";
-    std::cout << explanation << std::endl;
 
     //dump the set
     _common::subtitle("build_sorted_set - set", "map dump:");
@@ -2281,6 +2293,7 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[14]) {
+    _common::title(_common::CC, "map_area_set", "copy ctor");
 
     int ret;
 
@@ -2336,6 +2349,7 @@ TEST_CASE(test_cc_map_area_subtests[14]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[14]) {
+    _common::title(_common::C, "map_area_set", "copy ctor");
 
     int ret;
 
@@ -2440,6 +2454,7 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[15]) {
+    _common::title(_common::CC, "map_area_set", "copy assign");
 
     int ret;
 
@@ -2492,6 +2507,7 @@ TEST_CASE(test_cc_map_area_subtests[15]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[15]) {
+    _common::title(_common::C, "map_area_set", "copy assign");
 
     int ret;
 
@@ -2573,6 +2589,7 @@ namespace _map_area_set {
 
 //C++ test
 TEST_CASE(test_cc_map_area_subtests[16]) {
+    _common::title(_common::CC, "map_area_set", "reset");
 
     int ret;
 
@@ -2622,6 +2639,7 @@ TEST_CASE(test_cc_map_area_subtests[16]) {
 
 //C test
 TEST_CASE(test_c_map_area_subtests[16]) {
+    _common::title(_common::C, "map_area_set", "reset");
 
     int ret;
 

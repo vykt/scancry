@@ -57,6 +57,7 @@ static void _assert_scan_arg(
 static void _assert_worker_concurrency(
     const sc::_worker_concurrency & concur,
     const int release_count,
+    const int total_count,
     const int alive_count,
     const int flags,
     const int exit_uids_len,
@@ -64,6 +65,7 @@ static void _assert_worker_concurrency(
 
     #ifdef SC_DEBUG
     REQUIRE_EQ(concur.release_count, release_count);
+    REQUIRE_EQ(concur.total_count, total_count);
     REQUIRE_EQ(concur.alive_count, alive_count);
     REQUIRE_EQ(concur.flags, flags);
     REQUIRE_EQ(concur.exit_uids.len,  exit_uids_len);
@@ -164,6 +166,7 @@ static void _assert_all_state(
     const sc::_opt_scan * cache_opts_scan,
     const sc::_scan * cache_scan,
     const int concur_release_count,
+    const int concur_total_count,
     const int concur_alive_count,
     const cm_byte concur_flags,
     const int concur_exit_uids_len,
@@ -220,6 +223,7 @@ static void _assert_all_state(
     _shared::_assert_worker_concurrency(
         w_pool.concur,
         concur_release_count,
+        concur_total_count,
         concur_alive_count,
         concur_flags,
         concur_exit_uids_len,
@@ -280,7 +284,7 @@ namespace _worker_pool {
         #ifdef SC_DEBUG
         _shared::_assert_worker_pool_cache(
             w_pool.cache, false, nullptr, nullptr, nullptr);
-        _shared::_assert_worker_concurrency(w_pool.concur, 0, 0, 0b0, 0, 0);
+        _shared::_assert_worker_concurrency(w_pool.concur, 0, 0, 0, 0b0, 0, 0);
         #endif
     }
 
@@ -312,9 +316,9 @@ namespace _worker_pool {
 
 //C++ test
 TEST_CASE(test_cc_worker_pool_subtests[0]) {
-    
+    _common::title(_common::CC, "worker_pool", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("worker_pool - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -336,9 +340,9 @@ TEST_CASE(test_cc_worker_pool_subtests[0]) {
 
 //C test
 TEST_CASE(test_c_worker_pool_subtests[0]) {
-
+    _common::title(_common::C, "worker_pool", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("worker_pool - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -496,6 +500,7 @@ namespace _worker_pool {
         sc::worker_pool & w_pool,
         sc::opt & opts,
         const int session_num,
+        const bool await_success,
         const _memcry_helper::args & mcry_args,
         const bool do_cancel,
         std::function<void(sc::worker_pool & w_pool)> setup_cb,
@@ -536,13 +541,13 @@ namespace _worker_pool {
 
         //cancel if requested
         if (do_cancel == true) {
-            ret = w_pool._cancel();
+            w_pool._cancel();
             REQUIRE_EQ(ret, 0);
         }
 
         //finish a run
         ret = w_pool._await_run();
-        REQUIRE_EQ(ret, 0);
+        REQUIRE_EQ(ret, (await_success ? 0 : -1));
 
         //assert finished state
         assert_fin_cb(w_pool, sessions);
@@ -616,11 +621,16 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
     //test spawning and terminating workers
     SUBCASE(test_cc_worker_pool_subtests[2]) {
+        _common::title(_common::CC,
+                       "worker_pool", "spawn & terminate workers");
+        #ifdef SC_DEBUG
+        _common::release_warning();
+        #endif
 
         // -- case 1: a single worker
 
         _common::subtitle(
-            "worker pool - setup workers", "a single worker:");
+            "worker pool - setup workers", "a single worker");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 1, mcry_args,
@@ -653,6 +663,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     1,
                     1,
+                    1,
                     sc::_worker_flag::release_ready,
                     0,
                     0
@@ -671,7 +682,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         // -- case 2: multiple workers
 
         _common::subtitle(
-            "worker pool - setup workers", "multiple workers:");
+            "worker pool - setup workers", "multiple workers");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 8, mcry_args,
@@ -703,6 +714,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     8,
                     8,
+                    8,
                     sc::_worker_flag::release_ready
                      | sc::_worker_flag::ctrl_run,
                     0,
@@ -720,7 +732,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         // -- case 3: decrease workers
 
         _common::subtitle(
-            "worker pool - setup workers", "decrease workers:");
+            "worker pool - setup workers", "decrease workers");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 4, mcry_args,
@@ -752,6 +764,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     4,
                     4,
+                    4,
                     sc::_worker_flag::release_ready
                      | sc::_worker_flag::ctrl_run,
                     0,
@@ -769,7 +782,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         // -- case 4: increase workers
 
         _common::subtitle(
-            "worker pool - setup workers", "increase workers:");
+            "worker pool - setup workers", "increase workers");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 8, mcry_args,
@@ -801,6 +814,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     8,
                     8,
+                    8,
                     sc::_worker_flag::release_ready
                      | sc::_worker_flag::ctrl_run,
                     0,
@@ -818,11 +832,16 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
     //test applying flags during setup
     SUBCASE(test_cc_worker_pool_subtests[3]) {
+        _common::title(_common::CC,
+                       "worker_pool", "spawn & terminate workers (flags)");
+        #ifdef SC_DEBUG
+        _common::release_warning();
+        #endif
 
         // -- case 1: no flags
 
         _common::subtitle(
-            "worker pool - setup workers (flags)", "apply flags");
+            "worker pool - setup workers (flags)", "apply flags (ignore)");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 2, mcry_args,
@@ -845,7 +864,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     false,
                     2,
-                    {1, 2},
+                    {0, 1},
                     {0, 1},
                     sessions,
                     2,
@@ -853,6 +872,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &opt_args.opts,
                     &opts_fxt,
                     &scan_fxt,
+                    2,
                     2,
                     2,
                     sc::_worker_flag::release_ready,
@@ -871,7 +891,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         // -- case 2: keep scan set
 
         _common::subtitle(
-            "worker pool - setup workers (flags)", "apply flags");
+            "worker pool - setup workers (flags)", "apply flags (use)");
         _worker_pool::_scan::_setup_test(
             //non-fn arguments
             w_pool, opt_args.opts, 2, mcry_args,
@@ -894,7 +914,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     false,
                     2,
-                    {1, 2},
+                    {0, 1},
                     {0, 1},
                     sessions,
                     2,
@@ -904,8 +924,8 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     2,
                     2,
-                    sc::_worker_flag::release_ready
-                     | sc::_worker_flag::ctrl_run,
+                    2,
+                    sc::_worker_flag::release_ready,
                     0,
                     0
                 );
@@ -919,17 +939,22 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
     }
 
 
-#if 0        
     //test scanning
     SUBCASE(test_cc_worker_pool_subtests[4]) {
-
-        _common::concur_warning("worker_pool - scan");
+        _common::title(_common::CC,
+                       "worker_pool", "run scans");
+        #ifdef SC_DEBUG
+        _common::release_warning();
+        #endif
+        _common::concur_warning();
 
         // -- case 1: single-threaded scan - every byte
 
+        _common::subtitle(
+            "worker pool - single thread scan", "1 byte advance");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 1, mcry_args, false,
+            w_pool, opt_args.opts, 1, true, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
@@ -968,6 +993,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     1,
                     1,
+                    1,
                     sc::_worker_flag::release_ready,
                     0,
                     0
@@ -982,12 +1008,14 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
             }
         );
 
-        
+
         // -- case 2: single-threaded scan - every 4th byte
 
+        _common::subtitle(
+            "worker pool - single thread scan", "4 byte advance");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 1, mcry_args, false,
+            w_pool, opt_args.opts, 1, true, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
@@ -1024,6 +1052,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &opt_args.opts,
                     &opts_fxt,
                     &scan_fxt,
+                    1,
                     1,
                     1,
                     sc::_worker_flag::release_ready,
@@ -1043,9 +1072,11 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
         // -- case 3: single-threaded scan - crash
 
+        _common::subtitle(
+            "worker pool - single thread scan", "crash the only thread");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 1, mcry_args, false,
+            w_pool, opt_args.opts, 1, false, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
@@ -1073,7 +1104,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
-                    1,
+                    0,
                     {0},
                     {0},
                     sessions,
@@ -1084,7 +1115,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     0,
                     0,
-                    sc::_worker_flag::error | sc::_worker_flag::exit,
+                    0,
+                    sc::_worker_flag::error
+                     | sc::_worker_flag::exit,
                     0,
                     0
                 );
@@ -1092,6 +1125,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
+
                 _w_pool._teardown();
                 int ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
@@ -1101,9 +1135,11 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
         // -- case 4: single-threaded scan - cancel run
 
+        _common::subtitle(
+            "worker pool - single thread scan", "cancel a run");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 1, mcry_args, true,
+            w_pool, opt_args.opts, 1, true, mcry_args, true,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
@@ -1132,7 +1168,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     true,
                     1,
-                    {0},
+                    {1},
                     {0},
                     sessions,
                     2,
@@ -1142,7 +1178,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     1,
                     1,
-                    sc::_worker_flag::cancel,
+                    1,
+                    sc::_worker_flag::release_ready
+                     | sc::_worker_flag::cancel,
                     0,
                     0
                 );
@@ -1159,18 +1197,20 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         );
 
 
-        // -- case 5: multi-threaded scan - every byte
+        // -- case 5: multi-threaded scan - every byte (unchecked)
 
+        _common::subtitle(
+            "worker pool - multi-threaded scan",
+            "1 byte advance (unchecked)");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 2, mcry_args, false,
+            w_pool, opt_args.opts, 2, true, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
 
                 //setup the fixture scan object
                 scan_fxt.set_mod(1);
-                scan_fxt.set_do_checks(true);
 
                 //setup the work pool
                 int ret = _w_pool._setup(
@@ -1192,14 +1232,15 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     true,
                     2,
-                    {0},
-                    {0},
+                    {2, 3},
+                    {0, 1},
                     sessions,
                     2,
                     true,
                     &opt_args.opts,
                     &opts_fxt,
                     &scan_fxt,
+                    2,
                     2,
                     2,
                     sc::_worker_flag::release_ready,
@@ -1217,18 +1258,20 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
         );
 
         
-        // -- case 6: multi-threaded scan - every 4th byte
+        // -- case 6: multi-threaded scan - every 4th byte (unchecked)
 
+        _common::subtitle(
+            "worker pool - multi-threaded scan",
+            "4 byte advance (unchecked)");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 2, mcry_args, false,
+            w_pool, opt_args.opts, 2, true, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
 
                 //setup the fixture scan object
                 scan_fxt.set_mod(4);
-                scan_fxt.set_do_checks(true);
 
                 //setup the work pool
                 int ret = _w_pool._setup(
@@ -1250,14 +1293,15 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     true,
                     2,
-                    {0},
-                    {0},
+                    {2, 3},
+                    {0, 1},
                     sessions,
                     2,
                     true,
                     &opt_args.opts,
                     &opts_fxt,
                     &scan_fxt,
+                    2,
                     2,
                     2,
                     sc::_worker_flag::release_ready,
@@ -1273,20 +1317,21 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 REQUIRE_EQ(ret, 0);
             }
         );
+   
 
-        
         // -- case 7: multi-threaded scan - crash one
 
+        _common::subtitle(
+            "worker pool - multi-threaded scan", "crash one thread");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 2, mcry_args, false,
+            w_pool, opt_args.opts, 2, false, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
 
                 //setup the fixture scan object
                 scan_fxt.set_do_crash_one(true);
-                scan_fxt.set_do_checks(true);
 
                 //setup the work pool
                 int ret = _w_pool._setup(
@@ -1318,7 +1363,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     0,
                     0,
-                    sc::_worker_flag::error | sc::_worker_flag::exit,
+                    0,
+                    sc::_worker_flag::error
+                     | sc::_worker_flag::exit,
                     0,
                     0
                 );
@@ -1335,16 +1382,17 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
         // -- case 8: multi-threaded scan - crash all
 
+        _common::subtitle(
+            "worker pool - multi-threaded scan", "crash all threads");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 2, mcry_args, false,
+            w_pool, opt_args.opts, 2, false, mcry_args, false,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
 
                 //setup the fixture scan object
                 scan_fxt.set_do_crash_all(true);
-                scan_fxt.set_do_checks(true);
 
                 //setup the work pool
                 int ret = _w_pool._setup(
@@ -1376,7 +1424,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     0,
                     0,
-                    sc::_worker_flag::error | sc::_worker_flag::exit,
+                    0,
+                    sc::_worker_flag::error
+                     | sc::_worker_flag::exit,
                     0,
                     0
                 );
@@ -1393,16 +1443,17 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
         // -- case 9: multi-threaded scan - cancel run
 
+        _common::subtitle(
+            "worker pool - multi-threaded scan", "cancel a run");
         _worker_pool::_scan::_scan_test(
             //non-fn arguments
-            w_pool, opt_args.opts, 2, mcry_args, true,
+            w_pool, opt_args.opts, 2,true, mcry_args, true,
 
             //setup
             [&opt_args, &opts_fxt, &scan_fxt](sc::worker_pool & _w_pool) {
 
                 //setup the fixture scan object
                 scan_fxt.set_do_delay(true);
-                scan_fxt.set_do_checks(true);
 
                 //setup the work pool
                 int ret = _w_pool._setup(
@@ -1424,8 +1475,8 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     _w_pool,
                     true,
                     2,
-                    {0},
-                    {0},
+                    {6, 7},
+                    {0, 1},
                     sessions,
                     2,
                     true,
@@ -1434,7 +1485,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                     &scan_fxt,
                     2,
                     2,
-                    sc::_worker_flag::cancel,
+                    2,
+                    sc::_worker_flag::release_ready
+                     | sc::_worker_flag::cancel,
                     0,
                     0
                 );
@@ -1450,7 +1503,6 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
             }
         );
     }
-#endif
 
     
     // -- fixture teardown

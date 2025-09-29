@@ -40,8 +40,8 @@ void _common::subtitle(const std::string tag, const std::string subtitle) {
     
     //print tag
     if (use_colour == true) {
-        std::cout << "<" << colour::YELLOW << tag << colour::RESET << "> "
-                  << colour::GREEN << subtitle << colour::RESET
+        std::cout << "<" << colour::MAGENTA << tag << colour::RESET << "> "
+                  << colour::BLUE << subtitle << colour::RESET
                   << std::endl;
     } else {
         std::cout << "<" << tag << "> " << subtitle << std::endl;
@@ -52,36 +52,32 @@ void _common::subtitle(const std::string tag, const std::string subtitle) {
 
 
 //print a release build warning
-void _common::release_warning(const std::string _class) {
+void _common::release_warning() {
 
     //print tag
     if (use_colour == true) {
-        std::cout << "[" << colour::RED << _common::release_warn_tag
-                  << colour::RESET << "]<" << colour::YELLOW
-                  << _class << colour::RESET << "> "
+        std::cout << "[" << colour::MAGENTA << _common::release_warn_tag
+                  << colour::RESET << "] "
                   << _common::release_warn << std::endl;
         
     } else {
-        std::cout << "[" << _common::release_warn_tag << "]<"
-                  << _class << "> "
+        std::cout << "[" << _common::release_warn_tag << "] "
                   << _common::release_warn << std::endl;
     }
 }
 
 
 //print a concurrency warning
-void _common::concur_warning(const std::string _class) {
+void _common::concur_warning() {
 
     //print tag
     if (use_colour == true) {
         std::cout << "[" << colour::CYAN << _common::release_warn_tag
-                  << colour::RESET << "]<" << colour::YELLOW
-                  << _class << colour::RESET << "> "
+                  << colour::RESET << "] "
                   << _common::release_warn << std::endl;
         
     } else {
-        std::cout << "[" << _common::release_warn_tag << "]<"
-                  << _class << "> "
+        std::cout << "[" << _common::release_warn_tag << "] "
                   << _common::release_warn << std::endl;
     }
 }

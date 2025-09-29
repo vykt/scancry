@@ -1,6 +1,3 @@
-//standard template library
-#include <vector>
-
 //C standard library
 #include <cstdlib>
 #include <cstdint>
@@ -31,7 +28,7 @@
  */
 
 
-const constexpr useconds_t _process_addr_delay = 500000;
+const constexpr useconds_t _process_addr_delay = 200;
 [[nodiscard]] _SC_DBG_INLINE off_t
     _scan_helper::_fixture_scan::_process_addr(
                                 const struct sc::_scan_arg & arg,
@@ -43,7 +40,8 @@ const constexpr useconds_t _process_addr_delay = 500000;
 
     //crash one worker if requested
     bool crash_one_expected = true;
-    this->do_crash_one.compare_exchange_strong(crash_one_expected, false);
+    if (this->do_crash_one.compare_exchange_strong(
+            crash_one_expected, false) == true) return -1;
 
     //introduce delay if requested
     if (this->do_delay == true) usleep(_process_addr_delay);
@@ -157,7 +155,7 @@ void _scan_helper::_fixture_scan::set_do_crash_all(
     this->do_crash_all  = false;
     this->expected_byte = 0;
     this->read_off      = 0;
-    this->mod           = 0;
+    this->mod           = 1;
     this->call_count    = 0;
 
     return 0;

@@ -230,9 +230,9 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[0]) {
-
+    _common::title(_common::CC, "opt", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -256,9 +256,9 @@ TEST_CASE(test_cc_opt_subtests[0]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[0]) {
-
+    _common::title(_common::C, "opt", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -307,9 +307,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[1]) {
-
+    _common::title(_common::CC,
+                   "opt", "`file_pathname_out` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - file_pathname_out");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -330,9 +331,10 @@ TEST_CASE(test_cc_opt_subtests[1]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[1]) {
-
+    _common::title(_common::C,
+                   "opt", "`file_pathname_out` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - file_pathname_out");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -382,9 +384,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[1]) {
-
+    _common::title(_common::CC,
+                   "opt", "`file_pathname_in` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - file_pathname_in");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -405,9 +408,10 @@ TEST_CASE(test_cc_opt_subtests[1]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[1]) {
-
+    _common::title(_common::C,
+                   "opt", "`file_pathname_in` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - file_pathname_in");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -473,9 +477,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[3]) {
-
+    _common::title(_common::CC,
+                   "opt", "`sessions` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - sessions");
+    _common::release_warning();
     #endif
 
     //setup new sessions
@@ -505,9 +510,10 @@ TEST_CASE(test_cc_opt_subtests[3]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[3]) {
-
+    _common::title(_common::C,
+                   "opt", "`sessions` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - sessions");
+    _common::release_warning();
     #endif    
 
     //setup new sessions
@@ -580,9 +586,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[4]) {
-
+    _common::title(_common::CC,
+                   "opt", "`map` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - map");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -610,9 +617,10 @@ TEST_CASE(test_cc_opt_subtests[4]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[4]) {
-
+    _common::title(_common::C,
+                   "opt", "`map` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - map");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -663,9 +671,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[5]) {
-
+    _common::title(_common::CC,
+                   "opt", "`addr_width` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - addr_width");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -686,9 +695,10 @@ TEST_CASE(test_cc_opt_subtests[5]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[5]) {
-
+    _common::title(_common::C,
+                   "opt", "`addr_width` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - addr_width");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -749,9 +759,10 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[6]) {
-
+    _common::title(_common::CC,
+                   "opt", "`scan_set` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - scan_set");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -779,9 +790,10 @@ TEST_CASE(test_cc_opt_subtests[6]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[6]) {
-
+    _common::title(_common::C,
+                   "opt", "`scan_set` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - scan_set");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -894,9 +906,9 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[7]) {
-
+    _common::title(_common::CC, "opt", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -921,9 +933,9 @@ TEST_CASE(test_cc_opt_subtests[7]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[7]) {
-
+    _common::title(_common::C, "opt", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1010,9 +1022,9 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[8]) {
-
+    _common::title(_common::CC, "opt", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1034,9 +1046,9 @@ TEST_CASE(test_cc_opt_subtests[8]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[8]) {
-
+    _common::title(_common::C, "opt", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1093,9 +1105,9 @@ namespace _opt {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[9]) {
-
+    _common::title(_common::CC, "opt", "reset");
     #ifndef SC_DEBUG
-    _common::release_warning("opt - reset");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1114,9 +1126,9 @@ TEST_CASE(test_cc_opt_subtests[9]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[9]) {
-
+    _common::title(_common::C, "opt", "reset");
     #ifdef SC_DEBUG
-    _common::release_warning(" (C) opt - reset");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1202,9 +1214,9 @@ namespace _opt_ptrscan {
 
 //C++ tests
 TEST_CASE(test_cc_opt_subtests[10]) {
-
+    _common::title(_common::CC, "opt_ptrscan", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1232,9 +1244,9 @@ TEST_CASE(test_cc_opt_subtests[10]) {
 
 //ctor & dtor
 TEST_CASE(test_c_opt_subtests[10]) {
-
+    _common::title(_common::C, "opt_ptrscan", "ctor & dtor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - ctor & dtor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1301,9 +1313,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[11]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`target_addr` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - target_addr");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1332,9 +1345,10 @@ TEST_CASE(test_cc_opt_subtests[11]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[11]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`target_addr` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - target_addr");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1404,9 +1418,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[12]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`alignment` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - alignment");
+    _common::release_warning();
     #endif
     
     //run test helper
@@ -1435,9 +1450,10 @@ TEST_CASE(test_cc_opt_subtests[12]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[12]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`alignment` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - alignment");
+    _common::release_warning();
     #endif
 
     off_t new_alignment = 0x10;
@@ -1509,9 +1525,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[13]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`max_obj_sz` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - max_obj_sz");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1540,9 +1557,10 @@ TEST_CASE(test_cc_opt_subtests[13]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[13]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`max_obj_sz` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - max_obj_sz");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1613,9 +1631,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[14]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`max_depth` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - max_depth");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1644,9 +1663,10 @@ TEST_CASE(test_cc_opt_subtests[14]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[14]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`max_depth` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - max_depth");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1715,9 +1735,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[15]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`static_set` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - static_set");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1746,9 +1767,10 @@ TEST_CASE(test_cc_opt_subtests[15]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[15]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`static_set` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - static_set");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1830,9 +1852,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[16]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`preset_offsets` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - preset_offsets");
+    _common::release_warning();
     #endif
     
     //setup new preset offsets
@@ -1864,9 +1887,10 @@ TEST_CASE(test_cc_opt_subtests[16]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[16]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`preset_offsets` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - preset_offsets");
+    _common::release_warning();
     #endif
 
     //setup new preset offsets
@@ -1921,9 +1945,10 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[17]) {
-
+    _common::title(_common::CC,
+                   "opt_ptrscan", "`smart_scan` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - smart_scan");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -1946,9 +1971,10 @@ TEST_CASE(test_cc_opt_subtests[17]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[17]) {
-
+    _common::title(_common::C,
+                   "opt_ptrscan", "`smart_scan` setter & getter");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - smart_scan");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2050,9 +2076,9 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[18]) {
-
+    _common::title(_common::CC, "opt_ptrscan", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2077,9 +2103,9 @@ TEST_CASE(test_cc_opt_subtests[18]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[18]) {
-
+    _common::title(_common::C, "opt_ptrscan", "copy ctor");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - copy ctor");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2166,9 +2192,9 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[19]) {
-
+    _common::title(_common::CC, "opt_ptrscan", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2190,9 +2216,9 @@ TEST_CASE(test_cc_opt_subtests[19]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[19]) {
-
+    _common::title(_common::C, "opt_ptrscan", "copy assign");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - copy assign");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2253,9 +2279,9 @@ namespace _opt_ptrscan {
 
 //C++ test
 TEST_CASE(test_cc_opt_subtests[20]) {
-
+    _common::title(_common::CC, "opt_ptrscan", "reset");
     #ifndef SC_DEBUG
-    _common::release_warning("opt_ptrscan - reset");
+    _common::release_warning();
     #endif
 
     //run test helper
@@ -2274,9 +2300,9 @@ TEST_CASE(test_cc_opt_subtests[20]) {
 
 //C test
 TEST_CASE(test_c_opt_subtests[20]) {
-
+    _common::title(_common::C, "opt_ptrscan", "reset");
     #ifndef SC_DEBUG
-    _common::release_warning(" (C) opt_ptrscan - reset");
+    _common::release_warning();
     #endif
 
     //run test helper

@@ -234,9 +234,13 @@ class _worker_concurrency : public sc::_ctor_failable {
      *
      *  1) release lock
      *
-     *  2) alive lock
+     *  2) total lock
      *
-     *  3) flags lock
+     *  3) alive lock
+     *
+     *  4) errno lock
+     *
+     *  5) flags lock
      */
 
     _SC_DBG_PRIVATE:
@@ -245,6 +249,10 @@ class _worker_concurrency : public sc::_ctor_failable {
         pthread_cond_t release_count_cond;
         mutable pthread_mutex_t release_count_lock;
         int release_count;
+
+        pthread_cond_t total_count_cond;
+        mutable pthread_mutex_t total_count_lock;
+        int total_count;
 
         //number of alive threads
         pthread_cond_t alive_count_cond;
@@ -294,6 +302,9 @@ class _worker_concurrency : public sc::_ctor_failable {
         //concurrency operators - control
         [[nodiscard]] int wp_await_wkrs(const bool do_timeout) noexcept;
         void wp_release_wkrs() noexcept;
+
+        void wp_set_total_wkrs(const int total) noexcept;
+        void wp_fix_release() noexcept;
         
         [[nodiscard]] int wp_wkr_kill(const int uid) noexcept;
         void wp_wkr_kill_reset() noexcept;
@@ -388,6 +399,7 @@ class _worker : public sc::_ctor_failable {
         cm_byte * buf;
 
         // -- [methods]
+        [[nodiscard]] int handle_exit() noexcept;
         [[nodiscard]] int read_buf_smart(
                               struct _scan_arg & arg) noexcept;
 

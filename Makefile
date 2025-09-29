@@ -9,9 +9,9 @@ LD_DIR=/etc/ld.so.conf.d
 CC=gcc
 CXX=g++
 
-FLAGS=-flto -Wno-sign-compare
+FLAGS=-flto -funroll-loops -ftree-vectorize
 FLAGS_TEST=-ggdb3 -O0
-WARN_OPTS=-Wall -Wextra
+WARN_OPTS=-Wall -Wextra -Wpedantic
 
 CFLAGS=
 CXXFLAGS=
@@ -55,9 +55,7 @@ ifeq ($(trace_ptrscan),on)
 	FLAGS_TEXT += -DSC_TRACE -DSC_TRACE_PTRSCAN
 endif
 
-
-
-#[set static analysis options]
+#[enable static analysis]
 ifeq ($(fanalyzer),true)
 	FLAGS += -fanalyzer
 endif

@@ -448,6 +448,8 @@ class worker_pool : public _lockable, public _ctor_failable {
         [[nodiscard]] int do_ctrl_run() noexcept;
         [[nodiscard]] int do_scan_run() noexcept;
 
+        void remove_wkr_bundles(const int count) noexcept;
+        void cleanup_err() noexcept;
         [[nodiscard]] int change_wkr_count(const int count) noexcept;
         [[nodiscard]] int cache_areas(
             const sc::map_area_set & ma_set) noexcept;
@@ -466,7 +468,7 @@ class worker_pool : public _lockable, public _ctor_failable {
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _single_run() noexcept;
         /* internal */ [[nodiscard]] int _await_run() noexcept;
-        /* internal */ [[nodiscard]] int _cancel() noexcept;
+        /* internal */ void _cancel() noexcept;
 
         //ctor & dtor
         worker_pool() noexcept;

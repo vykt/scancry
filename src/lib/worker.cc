@@ -46,6 +46,9 @@ sc::_worker_concurrency::_worker_concurrency() noexcept
       release_count_cond(PTHREAD_COND_INITIALIZER),
       release_count_lock(PTHREAD_MUTEX_INITIALIZER),
       release_count(0),
+      total_count_cond(PTHREAD_COND_INITIALIZER),
+      total_count_lock(PTHREAD_MUTEX_INITIALIZER),
+      total_count(0),
       alive_count_cond(PTHREAD_COND_INITIALIZER),
       alive_count_lock(PTHREAD_MUTEX_INITIALIZER),
       alive_count(0),
@@ -86,12 +89,12 @@ void sc::_worker_concurrency::wkr_release_wait() noexcept {
     ++this->release_count;
     
     //if all threads are waiting, set the release ready flag
-    pthread_mutex_lock(&this->alive_count_lock);
-    if (this->release_count == this->alive_count) {
+    pthread_mutex_lock(&this->total_count_lock);
+    if (this->release_count == this->total_count) {
         this->set_flags(sc::_worker_flag::release_ready);
         pthread_cond_broadcast(&this->threads_ready_cond);
     }
-    pthread_mutex_unlock(&this->alive_count_lock);
+    pthread_mutex_unlock(&this->total_count_lock);
 
     //await release by the worker pool
     pthread_cond_wait(&this->release_count_cond,
@@ -224,6 +227,9 @@ const constexpr useconds_t _release_timeout_sec = 10;
 
     int ret;
 
+    int fn_ret;
+    bool done = false;
+
     struct timeval cur_time;
     struct timeval timeout_time;
     struct timespec wake_time;
@@ -243,22 +249,33 @@ const constexpr useconds_t _release_timeout_sec = 10;
     //wait for workers to be released until a timeout is hit
     while (true) {
 
-        //check if workers are ready
-        pthread_mutex_lock(&this->flags_lock);
-        if (this->flags & sc::_worker_flag::release_ready) {
-            pthread_mutex_unlock(&this->flags_lock);
-            return 0;
-        }
-        pthread_mutex_unlock(&this->flags_lock);
+        // - check if workers are ready and if an error has occurred
 
-        //check if an error occurred
         pthread_mutex_lock(&this->errno_lock);
-        if (this->flags & sc::_worker_flag::error) {
+        pthread_mutex_lock(&this->flags_lock);
+
+        //if this run encountered an error and all workers have exited
+        if ((this->flags & sc::_worker_flag::error)
+            && (this->flags & sc::_worker_flag::release_ready)) {
+
+            //mark error
             sc_errno = this->wkr_errno;
-            pthread_mutex_unlock(&this->errno_lock);
-            return -1;
+            done = true;
+            fn_ret = -1;
+
+        //if this run succeeded
+        } else if (this->flags & sc::_worker_flag::release_ready) {
+
+            //mark success
+            done = true;
+            fn_ret = 0;
         }
+        
+        //return if done
+        pthread_mutex_unlock(&this->flags_lock);
         pthread_mutex_unlock(&this->errno_lock);
+        if (done == true) return fn_ret;
+
 
         //get time of day
         ret = gettimeofday(&cur_time, nullptr);
@@ -307,6 +324,42 @@ void sc::_worker_concurrency::wp_release_wkrs() noexcept {
     //broadcast a worker release
     pthread_mutex_lock(&this->release_count_lock);
     pthread_cond_broadcast(&this->release_count_cond);
+    pthread_mutex_unlock(&this->release_count_lock);
+
+    return;
+}
+
+
+//set a target number of threads
+void sc::_worker_concurrency::wp_set_total_wkrs(const int total) noexcept {
+
+    pthread_mutex_lock(&this->total_count_lock);
+    this->total_count = total;
+    pthread_mutex_unlock(&this->total_count_lock);
+    
+    return;    
+}
+
+
+/*
+ *  NOTE: If the original thread target was 4 threads, and 3 threads
+ *        are already spawned and waiting at the release barrier when
+ *        the construction of the 4th worker bundle fails, its necessary
+ *        to retroactively set the release ready flag.
+ */
+
+//retroactively apply the release ready flag
+void sc::_worker_concurrency::wp_fix_release() noexcept {
+
+    pthread_mutex_lock(&this->release_count_lock);
+    pthread_mutex_lock(&this->total_count_lock);
+
+    //enable the release ready flag
+    if (this->release_count == this->total_count) {
+        this->set_flags(sc::_worker_flag::release_ready);
+    }
+
+    pthread_mutex_lock(&this->total_count_lock);
     pthread_mutex_unlock(&this->release_count_lock);
 
     return;
@@ -583,23 +636,9 @@ sc::_worker::~_worker() noexcept {
     mc_vm_area * area;
     off_t addr_off;
 
-    #ifdef SC_TRACE_WORKER
-        mc_vm_obj * _trace_obj;
-    #endif
-
 
     //fetch this area
     area = MC_GET_NODE_AREA(arg.get_area_node());
-
-    #ifdef SC_TRACE_WORKER
-    //log object & area starting address of current buffer read
-    _trace_obj = nullptr;
-    if (area->obj_node_p != nullptr)
-        _trace_obj = MC_GET_NODE_OBJ(area->obj_node_p);
-    dbg::print_trace("buffer from: %s - 0x%lx\n",
-                     (_trace_obj == nullptr)
-                     ? "N/A" : _trace_obj->basename, area->start_addr);
-    #endif
 
     /*
      *  NOTE: The read buffer is one page in size; the minimum size of
@@ -636,15 +675,6 @@ sc::_worker::~_worker() noexcept {
         buf_off = (ssize_t) addr_w;
         addr_off = (ssize_t) addr_w;
     }
-    
-    #ifdef SC_TRACE_WORKER
-    //log buffer reading parameters
-    dbg::print_trace("  - area_sz:     0x%lx\n", area_sz);
-    dbg::print_trace("  - area_off:    0x%lx\n", arg.area_off);
-    dbg::print_trace("  - left_sz:     0x%lx\n", left_sz);
-    dbg::print_trace("  - buf_real_sz: 0x%lx\n", buf_real_sz);
-    dbg::print_trace("  - read_sz:     0x%lx\n", read_sz);
-    #endif
 
     //perform the read
     ret = mc_read(this->cached_session, arg.get_addr() + addr_off,
@@ -654,18 +684,77 @@ sc::_worker::~_worker() noexcept {
     }
 
     //reset `_scan_arg` state related to the read buffer
-    arg.reset_buf(this->cached_session->page_size, this->buf);
+    arg.reset_buf(buf_off + read_sz, this->buf);
 
-    return ((arg.get_area_off() + arg.get_buf_left()) == area_sz) ? 1 : 0;
+    return ((arg.get_area_off() + arg.get_buf_left()) == (size_t) area_sz)
+            ? 1 : 0;
 }
 
 
+#ifdef SC_TRACE_WORKER 
+static void inline __attribute__((always_inline))
+    _trace_scan_arg(const int wkr_uid, const sc::_scan_arg & scan_arg) {
+
+    mc_vm_area * _trace_area;
+    mc_vm_obj * _trace_obj;
+
+
+    //log object & area starting address of current buffer
+    _trace_obj = nullptr;
+    _trace_area = MC_GET_NODE_AREA(scan_arg.get_area_node());
+
+    //print header
+    if (_trace_area->obj_node_p != nullptr)
+        _trace_obj = MC_GET_NODE_OBJ(_trace_area->obj_node_p);
+    dbg::print_trace("[worker %d] buffer from: %s - 0x%lx\n",
+                     wkr_uid, (_trace_obj == nullptr)
+                     ? "N/A" : _trace_obj->basename, _trace_area->start_addr);
+
+    //log buffer reading parameters
+    dbg::print_trace(" - area (sz): 0x%lx\n",
+                     _trace_area->end_addr - _trace_area->start_addr);
+    dbg::print_trace(" - area_off:  0x%lx\n", scan_arg.get_area_off());
+    dbg::print_trace(" - left_sz:   0x%lx\n", scan_arg.get_buf_left());
+    dbg::print_trace(" - addr:      0x%lx\n", scan_arg.get_addr());
+
+    return;
+}
+#endif
+
+
+//determine whether to exit, and perform exit cleanup if so
+[[nodiscard]] inline __attribute__((always_inline)) int
+    sc::_worker::handle_exit() noexcept {
+
+    int ret;
+    bool do_exit;
+
+
+    //check if this thread was asked to exit
+    ret = this->concur.wkr_check_kill(this->uid, do_exit);
+    if (__builtin_expect((ret != 0), 0)) {
+        this->concur.wkr_exit(false);
+        return 1;
+    }
+
+    //exit if requested
+    if (__builtin_expect(
+        ((do_exit == true) || ((this->concur.get_flags()
+                                & sc::_worker_flag::exit) != 0)), 0)) {
+        this->concur.wkr_exit(false);
+        return 1;
+    }
+
+    return 0;
+}
+
+
+//worker main
 void sc::_worker::main() noexcept {
 
     int ret;
     off_t buf_adv;
 
-    bool do_exit;
     bool is_area_end;
 
     cm_lst_node * area_node;
@@ -700,23 +789,13 @@ void sc::_worker::main() noexcept {
             #endif
 
 
-            // - exit if requested
-
-            //check if this thread was asked to exit
-            ret = this->concur.wkr_check_kill(this->uid, do_exit);
-            if (ret != 0) {
-                this->concur.wkr_exit(false);
-                return;
-            }
-
             //exit if requested
-            if ((do_exit == true)
-                || ((this->concur.get_flags()
-                    & sc::_worker_flag::exit) == true)) {
+            if (this->handle_exit() == 1) return;
 
-                this->concur.wkr_exit(false);
-                return;
-            }
+            //cancel if requested
+            if ((this->concur.get_flags()
+                & sc::_worker_flag::cancel) != 0) break;
+
 
         } while ((this->concur.get_flags()
                  & sc::_worker_flag::ctrl_run) != 0);
@@ -729,13 +808,20 @@ void sc::_worker::main() noexcept {
 
         #ifdef SC_TRACE_WORKER
         //log scan set
-        dbg::print_trace("[worker %d] scan set size: %d",
+        dbg::print_trace("[worker %d] scan set size: %d\n",
                          this->uid, this->scan_area_subset.len);
         #endif
 
 
         //for every area in the scan set
         for (int i = 0; i < this->scan_area_subset.len; ++i) {
+
+            //exit if requested
+            if (this->handle_exit() == 1) return;
+
+            //cancel if requested
+            if ((this->concur.get_flags()
+                & sc::_worker_flag::cancel) != 0) break;
 
             //fetch the next area
             ret = cm_vct_get(&this->scan_area_subset, i, &area_node);
@@ -749,8 +835,9 @@ void sc::_worker::main() noexcept {
             if (area->obj_node_p != nullptr)
                 _trace_obj = MC_GET_NODE_OBJ(area->obj_node_p);
             dbg::print_trace("[worker %d] scan area: %s - 0x%lx\n",
-                             area->obj_node_p == nullptr ? "<anon>"
-                             : _trace_obj->basename);
+                             this->uid,
+                             (area->obj_node_p == nullptr ? "<anon>"
+                             : _trace_obj->basename), area->start_addr);
             #endif
 
             //create a new scan arg
@@ -766,12 +853,17 @@ void sc::_worker::main() noexcept {
                     (scan_arg.get_buf_left() <= (size_t) addr_width)
                     && (is_area_end == false), 0)) {
 
-                        //read buffer
-                        ret = this->read_buf_smart(scan_arg);
-                        if (__builtin_expect((ret == -1), 0))
-                            goto _worker_main_fail;
-                        if (__builtin_expect((ret == 1), 0))
-                            is_area_end = true;
+                    //read buffer
+                    ret = this->read_buf_smart(scan_arg);
+                    if (__builtin_expect((ret == -1), 0))
+                        goto _worker_main_fail;
+                    if (__builtin_expect((ret == 1), 0))
+                        is_area_end = true;
+
+                    #ifdef SC_TRACE_WORKER
+                    //trace scan argument & buffer contents
+                    _trace_scan_arg(this->uid, scan_arg);
+                    #endif
                 }
 
                 //send address to the scanner
@@ -789,6 +881,10 @@ void sc::_worker::main() noexcept {
             } //end process every address in this area
 
         } //end for every area in the scan set
+
+
+        //exit if requested
+        if (this->handle_exit() == 1) return;
 
     } //end repeatedly perform requested scans
 
@@ -892,7 +988,10 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //wait for workers to be ready
     ret = this->concur.wp_await_wkrs(false);
-    if (ret != 0) return -1;
+    if (ret != 0) {
+        this->cleanup_err();
+        return -1;
+    }
 
     //perform a run
     this->concur.wp_release_wkrs();
@@ -915,7 +1014,10 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //wait for workers to be ready
     ret = this->concur.wp_await_wkrs(false);
-    if (ret != 0) return -1;
+    if (ret != 0) {
+        this->cleanup_err();
+        return -1;
+    }
 
     return 0;
 }
@@ -955,6 +1057,56 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 }
 
 
+void sc::worker_pool::remove_wkr_bundles(const int count) noexcept {
+
+    int ret __attribute__((unused));
+
+    sc::_worker_bundle * wkr_bndl;
+    cm_lst_node * wkr_bndl_node;
+    cm_lst_node * rmv_wkr_bndl_node;
+
+    const int lim = this->wkr_bundles.len - 1 - count;
+
+    //initialise iteration
+    wkr_bndl_node = this->wkr_bundles.head->prev == nullptr
+                    ? this->wkr_bundles.head
+                    : this->wkr_bundles.head->prev;
+    
+    //for all workers that must be stopped
+    for (int i = this->wkr_bundles.len - 1; i > lim; --i) {
+
+        //fetch this worker bundle
+        wkr_bndl = _SC_GET_NODE_WKR_BUNDLE(wkr_bndl_node);
+
+        //destroy this worker
+        wkr_bndl->~_worker_bundle();
+
+        //remove list node & update iteration
+        rmv_wkr_bndl_node = wkr_bndl_node;
+        wkr_bndl_node = wkr_bndl_node->prev;
+        /* discard */ ret
+            = cm_lst_rmv_n(&this->wkr_bundles, rmv_wkr_bndl_node);
+    }
+
+    return;        
+}
+
+
+void sc::worker_pool::cleanup_err() noexcept {
+
+    //remove all worker bundles
+    this->remove_wkr_bundles(this->wkr_bundles.len);
+
+    //reset the thread total target
+    this->concur.wp_set_total_wkrs(0);
+
+    //cleanup leftover release ready flag
+    this->concur.unset_flags(sc::_worker_flag::release_ready);
+
+    return;
+}
+
+
 /*
  *  NOTE: Returns `1` if there is a change in worker count,
  *        `0` if there is no change, and `-1` on error.
@@ -967,8 +1119,9 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     int diff;
     int iter_lim;
+    int spawned;
     
-    cm_lst_node * wkr_bndl_node, * rmv_wkr_bndl_node;
+    cm_lst_node * wkr_bndl_node;
 
     sc::_worker_bundle * wkr_bndl;
     cm_byte wkr_bndl_stub[sizeof(sc::_worker_bundle)] = {0};
@@ -978,6 +1131,9 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     //if already have `count` workers, just return
     diff = count - this->wkr_bundles.len;
     if ((this->wkr_bundles.len - count) == 0) return 0;
+
+    //set a new target total
+    this->concur.wp_set_total_wkrs(count);
 
     //if reducing the worker count is required
     if (diff < 0) {
@@ -1007,39 +1163,21 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
             wkr_bndl_node = wkr_bndl_node->prev;
         }
 
-        // - run a control run
-        ret = this->do_ctrl_run();
-        if (ret != 0) return -1;
-
-        ret = this->concur.wp_await_wkrs(true);
-        if (ret != 0) return -1;
-
         // - cleanup workers
 
-        //re-initialise iteration
-        wkr_bndl_node = this->wkr_bundles.head->prev == nullptr
-                        ? this->wkr_bundles.head
-                        : this->wkr_bundles.head->prev;
+        //control run
+        /* discard */ ret = this->do_ctrl_run();
+        /* discard */ ret = this->concur.wp_await_wkrs(true);
 
-        //for all workers that must be stopped
-        iter_lim = this->wkr_bundles.len - 1 + diff;
-        for (int i = this->wkr_bundles.len - 1; i > iter_lim; --i) {
-
-            //fetch this worker bundle
-            wkr_bndl = _SC_GET_NODE_WKR_BUNDLE(wkr_bndl_node);
-
-            //destroy this worker
-            wkr_bndl->~_worker_bundle();
-
-            //remove list node & update iteration
-            rmv_wkr_bndl_node = wkr_bndl_node;
-            wkr_bndl_node = wkr_bndl_node->prev;
-            cm_lst_rmv_n(&this->wkr_bundles, rmv_wkr_bndl_node);
-        }
+        //destruct worker bundles
+        this->remove_wkr_bundles(diff * -1);
     }
 
     //if increasing the worker count is required
     if (diff > 0) {
+
+        //unset the ready flag
+        this->concur.unset_flags(sc::_worker_flag::release_ready);
 
         //check there are enough sessions for the new threads
         if (this->cache.get_opts()->get_sessions().len < count) {
@@ -1048,6 +1186,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         }
 
         //for all new requested workers
+        spawned = 0;
         for (int i = 0; i < diff; ++i) {
 
             //find the index of the session for this worker
@@ -1069,6 +1208,22 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
             //increment next worker index
             ++this->wkr_next_uid;
+
+            //handle failure of thread to construct
+            if (wkr_bndl->get_ctor_failed() == true) {
+
+                //update the target thread count
+                this->concur.wp_set_total_wkrs(count - diff + spawned);
+
+                //retroactively apply the release ready flag if necessary
+                this->concur.wp_fix_release();
+
+                //remove the new node for this thread
+                /* discard */ ret = cm_lst_rmv(&this->wkr_bundles, -1);
+            }
+
+            //increase spawned count
+            ++spawned;
         }
     }
 
@@ -1199,6 +1354,12 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     ret = this->cache.lock();
     if (ret != 0) goto _setup_fail_1;
 
+    //reset error-related flags
+    this->concur.unset_flags(
+        sc::_worker_flag::error
+        | sc::_worker_flag::exit
+        | sc::_worker_flag::cancel);
+
     //update workers
     ret = this->change_wkr_count(
               this->cache.get_opts()->get_sessions().len);
@@ -1258,52 +1419,20 @@ void sc::worker_pool::_teardown() noexcept {
 
 //dispatch a single pass over the scan set
 [[nodiscard]] int sc::worker_pool::_single_run() noexcept {
-
-    int ret;
-
-
-    //signal workers for a single pass
-    ret = this->do_scan_run();
-    if (ret != 0) { this->_unlock(); return -1; }
-
-    return 0;
+    return (this->do_scan_run() != 0) ? -1 : 0;
 }
 
 
 //await for a single pass over the scan set to finish
 [[nodiscard]] int sc::worker_pool::_await_run() noexcept {
-
-    int ret;
-
-
-    //acquire a read lock
-    ret = this->_lock_read();
-    if (ret != 0) return -1;
-
-    //await for the workers to be ready
-    ret = this->await_run();
-    if (ret != 0) { this->_unlock(); return -1; }
-
-    this->_unlock();
-    return 0;
+    return (this->await_run() != 0) ? -1 : 0;
 }
 
 
 //cancel a running single pass
-[[nodiscard]] int sc::worker_pool::_cancel() noexcept {
-
-    int ret;
-
-
-    //acquire a read lock
-    ret = this->_lock_read();
-    if (ret != 0) return -1;
-
-    //set the cancel flag
+void sc::worker_pool::_cancel() noexcept {
     this->concur.set_flags(sc::_worker_flag::cancel);
-
-    this->_unlock();
-    return 0;
+    return;
 }
 
 

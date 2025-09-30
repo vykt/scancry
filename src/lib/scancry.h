@@ -426,7 +426,6 @@ namespace bits_worker {
     const constexpr cm_byte keep_scan_set = 0b1 << 0;
 }
 
-
 class worker_pool : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
@@ -487,12 +486,48 @@ class worker_pool : public _lockable, public _ctor_failable {
 };
 
 
+/*
+ *  NOTE: The `file` sub-namespace contains types & functions for
+ *        processing scancry files (.scf). For scan-specific processing,
+ *        use the appropriate scan class.
+ */
+
+namespace file {
+
+    //file version
+    enum ver : uint16_t /* parity with sc_file_ver */ {
+        VER_0_1 = 0x0001
+    };
+
+    //scan type
+    enum scan_type : cm_byte /* parity with sc_file_scan_type */ {
+        PTRSCAN_TYPE = 0x01,
+        PTNSCAN_TYPE = 0x02,
+        TBLSCAN_TYPE = 0x03
+    };
+
+    //current version
+    const constexpr enum sc::file::ver cur_ver = VER_0_1;
+
+    //metadata struct
+    struct metadata /* parity with sc_file_metadata */ {
+        enum sc::file::ver ver;
+        enum sc::file::scan_type type;
+    };
+
+    //get metadata about a file
+    [[nodiscard]] int get_metadata(
+        const sc::opt & opts, sc::file::metadata & mdata) noexcept;
+
+} //end namespace `file`
+
+
 
 /*
  *  Pointer scanner. 
  */
 
-#if 0
+
 class _ptrscan_tree_node;
 class _ptrscan_tree;
 
@@ -525,8 +560,10 @@ class ptrscan_chain {
         const char * get_pathname() const noexcept;
         const cm_vct /* <off_t> */ & get_offsets() const noexcept;
 };
+
  
 
+#if 0
 class ptrscan : public _scan {
 
     /* FIXME: Pointer scan state needs to save options used to produce
@@ -621,85 +658,9 @@ class ptrscan : public _scan {
             const cm_vct /* <sc::ptrscan_chain> */ &
                 get_chains() const noexcept;
 };
-
-
-/*
- *  NOTE: ScanCry uses a binary file format with the following sections:
- *
- *        Name format: <process comm>.<pid>.sc
- *               e.g.: netnote.1823.sc
- *
- *        File format:
- *                     [ 1. ScanCry header ]
- *                     [ 2. scan header    ]
- *                     [ 3. data           ]
- *
- *        The ScanCry header is a generic header applicable to all files.
- *
- */
-
-//scancry header constants
-const constexpr int file_magic_sz = 4;
-const constexpr cm_byte file_magic[file_magic_sz]
-                                           = {'S', 'C', 0x13, 0x37};
-const constexpr cm_byte scan_type_ptr = 0x00;
-const constexpr cm_byte scan_type_ptn = 0x01;
-const constexpr cm_byte scan_type_val = 0x02;
-
-//versions
-const constexpr cm_byte file_ver_0 = 0;
-
-
-//ScanCry file header
-struct scancry_file_hdr {
-
-    cm_byte magic[file_magic_sz];
-    cm_byte version;
-    cm_byte scan_type;
-};
-
-
-//pointer scan file header
-struct ptr_file_hdr {
-
-    uint32_t pathnames_num;
-    uint32_t pathnames_offset;
-    uint32_t chains_num;
-    uint32_t chains_offset;
-};
-
-
-//combined ScanCry & scan header struct
-struct combined_file_hdr {
-    struct scancry_file_hdr scancry_hdr;
-    union {
-        ptr_file_hdr ptr_hdr;
-    };
-};
-
-
-class serialiser : public _lockable {
-
-    _SC_DBG_PRIVATE:
-        //[methods]
-        //miscellaneous
-        [[nodiscard]] std::optional<cm_byte>
-            get_scan_type(_scan * scan) const;
-        [[nodiscard]] bool
-            is_header_valid(sc::scancry_file_hdr & hdr) const;
-
-    public:
-        //file operations
-        [[nodiscard]] int save_scan(
-            sc::_scan & scan, const sc::opt & opts);
-        [[nodiscard]] int load_scan(
-            sc::_scan & scan, const sc::opt & opts, const bool shallow);
-        [[nodiscard]] std::optional<combined_file_hdr> read_headers(
-            const char * file_path);
-};
 #endif
 
-}; //namespace `sc`
+}; //end namespace `sc`
 #endif //#ifdef __cplusplus
 
 
@@ -796,49 +757,28 @@ typedef struct sc_ptrscan sc_ptrscan;
 typedef struct sc_worker_pool sc_worker_pool;
 
 
-// -- serialiser
+// -- file
 
-typedef struct sc_serialiser sc_serialiser;
+//file version
+enum sc_file_ver : uint16_t /* parity with sc::file::ver */ {
+    SC_FILE_VER_0_1 = 0x0001
+};
 
+//scan type
+enum sc_file_scan_type : cm_byte /* parity with sc::file::scan_type */ {
+    SC_FILE_PTRSCAN_TYPE = 0x01,
+    SC_FILE_PTNSCAN_TYPE = 0x02,
+    SC_FILE_TBLSCAN_TYPE = 0x03
+};
 
-//scancry header magic
-#define SC_FILE_MAGIC_SZ 4
-#define SC_FILE_MAGIC {'S', 'C', 0x13, 0x37}
+//current version
+#define SC_FILE_CUR_VER SC_FILE_VER_0_1
 
-//scancry header file type
-#define SC_SCAN_TYPE_PTR 0x00
-#define SC_SCAN_TYPE_PTN 0x01;
-#define SC_SCAN_TYPE_VAL 0x02;
-
-
-//scancry file header
-typedef struct {
-
-    cm_byte magic[SC_FILE_MAGIC_SZ];
-    cm_byte version;
-    cm_byte scan_type;
-
-} sc_scancry_file_hdr;
-
-
-//pointer scan file header
-typedef struct {
-
-    uint32_t pathnames_num;
-    uint32_t pathnames_offset;
-    uint32_t chains_num;
-    uint32_t chains_offset;
-
-} sc_ptr_file_hdr;
-
-
-//combined scancry & scan header struct
-typedef struct combined_file_hdr {
-    sc_scancry_file_hdr scancry_hdr;
-    union {
-        sc_ptr_file_hdr ptr_hdr;
-    };
-} sc_combined_file_hdr;
+//metadata struct
+struct sc_file_metadata /* parity with sc::file::metadata */ {
+    enum sc_file_ver ver;
+    enum sc_file_scan_type type;
+};
 
 
 /*
@@ -1071,6 +1011,15 @@ extern void sc_del_w_pool(sc_worker_pool * w_pool);
 extern int sc_wp_reset(sc_worker_pool * w_pool);
 
 
+/*
+ *  --- [FILE] --- 
+ */
+
+//return: 0 on success, -1 on error
+extern int sc_file_get_metadata(
+    const sc_opt * opts, struct sc_file_metadata * mdata);
+
+
 #if 0
 /*
  *  --- [SERIALISER] --- 
@@ -1148,6 +1097,7 @@ extern __thread int sc_errno;
 #define SC_ERR_FILE           3301
 #define SC_ERR_PAGESIZE       3302
 #define SC_ERR_WORKER_TIMEOUT 3303
+#define SC_ERR_FILE_IO        3304
 
 
 // [error code messages]
@@ -1203,5 +1153,7 @@ extern __thread int sc_errno;
     "Unable to fetch pagesize through sysconf().\n"
 #define SC_ERR_WORKER_TIMEOUT_MSG \
     "Operation on worker threads timed out.\n"
+#define SC_ERR_FILE_IO_MSG \
+    "File I/O failed.\n"
 
 #endif //define SCANCRY_H

@@ -20,6 +20,7 @@
 //local headers
 #include "scancry.h"
 #include "scancry_impl.h"
+#include "worker.hh"
 #include "common.hh"
 #include "error.hh"
 

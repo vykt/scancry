@@ -9,8 +9,8 @@ LD_DIR=/etc/ld.so.conf.d
 CC=gcc
 CXX=g++
 
-FLAGS=-flto -funroll-loops -ftree-vectorize
-FLAGS_TEST=-ggdb3 -O0
+FLAGS=-O2 -fno-exceptions -flto -funroll-loops -ftree-vectorize
+FLAGS_TEST=-ggdb3 -O0 -fno-exceptions
 WARN_OPTS=-Wall -Wextra -Wpedantic
 
 CFLAGS=
@@ -19,7 +19,7 @@ CFLAGS_TEST=
 CXXFLAGS_TEST=
 CWARN_OPTS=
 CXXWARN_OPTS=
-LDFLAGS=-pthread -lmcry -lcmore
+LDFLAGS=-nodefaultlibs -lc -lm -lpthread -lmcry -lcmore
 
 
 #[build constants]

@@ -132,21 +132,17 @@ inline const constexpr char * test_c_worker_pool_subtests[] = {
 };
 
 
-//C++ interface serialiser tests
-inline const constexpr int test_cc_serialiser_subtests_num = 3;
-inline const constexpr char * test_cc_serialiser_subtests[] = {
-    "test_cc_serialiser",
-    "test_cc_serialiser_save_load_scan",
-    "test_cc_serialiser_read_headers"
+//C++ interface file tests
+inline const constexpr int test_cc_file_subtests_num = 1;
+inline const constexpr char * test_cc_file_subtests[] = {
+    "test_cc_file_get_metadata"
 };
 
 
-//C interface serialiser tests
-inline const constexpr int test_c_serialiser_subtests_num = 3;
-inline const constexpr char * test_c_serialiser_subtests[] = {
-    "test_c_serialiser",
-    "test_c_serialiser_save_load_scan",
-    "test_c_serialiser_read_headers"
+//C interface file tests
+inline const constexpr int test_c_file_subtests_num = 1;
+inline const constexpr char * test_c_file_subtests[] = {
+    "test_c_file_get_metadata"
 };
 
 

@@ -7,13 +7,13 @@
 //C standard library
 #include <cstring>
 
+//system headers
+#include <unistd.h>
+
 //external libraries
 #include <cmore.h>
 #include <memcry.h>
 #include <doctest/doctest.h>
-
-//system headers
-#include <unistd.h>
 
 //local headers
 #include "filters.hh"
@@ -260,11 +260,9 @@ static void _to_sess_ptr_vct(
 
 
 
-
 /*
  *  --- [WORKER_POOL] ---
  */
-
 
 // -- ctor & dtor
 

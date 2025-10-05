@@ -82,6 +82,40 @@ int sc::_lockable::_lock_write() const noexcept {
 }
 
 
+//acquire a read lock (blocking)
+int sc::_lockable::_await_read() const noexcept {
+
+    int ret;
+
+
+    //try to acquire the lock
+    ret = pthread_rwlock_rdlock(&this->lock);
+    if (ret != 0) {
+        sc_errno = SC_ERR_PTHREAD;
+        return -1;
+    }
+
+    return 0;
+}
+
+
+//acquire a write lock (blocking)
+int sc::_lockable::_await_write() const noexcept {
+
+    int ret;
+
+
+    //try to acquire the lock
+    ret = pthread_rwlock_wrlock(&this->lock);
+    if (ret != 0) {
+        sc_errno = SC_ERR_PTHREAD;
+        return -1;
+    }
+
+    return 0;
+}
+
+
 //release a read or write lock
 void sc::_lockable::_unlock() const noexcept {
 
@@ -95,11 +129,42 @@ void sc::_lockable::_unlock() const noexcept {
  *  --- [_CTOR_FAILABLE] ---
  */
 
-//copy constructor status
-void sc::_ctor_failable::do_copy(
-    const sc::_ctor_failable & ctor_failable) noexcept {
+//constructor
+sc::_state_machine::_state_machine() noexcept
+ : state_bitset(0b0) {}
 
-    this->ctor_failed = ctor_failable.ctor_failed;
+
+//set bits
+void sc::_state_machine::_set_bits(const cm_byte bitset) noexcept {
+    this->state_bitset |= bitset;
+    return;
+}
+
+
+//unset bits
+void sc::_state_machine::_unset_bits(const cm_byte bitset) noexcept {
+    this->state_bitset &= ~bitset;
+    return;
+}
+
+
+//get bits
+[[nodiscard]] cm_byte
+    sc::_state_machine::_get_bits(const cm_byte bitset) noexcept {
+    return (this->state_bitset | bitset);
+}
+
+
+
+/*
+ *  --- [_STATE_MACHINE] ---
+ */
+
+//copy
+void sc::_state_machine::do_copy(
+    const sc::_state_machine & ctor_failable) noexcept {
+
+    this-> = ctor_failable.ctor_failed;
     return;
 }
 
@@ -126,16 +191,6 @@ sc::_ctor_failable & sc::_ctor_failable::operator=(
     return *this;
 }
 
-
-//setter & getter
-[[nodiscard]] bool sc::_ctor_failable::get_ctor_failed() const noexcept {
-    return this->ctor_failed;
-}
-
-
-void sc::_ctor_failable::_set_ctor_failed(const bool failed) noexcept {
-    this->ctor_failed = failed;
-}
 
 
 

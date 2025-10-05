@@ -13,7 +13,6 @@
 //local headers
 #include "scancry.h"
 #include "opt.hh"
-#include "c_iface.hh"
 #include "common.hh"
 #include "error.hh"
 
@@ -138,8 +137,8 @@ sc::opt::~opt() noexcept {
 //copy assignment operator
 sc::opt & sc::opt::operator=(const sc::opt & opts) noexcept {
 
-    if (this != &opts) this->do_copy(opts);
-    
+    if (this != &opts) this->do_copy(opts);    
+
     return *this;
 }
 

@@ -50,6 +50,22 @@ namespace sc {
         }                                     \
     }                                         \
 
+//concisely wait for a read lock on a lockable class
+#define _AWAIT_READ(bad_ret)                  \
+    { int _lock_rd_ret = this->_await_read(); \
+        if (_lock_rd_ret != 0) {              \
+            return bad_ret;                   \
+        }                                     \
+    }                                         \
+
+//concisely wait for a write lock on a lockable class
+#define _AWAIT_WRITE(bad_ret)                  \
+    { int _lock_wr_ret = this->_await_write(); \
+        if (_lock_wr_ret != 0) {               \
+            return bad_ret;                    \
+        }                                      \
+    }                                          \
+
 //concisely unlock a lockable class
 #define _UNLOCK { this->_unlock(); }
 
@@ -78,6 +94,8 @@ class _lockable {
         //lock operations
         [[nodiscard]] int _lock_read() const noexcept;
         [[nodiscard]] int _lock_write() const noexcept;
+        [[nodiscard]] int _await_read() const noexcept;
+        [[nodiscard]] int _await_write() const noexcept;
         void _unlock() const noexcept;
 };
 
@@ -108,6 +126,44 @@ class _ctor_failable {
         //getter
         [[nodiscard]] bool get_ctor_failed() const noexcept;
         void _set_ctor_failed(const bool failed) noexcept;
+};
+
+
+/*
+ *  NOTE: Many classes want a bitset interface for state management.
+ *        This is particularly important for scan types which must be
+ *        re-entrant only in some control paths. While rwlocks are
+ *        helpful in preventing simultaneous state modification,
+ *        management of permitted state changes is delegated to the
+ *        state machine subclass.
+ *
+ *  NOTE: Each class defines its own "state flags" namespace.
+ */
+
+//provide state flags (state machine) for a class
+class _state_machine {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        cm_byte state_bitset;
+
+    public:
+        // -- [methods]
+        //ctors
+        _state_machine() noexcept;
+        _state_machine(const sc::_state_machine & s_mach) = delete;
+        _state_machine(const sc::_state_machine && s_mach) = delete;
+
+        //operators
+        sc::_state_machine & operator=(
+            const sc::_state_machine & s_mach) = delete;
+        sc::_state_machine & operator=(
+            const sc::_state_machine && s_mach) = delete;
+
+        //setters & getters
+        void _set_bits(const cm_byte bitset) noexcept;
+        void _unset_bits(const cm_byte bitset) noexcept;
+        cm_byte _get_bits(const cm_byte bitset) noexcept;      
 };
 
 
@@ -211,6 +267,14 @@ class _scan : public _lockable {
         [[nodiscard]] virtual int reset() = 0;
 };
 
+//state machine interface flags shared by all scan types
+namespace _scan_flag {
+    const constexpr cm_byte running = 0b1 << 0; //running on worker pool
+    const constexpr cm_byte results = 0b1 << 1; //storing scan results
+}
+
+
+
 
 //worker control flags
 namespace _worker_flag {
@@ -221,10 +285,8 @@ namespace _worker_flag {
     const constexpr cm_byte error         = 0b1 << 4;
 }
 
-
 //worker misc.
 const constexpr useconds_t _release_broadcast_wait = 50000;
-
 
 //concurrent variables shared by a worker pool and its workers
 class _worker_concurrency : public sc::_ctor_failable {
@@ -300,7 +362,8 @@ class _worker_concurrency : public sc::_ctor_failable {
         // - worker pool calls
 
         //concurrency operators - control
-        [[nodiscard]] int wp_await_wkrs(const bool do_timeout) noexcept;
+        [[nodiscard]] int wp_await_wkrs(
+            const bool do_block, const bool do_timeout) noexcept;
         void wp_release_wkrs() noexcept;
 
         void wp_set_total_wkrs(const int total) noexcept;
@@ -322,7 +385,6 @@ class _worker_concurrency : public sc::_ctor_failable {
         void unset_flags(const cm_byte bitmask) noexcept;
         [[nodiscard]] cm_byte get_flags() const noexcept;
 };
-
 
 //references to attributes of the worker pool
 class _worker_pool_cache {
@@ -363,7 +425,6 @@ class _worker_pool_cache {
         [[nodiscard]] const sc::_opt_scan * get_opts_scan() const noexcept;
         [[nodiscard]] sc::_scan * get_scan() const noexcept;
 };
-
 
 /*
  *  NOTE: This class represents a single thread used for scanning
@@ -452,44 +513,122 @@ class _worker_bundle : public _ctor_failable {
 
 #define _SC_GET_NODE_WKR_BUNDLE(node) ((sc::_worker_bundle *) (node->data))
 
+//worker pool state flags
+namespace _worker_pool_state_flags {
+    const constexpr cm_byte running = 0b1 << 0; //currently running a scan
+}
 
-//defined in `ptrscan.hh`
-class _ptrscan_tree_node;
 
-//pointer scanner cache
-struct _ptrscan_cache {
+class _ptr_tree_node : public _lockable {
 
-    cm_vct /* <sc::_ptrscan_tree_node> */ * depth_level_vct;
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        //children of this code
+        cm_lst /* <sc::_ptrscan_tree_node> */ child_nodes;
 
-    _ptrscan_cache()
-     : depth_level_vct(nullptr) {}
+    public:
+        // -- [attributes]
+        const int id;
+        const cm_lst_node * const area_node;
+
+        const uintptr_t own_addr;
+        const uintptr_t ptr_addr;
+
+        const sc::_ptr_tree_node * parent;
+    
+        // -- [methods]
+        //ctors & dtor
+        _ptr_tree_node(
+            const int id,
+            const cm_lst_node * area_node,
+            const uintptr_t own_addr,
+            const uintptr_t ptr_addr,
+            const _ptr_tree_node * parent) noexcept;
+        _ptr_tree_node(
+            const sc::_ptr_tree_node & p_tree_node) = delete;
+        _ptr_tree_node(
+            const sc::_ptr_tree_node && p_tree_node) = delete;
+        ~_ptr_tree_node() noexcept;
+
+        //operators
+        sc::_ptr_tree_node & operator=(
+            const sc::_ptr_tree_node & p_tree) = delete;
+        sc::_ptr_tree_node & operator=(
+            const sc::_ptr_tree_node && p_tree) = delete;
+
+        //add a child
+        [[nodiscard]] sc::_ptr_tree_node * add_child(
+            const int id,
+            const cm_lst_node * area_node,
+            const uintptr_t own_addr,
+            const uintptr_t ptr_addr) noexcept;
+
+        //determine if this is a leaf node
+        [[nodiscard]] bool has_children() const noexcept;
+
+        //get children
+        [[nodiscard]] const cm_lst /* <sc::_ptr_tree_node> */ &
+            get_children() const noexcept;
+};
+
+#define _GET_NODE_PTR_TREE_NODE(node) \
+    ((sc::_ptr_tree_node *) (node->data))
+
+
+class _ptr_tree : public _lockable, public _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        int next_id;
+
+        //nodes at each level of the pointer tree
+        cm_vct /* cm_vct <sc::_ptrscan_tree_node *> */ depth_lvls;
+        sc::_ptr_tree_node * root_node;
+
+    public:
+        //[methods]
+        //ctors & dtor
+        _ptr_tree() noexcept;
+        _ptr_tree(const sc::_ptr_tree & p_tree) = delete;
+        _ptr_tree(const sc::_ptr_tree && p_tree) = delete;
+        ~_ptr_tree() noexcept;
+
+        //operators
+        sc::_ptr_tree & operator=(const sc::_ptr_tree & p_tree) = delete;
+        sc::_ptr_tree & operator=(const sc::_ptr_tree && p_tree) = delete;
+
+        //reset
+        [[nodiscard]] int reset() noexcept;
+
+        //set a new root node
+        [[nodiscard]] int init_root_node(
+            const cm_lst_node * area_node,
+            const uintptr_t own_addr,
+            const uintptr_t ptr_addr) noexcept;
+
+        //depth level operations
+        [[nodiscard]] int inc_depth_lvl() noexcept;
+
+        [[nodiscard]] int add_to_lvl(
+            const int lvl,
+            const sc::_ptr_tree_node * p_tree_node) noexcept;
+
+        //getters
+        [[nodiscard]] int get_next_id() noexcept;
+        
+        [[nodiscard]] const cm_vct /* <sc::_ptr_tree_node *> */ *
+            get_depth_lvl(const int lvl) const noexcept;
+            
+        [[nodiscard]] const sc::_ptr_tree_node *
+            get_root_node() const noexcept;
 };
 
 
-//pointer chain data
-struct _ptrscan_chain_data {
-
-    const char * pathname;
-    const cm_lst_node * area_node;
-
-    _ptrscan_chain_data(const char * pathname,
-                        const cm_lst_node * area_node) 
-     : pathname(pathname),
-       area_node(area_node) {}
-};
-
-
-//size of pathnames & chains in save file
-struct _ptrscan_fbuf_data_sz {
-
-    const size_t pathnames_sz;
-    const size_t chains_sz;
-
-    _ptrscan_fbuf_data_sz(const size_t pathnames_sz,
-                          const size_t chains_sz)
-     : pathnames_sz(pathnames_sz),
-       chains_sz(chains_sz) {}
-};
+//pointer scan control flags
+namespace _ptrscan_state_flag {
+    const constexpr cm_byte   = 0b1 << 0;
+    const constexpr cm_byte running = 0b1 << 1;
+}
 
 
 } //namespace sc

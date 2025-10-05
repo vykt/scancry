@@ -151,7 +151,7 @@ class map_area_set : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
-        cm_rbt /* <const cm_lst_node * : nullptr> */ set;
+        cm_rbt /* <const cm_lst_node * : const mc_area *> */ set;
 
         //[methods]
         void do_copy(const sc::map_area_set & ma_set) noexcept;
@@ -230,7 +230,7 @@ class opt : public _lockable, public _ctor_failable {
         //save & load file paths
         char * /* alloc */ file_pathname_out;
         char * /* alloc */ file_pathname_in;
-        
+
         //sessions & map
         cm_vct /* <const mc_session *> */ sessions;
         mc_vm_map * map;
@@ -426,7 +426,8 @@ namespace bits_worker {
     const constexpr cm_byte keep_scan_set = 0b1 << 0;
 }
 
-class worker_pool : public _lockable, public _ctor_failable {
+class worker_pool
+    : public _lockable, public _ctor_failable, public _state_machine {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
@@ -441,11 +442,13 @@ class worker_pool : public _lockable, public _ctor_failable {
         _worker_pool_cache cache;
         _worker_concurrency concur;
 
+
         //[methods]
-        [[nodiscard]] int do_run() noexcept;
-        [[nodiscard]] int await_run() noexcept;
-        [[nodiscard]] int do_ctrl_run() noexcept;
-        [[nodiscard]] int do_scan_run() noexcept;
+        [[nodiscard]] int do_run(const bool do_block) noexcept;
+        [[nodiscard]] int await_run(const bool do_block) noexcept;
+
+        [[nodiscard]] int do_ctrl_run(/* blocking */) noexcept;
+        [[nodiscard]] int do_scan_run(const bool do_block) noexcept;
 
         void remove_wkr_bundles(const int count) noexcept;
         void cleanup_err() noexcept;
@@ -466,7 +469,9 @@ class worker_pool : public _lockable, public _ctor_failable {
 
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _single_run() noexcept;
+        /* internal */ [[nodiscard]] int _try_single_run() noexcept;
         /* internal */ [[nodiscard]] int _await_run() noexcept;
+        /* internal */ [[nodiscard]] int _try_await_run() noexcept;
         /* internal */ void _cancel() noexcept;
 
         //ctor & dtor
@@ -524,141 +529,142 @@ namespace file {
 
 
 /*
- *  Pointer scanner. 
+ *  NOTE: These classes implement a pointer scanner. Internally, the
+ *        pointer scanner builds a tree where the root node is the
+ *        target address, and leaf nodes are starting points for
+ *        the scan. 
  */
 
-
-class _ptrscan_tree_node;
-class _ptrscan_tree;
-
-
-//pointer scanner flattened tree
-class ptrscan_chain {
+//pointer chain from pointer scanner's flattened tree
+class ptr_chain
+    : public _ctor_failable, public _state_machine {
 
     _SC_DBG_PRIVATE:
-        //[attributes]
-        uint32_t obj_idx;
-        const cm_lst_node * obj_node;
-        const char * pathname;
+        // -- [attributes]
+        //object list index
+        /* internal */ uint32_t _obj_idx;
+        bool is_in_map;
+        bool is_static;
+        union {
+            const cm_lst_node * obj_node; //`is_in_map` == true
+            const char * pathname;        //`is_in_map` == false
+        };
         cm_vct /* <off_t> */ offsets;
 
+        // -- [methods]
+        void do_copy(const sc::ptr_chain & p_chain) noexcept;
+
     public:
-        //[methods]
+        // -- [methods]
         /* internal */ uint32_t _get_obj_idx() const noexcept;
     
         //ctors & dtor
-        ptrscan_chain(const cm_lst_node * obj_node,
-                      const uint32_t _obj_idx,
-                      const cm_vct /* <off_t> */ & offsets);
-        ptrscan_chain(const char * pathname,
-                      const uint32_t _obj_idx,
-                      const cm_vct /* <off_t> */ & offsets);
-        ~ptrscan_chain();
-        
-        //getters & setters
-        const cm_lst_node * get_obj_node() const noexcept;
-        const char * get_pathname() const noexcept;
-        const cm_vct /* <off_t> */ & get_offsets() const noexcept;
+        ptr_chain(
+            const uint32_t _obj_idx,
+            const bool is_static,
+            const cm_lst_node * /* nullable */ obj_node,
+            const char * /* nullable */ pathname,
+            const cm_vct /* <off_t> */ & offsets) noexcept;
+        ptr_chain(const sc::ptr_chain & p_chain) noexcept;
+        ptr_chain(const sc::ptr_chain && p_chain) = delete;
+        ~ptr_chain() noexcept;
+
+        //operators
+        sc::ptr_chain & operator=(const sc::ptr_chain & p_chain) noexcept;
+        sc::ptr_chain & operator=(const sc::ptr_chain && p_chain) = delete;
+
+        //determine if chain's starting
+        //reference object is in the current map
+        [[nodiscard]] bool in_map() const noexcept;
+
+        //getters
+        [[nodiscard]] bool get_is_static() const noexcept;
+        [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
+        [[nodiscard]] const char * get_pathname() const noexcept;
+        [[nodiscard]] const cm_vct & get_offsets() const noexcept;
 };
 
- 
+class ptrscan : public _scan, public _ctor_failable {
 
-#if 0
-class ptrscan : public _scan {
-
-    /* FIXME: Pointer scan state needs to save options used to produce
-     *        the results, and store it to dist to be read later. */
+    /*
+     *  TODO: Record in the savefile the parameters used to produce
+     *        the results.
+     *
+     *  TODO: When producing chains, mark whether they begin at an
+     *        area that was marked as static at the time of the scan.
+     */
 
     _SC_DBG_PRIVATE:
-        //[attributes]
+        // -- [attributes]
         //pointer scan tree
-        sc::_ptrscan_tree * tree_p;
-        int cur_depth_level;
+        sc::_ptr_tree tree;
 
         //flattened tree chains
         cm_vct /* <const char * (alloc)> */ ser_pathnames;
-        cm_vct /* <struct ptrscan_chain> */ chains;
+        cm_vct /* <ptr_chain> */ chains;
 
-        //cache
-        struct _ptrscan_cache cache;
+        //depth level
+        int depth_lvl;
+        cm_vct /* <sc::_ptr_tree_node *> */ * depth_lvl_vct_p;
 
-        //[methods]
-        void add_node(_ptrscan_tree_node * parent_node,
-                      const cm_lst_node * area_node,
-                      const uintptr_t own_addr,
-                      const uintptr_t ptr_addr);
+        //high-level state
+        cm_byte state_flags;
 
-        [[nodiscard]] sc::_ptrscan_chain_data get_chain_data(
-            const cm_lst_node * const area_node) const noexcept;
-
-        [[nodiscard]] int get_chain_idx(const char * pathname);
-
-        [[nodiscard]] bool
-            is_chain_valid(const uintptr_t target_addr,
-                           const struct sc::ptrscan_chain & chain,
-                           mc_session & session) const;
-
-        [[nodiscard]] sc::_ptrscan_fbuf_data_sz
-            get_fbuf_data_sz() const noexcept;
-
+        // -- [methods]
+        [[nodiscard]] int do_reset() noexcept;
         
-        [[nodiscard]] int handle_body_start(
-            const std::vector<cm_byte> & buf, off_t hdr_off, off_t & buf_off);
-        [[nodiscard]]
-            std::optional<std::pair<uint32_t, std::vector<off_t>>>
-                handle_body_chain(
-                    const std::vector<cm_byte> & buf, off_t & buf_off);
-        
-        [[nodiscard]] int flatten_tree();
-
-        void do_reset();
+        [[nodiscard]] int do_run_scan(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr,
+            sc::worker_pool & w_pool,
+            const cm_byte w_pool_flags,
+            const bool do_block) noexcept;
 
     public:
-        //[methods]
-        /* internal */ [[nodiscard]] off_t _process_addr(
-                    const struct _scan_arg arg,
-                    const opt * const opts,
-                    const _opt_scan * const opts_scan)
-                    noexcept override final;
+        // -- [methods]
+        /* internal */ [[nodiscard]] virtual off_t
+            _process_addr(
+                const sc::_scan_arg & arg,
+                const opt & opts,
+                const _opt_scan & opts_scan) noexcept override final;
 
-        /* internal */ [[nodiscard]] int _generate_body(
-                    cm_vct /* <cm_byte> */ & buf,
-                    const off_t hdr_off) noexcept override final;
-        
-        /* internal */ [[nodiscard]] int _process_body(
-                    const std::vector<cm_byte> & buf, off_t hdr_off,
-                    const mc_vm_map & map) override final;
-        /* internal */ [[nodiscard]] int _read_body(
-                    const std::vector<cm_byte> & buf,
-                    off_t hdr_off) override final;
+        //ctors & dtor
+        ptrscan() noexcept;
+        ptrscan(const sc::ptrscan & pscan) = delete;
+        ptrscan(const sc::ptrscan && pscan) = delete;
+        ~ptrscan() noexcept;
 
+        //operators
+        sc::ptrscan & operator=(const sc::ptrscan & pscan) = delete;
+        sc::ptrscan & operator=(const sc::ptrscan && pscan) = delete;
 
-        //ctors
-        ptrscan();
-        ptrscan(const ptrscan & ptr_s) = delete;
-        ptrscan(const ptrscan && ptr_s) = delete;
-        ~ptrscan();
-        
-        [[nodiscard]] int reset() override final;
+        // - perform scans
 
-        //perform a scan
-        [[nodiscard]] int scan(
-                    sc::opt & opts,
-                    sc::opt_ptr & opts_ptr,
-                    sc::map_area_set & ma_set,
-                    worker_pool & w_pool,
-                    cm_byte flags);
+        //perform one pass (+1 depth)
+        [[nodiscard]] int run_scan(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr,
+            sc::worker_pool & w_pool,
+            const cm_byte w_pool_flags) noexcept;
 
-        //verify chains
-        [[nodiscard]] int verify(
-            sc::opt & opts, const sc::opt_ptr & opts_ptr);
+        [[nodiscard]] int try_run_scan(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr,
+            sc::worker_pool & w_pool,
+            const cm_byte w_pool_flags) noexcept;
 
-        //getters & setters
-        [[nodiscard]]
-            const cm_vct /* <sc::ptrscan_chain> */ &
-                get_chains() const noexcept;
+        [[nodiscard]] int await_scan(
+            sc::worker_pool & w_pool,
+            const bool do_block) noexcept;
+            
+        [[nodiscard]] int try_await_scan(
+            sc::worker_pool & w_pool,
+            const bool do_block) noexcept;
+
+        //reset        
+        [[nodiscard]] int reset() noexcept override final;
 };
-#endif
+
 
 }; //end namespace `sc`
 #endif //#ifdef __cplusplus
@@ -1070,34 +1076,38 @@ extern __thread int sc_errno;
 // [error codes] TODO define error code values 3***
 
 // 1XX - user errors
-#define SC_ERR_OPT_NOMAP      3100
-#define SC_ERR_OPT_NOSESSION  3101
-#define SC_ERR_SCAN_EMPTY     3102
-#define SC_ERR_OPT_EMPTY      3103
-#define SC_ERR_OPT_MISSING    3104
-#define SC_ERR_OPT_TYPE       3105
-#define SC_ERR_TIMESPEC       3106
-#define SC_ERR_IN_USE         3107
-#define SC_ERR_NO_RESULT      3108
-#define SC_ERR_SHALLOW_RESULT 3109
-#define SC_ERR_INVALID_FILE   3110
-#define SC_ERR_VERSION_FILE   3111
+#define SC_ERR_OPT_NOMAP        3100
+#define SC_ERR_OPT_NOSESSION    3101
+#define SC_ERR_SCAN_EMPTY       3102
+#define SC_ERR_OPT_EMPTY        3103
+#define SC_ERR_OPT_MISSING      3104
+#define SC_ERR_OPT_TYPE         3105
+#define SC_ERR_OPT_CHANGED      3106
+#define SC_ERR_OPT_BAD          3107
+#define SC_ERR_TIMESPEC         3108
+#define SC_ERR_IN_USE           3109
+#define SC_ERR_NO_RESULT        3110
+#define SC_ERR_SHALLOW_RESULT   3111
+#define SC_ERR_INVALID_FILE     3112
+#define SC_ERR_VERSION_FILE     3113
+#define SC_ERR_WORKER_POOL_BUSY 3114
+#define SC_ERR_SCAN_BUSY        3115
 
 // 2XX - internal errors
-#define SC_ERR_CMORE          3200
-#define SC_ERR_MEMCRY         3201
-#define SC_ERR_PTHREAD        3202
-#define SC_ERR_DEADLOCK       3203
-#define SC_ERR_PTR_CHAIN      3204
-#define SC_ERR_RTTI           3205
-#define SC_ERR_TYPECAST       3206
+#define SC_ERR_CMORE            3200
+#define SC_ERR_MEMCRY           3201
+#define SC_ERR_PTHREAD          3202
+#define SC_ERR_DEADLOCK         3203
+#define SC_ERR_PTR_CHAIN        3204
+#define SC_ERR_RTTI             3205
+#define SC_ERR_TYPECAST         3206
 
 // 3XX - environment errors
-#define SC_ERR_MEM            3300
-#define SC_ERR_FILE           3301
-#define SC_ERR_PAGESIZE       3302
-#define SC_ERR_WORKER_TIMEOUT 3303
-#define SC_ERR_FILE_IO        3304
+#define SC_ERR_MEM              3300
+#define SC_ERR_FILE             3301
+#define SC_ERR_PAGESIZE         3302
+#define SC_ERR_WORKER_TIMEOUT   3303
+#define SC_ERR_FILE_IO          3304
 
 
 // [error code messages]
@@ -1115,6 +1125,10 @@ extern __thread int sc_errno;
     "Required options are not set.\n"
 #define SC_ERR_OPT_TYPE_MSG \
     "Mismatching options class provided for a scan.\n"
+#define SC_ERR_OPT_CHANGED_MSG \
+    "Untimely change in provided options.\n"
+#define SC_ERR_OPT_BAD_MSG \
+    "Provided option has a bad value.\n"
 #define SC_ERR_TIMESPEC_MSG \
     "Failed to fetch the current monotonic time.\n"
 #define SC_ERR_IN_USE_MSG \
@@ -1127,6 +1141,10 @@ extern __thread int sc_errno;
     "The provided file is invalid or corrupt.\n"
 #define SC_ERR_VERSION_FILE_MSG \
     "The provided file's version is incompatible.\n"
+#define SC_ERR_WORKER_POOL_BUSY_MSG \
+    "Worker pool is busy.\n"
+#define SC_ERR_SCAN_BUSY_MSG \
+    "Scan is busy.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \

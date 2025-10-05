@@ -9,8 +9,8 @@ LD_DIR=/etc/ld.so.conf.d
 CC=gcc
 CXX=g++
 
-FLAGS=-O2 -fno-exceptions -flto -funroll-loops -ftree-vectorize
-FLAGS_TEST=-ggdb3 -O0 -fno-exceptions
+FLAGS=-fno-exceptions
+FLAGS_TEST=-ggdb3 -O0
 WARN_OPTS=-Wall -Wextra -Wpedantic
 
 CFLAGS=
@@ -41,7 +41,7 @@ ifeq ($(build),debug)
 	FLAGS_TEST += -DSC_DEBUG
  	LDFLAGS    += -static-libasan
 else
-	CFLAGS += -O2
+	CFLAGS += -O2 -flto -funroll-loops -ftre-vectorize
 endif
 
 #[enable tracing]

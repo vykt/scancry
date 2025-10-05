@@ -115,5 +115,8 @@ TEST_CASE(test_c_file_subtests[0]) {
     REQUIRE_EQ(mdata.ver, SC_FILE_VER_0_1);
     REQUIRE_EQ(mdata.type, SC_FILE_PTRSCAN_TYPE);
 
+    //cleanup options
+    sc_del_opt(opts);
+
     return;
 }

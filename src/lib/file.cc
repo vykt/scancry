@@ -49,7 +49,7 @@
 
     //read the scancry header
     rd_bytes = std::fread(&hdr, sizeof(hdr), 1, fs);
-    if (rd_bytes != 1) {
+    if (rd_bytes < 0) {
         sc_errno = SC_ERR_FILE_IO;
         return -1;
     }
@@ -67,6 +67,10 @@
         sc_errno = SC_ERR_VERSION_FILE;
         return -1;
     }
+
+    //populate metadata
+    mdata.ver = hdr.ver;
+    mdata.type = hdr.type;
 
     return 0;
 }

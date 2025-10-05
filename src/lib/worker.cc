@@ -41,7 +41,7 @@
  *  --- [WORKER_CONCURRENCY | INTERNAL] ---
  */
 
-//ctor & dtor
+//constructor
 sc::_worker_concurrency::_worker_concurrency() noexcept
     : _ctor_failable(),
       release_count_cond(PTHREAD_COND_INITIALIZER),
@@ -72,6 +72,7 @@ sc::_worker_concurrency::_worker_concurrency() noexcept
 }
 
 
+//destructor
 sc::_worker_concurrency::~_worker_concurrency() noexcept {
 
     //delete exit uids vector
@@ -224,11 +225,11 @@ const constexpr useconds_t _release_timeout_sec = 10;
 
 //allow a worker pool to wait for workers to ready
 [[nodiscard]] int sc::_worker_concurrency::wp_await_wkrs(
-    const bool do_timeout) noexcept {
+    const bool do_block, const bool do_timeout) noexcept {
 
     int ret;
 
-    int fn_ret;
+    int fn_ret = 1;
     bool done = false;
 
     struct timeval cur_time;
@@ -275,7 +276,7 @@ const constexpr useconds_t _release_timeout_sec = 10;
         //return if done
         pthread_mutex_unlock(&this->flags_lock);
         pthread_mutex_unlock(&this->errno_lock);
-        if (done == true) return fn_ret;
+        if (done == true || do_block == false) return fn_ret;
 
 
         //get time of day
@@ -575,7 +576,7 @@ void * _bootstrap_worker(void * arg) {
 }
 
 
-//ctor & dtor
+//constructor
 sc::_worker::_worker(
     const int & uid,
     const struct sc::_worker_pool_cache & pool_cache,
@@ -614,6 +615,7 @@ sc::_worker::_worker(
 }
 
 
+//destructor
 sc::_worker::~_worker() noexcept {
 
     std::free(this->buf);
@@ -911,7 +913,7 @@ void sc::_worker::main() noexcept {
  *  --- [WORKER BUNDLE | INTERNAL] ---
  */
 
-//ctor & dtor
+//constructor
 sc::_worker_bundle::_worker_bundle(
     const int uid,
     const struct sc::_worker_pool_cache & pool_cache,
@@ -950,6 +952,7 @@ sc::_worker_bundle::_worker_bundle(
 }
 
 
+//destructor
 sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //if a thread was never started
@@ -978,19 +981,23 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 
 /*
- *  --- [WORKER_POOL | PRIVATE] ---
+ *  --- [WORKER POOL | PRIVATE] ---
  */
 
 //signal a single run
-[[nodiscard]] int sc::worker_pool::do_run() noexcept {
+[[nodiscard]] int sc::worker_pool::do_run(const bool do_block) noexcept {
 
     int ret;
 
 
     //wait for workers to be ready
-    ret = this->concur.wp_await_wkrs(false);
-    if (ret != 0) {
+    ret = this->concur.wp_await_wkrs(do_block, false);
+    if (ret == -1) {
         this->cleanup_err();
+        return -1;
+    }
+    if (ret == 1) {
+        sc_errno = SC_ERR_WORKER_POOL_BUSY;
         return -1;
     }
 
@@ -1008,15 +1015,19 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 
 //await a single run to finish
-[[nodiscard]] int sc::worker_pool::await_run() noexcept {
+[[nodiscard]] int sc::worker_pool::await_run(const bool do_block) noexcept {
 
     int ret;
 
 
     //wait for workers to be ready
-    ret = this->concur.wp_await_wkrs(false);
-    if (ret != 0) {
+    ret = this->concur.wp_await_wkrs(do_block, false);
+    if (ret == -1) {
         this->cleanup_err();
+        return -1;
+    }
+    if (ret == 1) {
+        sc_errno = SC_ERR_WORKER_POOL_BUSY;
         return -1;
     }
 
@@ -1034,7 +1045,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     this->concur.set_flags(sc::_worker_flag::ctrl_run);
 
     //perform a control run
-    ret = this->do_run();
+    ret = this->do_run(true);
     if (ret != 0) return -1;
 
     return 0;    
@@ -1042,7 +1053,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 
 //perform a scan run
-[[nodiscard]] int sc::worker_pool::do_scan_run() noexcept {
+[[nodiscard]] int sc::worker_pool::do_scan_run(const bool do_block) noexcept {
 
     int ret;
 
@@ -1051,7 +1062,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     this->concur.unset_flags(sc::_worker_flag::ctrl_run);
 
     //perform a scan run
-    ret = this->do_run();
+    ret = this->do_run(do_block);
     if (ret != 0) return -1;
 
     return 0;    
@@ -1168,7 +1179,7 @@ void sc::worker_pool::cleanup_err() noexcept {
 
         //control run
         /* discard */ ret = this->do_ctrl_run();
-        /* discard */ ret = this->concur.wp_await_wkrs(true);
+        /* discard */ ret = this->concur.wp_await_wkrs(true, true);
 
         //destruct worker bundles
         this->remove_wkr_bundles(diff * -1);
@@ -1329,7 +1340,7 @@ void sc::worker_pool::cleanup_err() noexcept {
 
 
 /*
- *  --- [WORKER_POOL | INTERNAL] ---
+ *  --- [WORKER POOL | INTERNAL] ---
  */
 
 //entry & exit functions for scans
@@ -1343,11 +1354,10 @@ void sc::worker_pool::cleanup_err() noexcept {
     int do_distrib;
 
     const sc::map_area_set * scan_set;
-
+    
 
     //write lock the worker pool
-    ret = this->_lock_write();
-    if (ret != 0) return -1;
+    _LOCK_WRITE(-1);
 
     //setup cache
     this->cache.~_worker_pool_cache();
@@ -1400,7 +1410,7 @@ void sc::worker_pool::cleanup_err() noexcept {
     this->cache.unlock();
 
     _setup_fail_1:
-    this->_unlock();
+    _UNLOCK
 
     return -1;
 }
@@ -1418,15 +1428,25 @@ void sc::worker_pool::_teardown() noexcept {
 }
 
 
-//dispatch a single pass over the scan set
+//dispatch a single pass over the scan set (blocking)
 [[nodiscard]] int sc::worker_pool::_single_run() noexcept {
-    return (this->do_scan_run() != 0) ? -1 : 0;
+    return (this->do_scan_run(true) != 0) ? -1 : 0;
+}
+
+//dispatch a single pass over the scan set
+[[nodiscard]] int sc::worker_pool::_try_single_run() noexcept {
+    return (this->do_scan_run(false) != 0) ? -1 : 0;
 }
 
 
-//await for a single pass over the scan set to finish
+//await for a single pass over the scan set to finish (blocking)
 [[nodiscard]] int sc::worker_pool::_await_run() noexcept {
-    return (this->await_run() != 0) ? -1 : 0;
+    return (this->await_run(true) != 0) ? -1 : 0;
+}
+
+//await for a single pass over the scan set to finish
+[[nodiscard]] int sc::worker_pool::_try_await_run() noexcept {
+    return (this->await_run(false) != 0) ? -1 : 0;
 }
 
 
@@ -1438,10 +1458,10 @@ void sc::worker_pool::_cancel() noexcept {
 
 
 /*
- *  --- [WORKER_POOL | PUBLIC] ---
+ *  --- [WORKER POOL | PUBLIC] ---
  */
 
-//ctor & dtor
+//constructor
 sc::worker_pool::worker_pool() noexcept
     : _ctor_failable(),
       wkr_next_uid(0),
@@ -1464,6 +1484,7 @@ sc::worker_pool::worker_pool() noexcept
 }
 
 
+//destructor
 sc::worker_pool::~worker_pool() noexcept {
 
     #pragma GCC diagnostic push

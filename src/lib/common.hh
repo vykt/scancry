@@ -1,5 +1,8 @@
 #pragma once
 
+//C++ builtin
+#include <new>
+
 //C standard library
 #include <cstdlib>
 #include <cstring>

@@ -41,6 +41,14 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_TYPE_MSG);
             break;
 
+        case SC_ERR_OPT_CHANGED:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_CHANGED_MSG);
+            break;
+
+        case SC_ERR_OPT_BAD:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_OPT_BAD_MSG);
+            break;
+
         case SC_ERR_TIMESPEC:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_TIMESPEC_MSG);
             break;
@@ -63,6 +71,14 @@ void sc_perror(const char * prefix) {
 
         case SC_ERR_VERSION_FILE:
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_VERSION_FILE_MSG);
+            break;
+
+        case SC_ERR_WORKER_POOL_BUSY:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_WORKER_POOL_BUSY_MSG);
+            break;
+
+        case SC_ERR_SCAN_BUSY:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_SCAN_BUSY_MSG);
             break;
 
         // 2XX - internal errors
@@ -146,6 +162,12 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_OPT_TYPE:
             return SC_ERR_OPT_TYPE_MSG;
 
+        case SC_ERR_OPT_CHANGED:
+            return SC_ERR_OPT_CHANGED_MSG;
+
+        case SC_ERR_OPT_BAD:
+            return SC_ERR_OPT_BAD_MSG;
+
         case SC_ERR_TIMESPEC:
             return SC_ERR_TIMESPEC_MSG;
 
@@ -163,6 +185,12 @@ const char * sc_strerror(const int sc_errnum) {
 
         case SC_ERR_VERSION_FILE:
             return SC_ERR_VERSION_FILE_MSG;
+
+        case SC_ERR_WORKER_POOL_BUSY:
+            return SC_ERR_WORKER_POOL_BUSY_MSG;
+
+        case SC_ERR_SCAN_BUSY:
+            return SC_ERR_SCAN_BUSY_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:

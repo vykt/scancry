@@ -14,7 +14,6 @@
 #include "scancry.h"
 #include "map_area.hh"
 #include "opt.hh"
-#include "c_iface.hh"
 #include "common.hh"
 #include "error.hh"
 

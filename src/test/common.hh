@@ -29,7 +29,7 @@ namespace _common {
     const constexpr char * concur_warn_tag
         = "concurrency";
     const constexpr char * concur_warn
-        = "this thread relies on a race condition that may fail in a pathological case.";
+        = "race condition may fail in the pathological case.";
 
     //specify C/C++ interface
     enum test_iface_type {

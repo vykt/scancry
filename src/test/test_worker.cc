@@ -135,10 +135,12 @@ static void _assert_worker_bundle(
 //assert worker pool
 static void _assert_worker_pool(
     const sc::worker_pool & w_pool,
+    const cm_byte state_bitset,
     const int wkr_bundles_len,
     const std::optional<int> sorted_areas_cache_len) {
 
     #ifdef SC_DEBUG
+    REQUIRE_EQ(w_pool.state_bitset, state_bitset);
     REQUIRE_EQ(w_pool.wkr_bundles.len, wkr_bundles_len);
     if (sorted_areas_cache_len.has_value()) {
         REQUIRE_EQ(w_pool.sorted_areas_cache.len, sorted_areas_cache_len);
@@ -156,6 +158,7 @@ static void _assert_all_state(
     // - options
     const bool sessions_cached,
     // - parameters
+    const cm_byte state_bitset,
     const int wkr_bundles_len,
     const std::vector<int> wkr_uids,
     const std::vector<int> wkr_session_idxs,
@@ -181,7 +184,7 @@ static void _assert_all_state(
 
     //assert the worker pool
     _shared::_assert_worker_pool(
-        w_pool, wkr_bundles_len, sorted_areas_cache_len);
+        w_pool, state_bitset, wkr_bundles_len, sorted_areas_cache_len);
 
     #ifdef SC_DEBUG
     //assert all workers
@@ -277,7 +280,7 @@ namespace _worker_pool {
         REQUIRE_EQ(w_pool.get_ctor_failed(), false);
 
         //assert worker pool
-        _shared::_assert_worker_pool(w_pool, 0, std::nullopt);
+        _shared::_assert_worker_pool(w_pool, 0b0, 0, std::nullopt);
 
         #ifdef SC_DEBUG
         _shared::_assert_worker_pool_cache(
@@ -621,7 +624,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
     SUBCASE(test_cc_worker_pool_subtests[2]) {
         _common::title(_common::CC,
                        "worker_pool", "spawn & terminate workers");
-        #ifdef SC_DEBUG
+        #ifndef SC_DEBUG
         _common::release_warning();
         #endif
 
@@ -650,6 +653,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     1,
                     {0},
                     {0},
@@ -670,8 +674,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = _w_pool.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 1, 2);
+                ret = _w_pool.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -701,6 +707,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     8,
                     {1, 2, 3, 4, 5, 6, 7, 8},
                     {0, 1, 2, 3, 4, 5, 6, 7},
@@ -722,7 +729,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 8, 2);
             }
         );
 
@@ -751,6 +760,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     4,
                     {1, 2, 3, 4},
                     {0, 1, 2, 3},
@@ -772,7 +782,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 4, 2);
             }
         );
 
@@ -801,6 +813,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     8,
                     {1, 2, 3, 4, 9, 10, 11, 12},
                     {0, 1, 2, 3, 4, 5, 6, 7},
@@ -822,7 +835,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 8, 2);
             }
         );
     }
@@ -832,7 +847,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
     SUBCASE(test_cc_worker_pool_subtests[3]) {
         _common::title(_common::CC,
                        "worker_pool", "spawn & terminate workers (flags)");
-        #ifdef SC_DEBUG
+        #ifndef SC_DEBUG
         _common::release_warning();
         #endif
 
@@ -861,6 +876,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     2,
                     {0, 1},
                     {0, 1},
@@ -881,7 +897,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 2, 2);
             }
         );
     
@@ -911,6 +929,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     false,
+                    sc::_worker_pool_sf::bound,
                     2,
                     {0, 1},
                     {0, 1},
@@ -931,7 +950,9 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 2, 2);
             }
         );
     }
@@ -941,7 +962,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
     SUBCASE(test_cc_worker_pool_subtests[4]) {
         _common::title(_common::CC,
                        "worker_pool", "run scans");
-        #ifdef SC_DEBUG
+        #ifndef SC_DEBUG
         _common::release_warning();
         #endif
         _common::concur_warning();
@@ -980,6 +1001,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     1,
                     {0},
                     {0},
@@ -1000,8 +1022,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 1, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1041,6 +1065,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     1,
                     {0},
                     {0},
@@ -1061,8 +1086,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 1, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1102,6 +1129,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     0,
                     {0},
                     {0},
@@ -1124,8 +1152,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
 
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 0, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1155,7 +1185,15 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //assert in-prog state
             [](const sc::worker_pool & _w_pool,
-               const cm_vct /* mc_session * */ & sessions) {},
+               const cm_vct /* mc_session * */ & sessions) {
+                
+                _shared::_assert_worker_pool(
+                    _w_pool,
+                    sc::_worker_pool_sf::bound
+                     | sc::_worker_pool_sf::running,
+                    1,
+                    2);
+            },
 
             //assert finished state
             [&opt_args, &opts_fxt, &scan_fxt](
@@ -1165,6 +1203,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     1,
                     {1},
                     {0},
@@ -1186,8 +1225,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = _w_pool.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 1, 2);
+                ret = _w_pool.reset();
                 REQUIRE_EQ(ret, 0);
                 ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
@@ -1229,6 +1270,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     2,
                     {2, 3},
                     {0, 1},
@@ -1249,8 +1291,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 2, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1290,6 +1334,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     2,
                     {2, 3},
                     {0, 1},
@@ -1310,8 +1355,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 2, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1350,6 +1397,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     0,
                     {0},
                     {0},
@@ -1371,8 +1419,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 0, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1411,6 +1461,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     0,
                     {0},
                     {0},
@@ -1432,8 +1483,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = scan_fxt.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 0, 2);
+                ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);
             }
         );
@@ -1462,7 +1515,15 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //assert in-prog state
             [](const sc::worker_pool & _w_pool,
-               const cm_vct /* mc_session * */ & sessions) {},
+               const cm_vct /* mc_session * */ & sessions) {
+                
+                _shared::_assert_worker_pool(
+                    _w_pool,
+                    sc::_worker_pool_sf::bound
+                     | sc::_worker_pool_sf::running,
+                    2,
+                    2);
+            },
 
             //assert finished state
             [&opt_args, &opts_fxt, &scan_fxt](
@@ -1472,6 +1533,7 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
                 _shared::_assert_all_state(
                     _w_pool,
                     true,
+                    sc::_worker_pool_sf::bound,
                     2,
                     {6, 7},
                     {0, 1},
@@ -1493,8 +1555,10 @@ TEST_CASE(test_cc_worker_pool_subtests[1]) {
 
             //teardown
             [&scan_fxt](sc::worker_pool & _w_pool) {
-                _w_pool._teardown();
-                int ret = _w_pool.reset();
+                int ret = _w_pool._teardown();
+                REQUIRE_EQ(ret, 0);
+                _shared::_assert_worker_pool(_w_pool, 0b0, 2, 2);
+                ret = _w_pool.reset();
                 REQUIRE_EQ(ret, 0);
                 ret = scan_fxt.reset();
                 REQUIRE_EQ(ret, 0);

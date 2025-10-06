@@ -1127,7 +1127,7 @@ TEST_CASE(test_cc_opt_subtests[9]) {
 //C test
 TEST_CASE(test_c_opt_subtests[9]) {
     _common::title(_common::C, "opt", "reset");
-    #ifdef SC_DEBUG
+    #ifndef SC_DEBUG
     _common::release_warning();
     #endif
 

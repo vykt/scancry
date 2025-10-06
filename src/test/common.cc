@@ -17,9 +17,9 @@ void _common::title(const enum test_iface_type t_iface,
     //print the language tag
     if (use_colour == true) {
         std::cout << "[" << ((t_iface == CC) ? colour::RED : colour::GRAY)
-                  << ((t_iface == CC) ? "C++" : "C") << colour::RESET << "] ";
+                  << ((t_iface == CC) ? "C++" : "C  ") << colour::RESET << "] ";
     } else {
-        std::cout << ((t_iface == CC) ? "[C++] " : "[C] ");
+        std::cout << ((t_iface == CC) ? "[C++] " : "[C  ] ");
     }
 
     //print the test & subtest
@@ -72,13 +72,13 @@ void _common::concur_warning() {
 
     //print tag
     if (use_colour == true) {
-        std::cout << "[" << colour::CYAN << _common::release_warn_tag
-                  << colour::RESET << "] "
-                  << _common::release_warn << std::endl;
+        std::cout << "[" << colour::MAGENTA << _common::concur_warn_tag
+                  << colour::RESET << "  ] "
+                  << _common::concur_warn << std::endl;
         
     } else {
-        std::cout << "[" << _common::release_warn_tag << "] "
-                  << _common::release_warn << std::endl;
+        std::cout << "[" << _common::concur_warn_tag << "  ] "
+                  << _common::concur_warn << std::endl;
     }
 }
 

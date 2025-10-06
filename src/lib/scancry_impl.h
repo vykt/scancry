@@ -38,6 +38,7 @@ namespace sc {
 #define _LOCK_READ(bad_ret)                  \
     { int _lock_rd_ret = this->_lock_read(); \
         if (_lock_rd_ret != 0) {             \
+            sc_errno = SC_ERR_IN_USE;        \
             return bad_ret;                  \
         }                                    \
     }                                        \
@@ -46,6 +47,7 @@ namespace sc {
 #define _LOCK_WRITE(bad_ret)                  \
     { int _lock_wr_ret = this->_lock_write(); \
         if (_lock_wr_ret != 0) {              \
+            sc_errno = SC_ERR_IN_USE;         \
             return bad_ret;                   \
         }                                     \
     }                                         \
@@ -54,6 +56,7 @@ namespace sc {
 #define _AWAIT_READ(bad_ret)                  \
     { int _lock_rd_ret = this->_await_read(); \
         if (_lock_rd_ret != 0) {              \
+            sc_errno = SC_ERR_IN_USE;         \
             return bad_ret;                   \
         }                                     \
     }                                         \
@@ -62,6 +65,7 @@ namespace sc {
 #define _AWAIT_WRITE(bad_ret)                  \
     { int _lock_wr_ret = this->_await_write(); \
         if (_lock_wr_ret != 0) {               \
+            sc_errno = SC_ERR_IN_USE;          \
             return bad_ret;                    \
         }                                      \
     }                                          \
@@ -135,13 +139,14 @@ class _ctor_failable {
  *        re-entrant only in some control paths. While rwlocks are
  *        helpful in preventing simultaneous state modification,
  *        management of permitted state changes is delegated to the
- *        state machine subclass.
+ *        `_stateful` subclass.
  *
- *  NOTE: Each class defines its own "state flags" namespace.
+ *  NOTE: Each class defines its own flags namespace with a `_sf`
+ *        (state flag) suffix.
  */
 
 //provide state flags (state machine) for a class
-class _state_machine {
+class _stateful {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
@@ -150,15 +155,15 @@ class _state_machine {
     public:
         // -- [methods]
         //ctors
-        _state_machine() noexcept;
-        _state_machine(const sc::_state_machine & s_mach) = delete;
-        _state_machine(const sc::_state_machine && s_mach) = delete;
+        _stateful() noexcept;
+        _stateful(const sc::_stateful & state) = delete;
+        _stateful(const sc::_stateful && state) = delete;
 
         //operators
-        sc::_state_machine & operator=(
-            const sc::_state_machine & s_mach) = delete;
-        sc::_state_machine & operator=(
-            const sc::_state_machine && s_mach) = delete;
+        sc::_stateful & operator=(
+            const sc::_stateful & state) = delete;
+        sc::_stateful & operator=(
+            const sc::_stateful && state) = delete;
 
         //setters & getters
         void _set_bits(const cm_byte bitset) noexcept;
@@ -267,8 +272,8 @@ class _scan : public _lockable {
         [[nodiscard]] virtual int reset() = 0;
 };
 
-//state machine interface flags shared by all scan types
-namespace _scan_flag {
+//state flags shared by all scan types
+namespace _scan_sf {
     const constexpr cm_byte running = 0b1 << 0; //running on worker pool
     const constexpr cm_byte results = 0b1 << 1; //storing scan results
 }
@@ -514,8 +519,9 @@ class _worker_bundle : public _ctor_failable {
 #define _SC_GET_NODE_WKR_BUNDLE(node) ((sc::_worker_bundle *) (node->data))
 
 //worker pool state flags
-namespace _worker_pool_state_flags {
-    const constexpr cm_byte running = 0b1 << 0; //currently running a scan
+namespace _worker_pool_sf {
+    const constexpr cm_byte bound   = 0b1 << 0; //bound to a scan
+    const constexpr cm_byte running = 0b1 << 1; //running a scan
 }
 
 
@@ -622,13 +628,6 @@ class _ptr_tree : public _lockable, public _ctor_failable {
         [[nodiscard]] const sc::_ptr_tree_node *
             get_root_node() const noexcept;
 };
-
-
-//pointer scan control flags
-namespace _ptrscan_state_flag {
-    const constexpr cm_byte   = 0b1 << 0;
-    const constexpr cm_byte running = 0b1 << 1;
-}
 
 
 } //namespace sc

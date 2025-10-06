@@ -129,42 +129,11 @@ void sc::_lockable::_unlock() const noexcept {
  *  --- [_CTOR_FAILABLE] ---
  */
 
-//constructor
-sc::_state_machine::_state_machine() noexcept
- : state_bitset(0b0) {}
+//copy constructor status
+void sc::_ctor_failable::do_copy(
+    const sc::_ctor_failable & ctor_failable) noexcept {
 
-
-//set bits
-void sc::_state_machine::_set_bits(const cm_byte bitset) noexcept {
-    this->state_bitset |= bitset;
-    return;
-}
-
-
-//unset bits
-void sc::_state_machine::_unset_bits(const cm_byte bitset) noexcept {
-    this->state_bitset &= ~bitset;
-    return;
-}
-
-
-//get bits
-[[nodiscard]] cm_byte
-    sc::_state_machine::_get_bits(const cm_byte bitset) noexcept {
-    return (this->state_bitset | bitset);
-}
-
-
-
-/*
- *  --- [_STATE_MACHINE] ---
- */
-
-//copy
-void sc::_state_machine::do_copy(
-    const sc::_state_machine & ctor_failable) noexcept {
-
-    this-> = ctor_failable.ctor_failed;
+    this->ctor_failed = ctor_failable.ctor_failed;
     return;
 }
 
@@ -191,6 +160,46 @@ sc::_ctor_failable & sc::_ctor_failable::operator=(
     return *this;
 }
 
+
+//setter & getter
+[[nodiscard]] bool sc::_ctor_failable::get_ctor_failed() const noexcept {
+    return this->ctor_failed;
+}
+
+
+void sc::_ctor_failable::_set_ctor_failed(const bool failed) noexcept {
+    this->ctor_failed = failed;
+}
+
+
+
+/*
+ *  --- [_STATEFUL] ---
+ */
+
+sc::_stateful::_stateful() noexcept
+ : state_bitset(0b0) {};
+
+
+//set bits
+void sc::_stateful::_set_bits(const cm_byte bitset) noexcept {
+    this->state_bitset |= bitset;
+    return;
+}
+
+
+//unset bits
+void sc::_stateful::_unset_bits(const cm_byte bitset) noexcept {
+    this->state_bitset &= ~bitset;
+    return;
+}
+
+
+//get bits
+[[nodiscard]] cm_byte
+    sc::_stateful::_get_bits(const cm_byte bitset) noexcept {
+    return (this->state_bitset & bitset);
+}
 
 
 

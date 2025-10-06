@@ -223,13 +223,22 @@ const constexpr useconds_t _single_run_sleep_ival_nsec = 10000000;
 const constexpr unsigned long _nsec_in_sec = 1000000000;
 const constexpr useconds_t _release_timeout_sec = 10;
 
+/*
+ *  NOTE: Possible return values are:
+ *
+ *        0  = success
+ *        -1 = error during await itself, workers still running
+ *        -2 = error with workers, workers exited
+ *        -3 = (nonblocking) workers still running
+ */
+
 //allow a worker pool to wait for workers to ready
 [[nodiscard]] int sc::_worker_concurrency::wp_await_wkrs(
     const bool do_block, const bool do_timeout) noexcept {
 
     int ret;
 
-    int fn_ret = 1;
+    int fn_ret = -3;
     bool done = false;
 
     struct timeval cur_time;
@@ -263,7 +272,7 @@ const constexpr useconds_t _release_timeout_sec = 10;
             //mark error
             sc_errno = this->wkr_errno;
             done = true;
-            fn_ret = -1;
+            fn_ret = -2;
 
         //if this run succeeded
         } else if (this->flags & sc::_worker_flag::release_ready) {
@@ -993,16 +1002,23 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     //wait for workers to be ready
     ret = this->concur.wp_await_wkrs(do_block, false);
     if (ret == -1) {
-        this->cleanup_err();
         return -1;
     }
-    if (ret == 1) {
-        sc_errno = SC_ERR_WORKER_POOL_BUSY;
+    if (ret == -2) {
+        this->cleanup_err();
+        this->_unset_bits(sc::_worker_pool_sf::running);
+        return -1;
+    }
+    if (ret == -3) {
+        sc_errno = SC_ERR_STATE;
         return -1;
     }
 
     //perform a run
     this->concur.wp_release_wkrs();
+
+    //mark the worker pool as running
+    this->_set_bits(sc::_worker_pool_sf::running);
 
     //check for errors
     if (this->concur.get_flags() & sc::_worker_flag::error) {
@@ -1015,28 +1031,54 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 
 //await a single run to finish
-[[nodiscard]] int sc::worker_pool::await_run(const bool do_block) noexcept {
+[[nodiscard]] int sc::worker_pool::do_await(const bool do_block) noexcept {
 
     int ret;
 
 
+    //acquire a write lock
+    _LOCK_WRITE(-1)
+
+    //assert the scan is bound & is not running
+    if (this->_get_bits(
+        sc::_worker_pool_sf::bound | sc::_worker_pool_sf::running)
+        != (sc::_worker_pool_sf::bound | sc::_worker_pool_sf::running)) {
+
+        sc_errno = SC_ERR_STATE;
+        goto _worker_pool_do_await_fail;
+    }
+
     //wait for workers to be ready
     ret = this->concur.wp_await_wkrs(do_block, false);
     if (ret == -1) {
-        this->cleanup_err();
-        return -1;
+        goto _worker_pool_do_await_fail;
     }
-    if (ret == 1) {
-        sc_errno = SC_ERR_WORKER_POOL_BUSY;
-        return -1;
+    if (ret == -2) {
+        this->cleanup_err();
+        this->_unset_bits(sc::_worker_pool_sf::running);
+        goto _worker_pool_do_await_fail;
+    }
+    if (ret == -3) {
+        sc_errno = SC_ERR_BUSY;
+        goto _worker_pool_do_await_fail;
     }
 
+    //unmark the worker pool as running
+    this->_unset_bits(sc::_worker_pool_sf::running);
+
+    //release the write lock
+    _UNLOCK
     return 0;
+
+    _worker_pool_do_await_fail:
+    _UNLOCK
+    return -1;
 }
 
 
 //perform a control run to manage workers
-[[nodiscard]] int sc::worker_pool::do_ctrl_run() noexcept {
+[[nodiscard]] int
+    sc::worker_pool::do_ctrl_run() noexcept {
 
     int ret;
 
@@ -1053,19 +1095,38 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 
 //perform a scan run
-[[nodiscard]] int sc::worker_pool::do_scan_run(const bool do_block) noexcept {
+[[nodiscard]] int
+    sc::worker_pool::do_scan_run(const bool do_block) noexcept {
 
     int ret;
 
+
+    //acquire a write lock
+    _LOCK_WRITE(-1)
+
+    //assert the scan is bound & is not running
+    if (this->_get_bits(
+        sc::_worker_pool_sf::bound | sc::_worker_pool_sf::running)
+        != sc::_worker_pool_sf::bound) {
+
+        sc_errno = SC_ERR_STATE;
+        goto _worker_pool_do_scan_run_fail;
+    }
 
     //setup a scan run
     this->concur.unset_flags(sc::_worker_flag::ctrl_run);
 
     //perform a scan run
     ret = this->do_run(do_block);
-    if (ret != 0) return -1;
+    if (ret != 0) goto _worker_pool_do_scan_run_fail;
 
+    //release the write lock
+    _UNLOCK
     return 0;    
+
+    _worker_pool_do_scan_run_fail:
+    _UNLOCK
+    return -1;
 }
 
 
@@ -1179,7 +1240,10 @@ void sc::worker_pool::cleanup_err() noexcept {
 
         //control run
         /* discard */ ret = this->do_ctrl_run();
-        /* discard */ ret = this->concur.wp_await_wkrs(true, true);
+        ret = this->concur.wp_await_wkrs(true, true);
+        if (ret == -1) return -1;
+        this->_unset_bits(sc::_worker_pool_sf::running);
+        
 
         //destruct worker bundles
         this->remove_wkr_bundles(diff * -1);
@@ -1359,11 +1423,17 @@ void sc::worker_pool::cleanup_err() noexcept {
     //write lock the worker pool
     _LOCK_WRITE(-1);
 
+    //assert the worker pool is unbound
+    if (this->_get_bits(sc::_worker_pool_sf::bound) > 0) {
+        sc_errno = SC_ERR_STATE;
+        goto _worker_pool_setup_fail_1;
+    }
+
     //setup cache
     this->cache.~_worker_pool_cache();
     new (&this->cache) sc::_worker_pool_cache(&opts, &opts_scan, &scan);
     ret = this->cache.lock();
-    if (ret != 0) goto _setup_fail_1;
+    if (ret != 0) goto _worker_pool_setup_fail_1;
 
     //reset error-related flags
     this->concur.unset_flags(
@@ -1374,7 +1444,7 @@ void sc::worker_pool::cleanup_err() noexcept {
     //update workers
     ret = this->change_wkr_count(
               this->cache.get_opts()->get_sessions().len);
-    if (ret < 0) goto _setup_fail_2;
+    if (ret < 0) goto _worker_pool_setup_fail_2;
     do_distrib = ret;
 
     //re-cache the map area set unless explicitly skipped    
@@ -1385,12 +1455,12 @@ void sc::worker_pool::cleanup_err() noexcept {
         scan_set = opts.get_scan_set();
         if (scan_set == nullptr) {
             sc_errno = SC_ERR_OPT_MISSING;
-            goto _setup_fail_2;
+            goto _worker_pool_setup_fail_2;
         }
 
         //cache the scan set
         ret = this->cache_areas(*scan_set);
-        if (ret != 0) goto _setup_fail_2;
+        if (ret != 0) goto _worker_pool_setup_fail_2;
 
         //request re-distribution of areas
         do_distrib = 1;
@@ -1400,31 +1470,51 @@ void sc::worker_pool::cleanup_err() noexcept {
     if (do_distrib == 1) {
 
         ret = this->distrib_areas();
-        if (ret != 0) goto _setup_fail_2;
+        if (ret != 0) goto _worker_pool_setup_fail_2;
     }
 
+    //mark worker pool as bound
+    this->_set_bits(sc::_worker_pool_sf::bound);
+
+    //release write lock
+    _UNLOCK;
     return 0;
 
     //cleanup
-    _setup_fail_2:
+    _worker_pool_setup_fail_2:
     this->cache.unlock();
 
-    _setup_fail_1:
+    _worker_pool_setup_fail_1:
     _UNLOCK
 
     return -1;
 }
 
 
-void sc::worker_pool::_teardown() noexcept {
+[[nodiscard]] int sc::worker_pool::_teardown() noexcept {
+
+    //acquire a write lock
+    _LOCK_WRITE(-1);
+
+    //assert the worker pool is not running
+    if (this->_get_bits(sc::_worker_pool_sf::running) > 0) {
+        sc_errno = SC_ERR_STATE;
+        goto _worker_pool_teardown_fail;
+    }
 
     //unlock cache
     this->cache.unlock();
 
-    //unlock read lock
-    this->_unlock();
-    
-    return;
+    //unmark worker pool as bound
+    this->_unset_bits(sc::_worker_pool_sf::bound);
+
+    //release the write lock
+    _UNLOCK    
+    return 0;
+
+    _worker_pool_teardown_fail:
+    _UNLOCK
+    return -1;
 }
 
 
@@ -1441,12 +1531,12 @@ void sc::worker_pool::_teardown() noexcept {
 
 //await for a single pass over the scan set to finish (blocking)
 [[nodiscard]] int sc::worker_pool::_await_run() noexcept {
-    return (this->await_run(true) != 0) ? -1 : 0;
+    return (this->do_await(true) != 0) ? -1 : 0;
 }
 
 //await for a single pass over the scan set to finish
 [[nodiscard]] int sc::worker_pool::_try_await_run() noexcept {
-    return (this->await_run(false) != 0) ? -1 : 0;
+    return (this->do_await(false) != 0) ? -1 : 0;
 }
 
 
@@ -1463,7 +1553,7 @@ void sc::worker_pool::_cancel() noexcept {
 
 //constructor
 sc::worker_pool::worker_pool() noexcept
-    : _ctor_failable(),
+    : _lockable(), _ctor_failable(), _stateful(),
       wkr_next_uid(0),
       cache(nullptr, nullptr, nullptr),
       concur() {
@@ -1516,18 +1606,28 @@ sc::worker_pool::~worker_pool() noexcept {
 
 
     //acquire a write lock
-    ret = this->_lock_write();
-    if (ret != 0) return -1;
+    _LOCK_WRITE(-1)
+
+    //assert the worker pool is not bound
+    if (this->_get_bits(sc::_worker_pool_sf::bound) > 0) {
+        sc_errno = SC_ERR_STATE;
+        goto _worker_pool_reset_fail;
+    }
 
     //kill workers
     ret = this->change_wkr_count(0);
-    if (ret < 0) { this->_unlock(); return -1; }
+    if (ret < 0) goto _worker_pool_reset_fail;
 
     //empty scan set cache
     cm_vct_emp(&this->sorted_areas_cache);
-    
-    this->_unlock();
+
+    //release the write lock
+    _UNLOCK
     return 0;
+
+    _worker_pool_reset_fail:
+    _UNLOCK
+    return -1;
 }
 
 

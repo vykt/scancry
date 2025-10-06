@@ -427,7 +427,7 @@ namespace bits_worker {
 }
 
 class worker_pool
-    : public _lockable, public _ctor_failable, public _state_machine {
+    : public _lockable, public _ctor_failable, public _stateful {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
@@ -445,9 +445,9 @@ class worker_pool
 
         //[methods]
         [[nodiscard]] int do_run(const bool do_block) noexcept;
-        [[nodiscard]] int await_run(const bool do_block) noexcept;
+        [[nodiscard]] int do_await(const bool do_block) noexcept;
 
-        [[nodiscard]] int do_ctrl_run(/* blocking */) noexcept;
+        [[nodiscard]] int do_ctrl_run() noexcept;
         [[nodiscard]] int do_scan_run(const bool do_block) noexcept;
 
         void remove_wkr_bundles(const int count) noexcept;
@@ -464,7 +464,7 @@ class worker_pool
             const sc::_opt_scan & opts_scan,
             sc::_scan & scan,
             const cm_byte flags) noexcept;
-        /* internal */ void _teardown() noexcept;
+        /* internal */ [[nodiscard]] int _teardown() noexcept;
         
 
         //perform a single pass over the scan set
@@ -537,7 +537,7 @@ namespace file {
 
 //pointer chain from pointer scanner's flattened tree
 class ptr_chain
-    : public _ctor_failable, public _state_machine {
+    : public _ctor_failable, public _stateful {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
@@ -1090,8 +1090,8 @@ extern __thread int sc_errno;
 #define SC_ERR_SHALLOW_RESULT   3111
 #define SC_ERR_INVALID_FILE     3112
 #define SC_ERR_VERSION_FILE     3113
-#define SC_ERR_WORKER_POOL_BUSY 3114
-#define SC_ERR_SCAN_BUSY        3115
+#define SC_ERR_STATE            3114
+#define SC_ERR_BUSY             3115
 
 // 2XX - internal errors
 #define SC_ERR_CMORE            3200
@@ -1132,7 +1132,7 @@ extern __thread int sc_errno;
 #define SC_ERR_TIMESPEC_MSG \
     "Failed to fetch the current monotonic time.\n"
 #define SC_ERR_IN_USE_MSG \
-    "Resource you're attempting to modify is currently in use.\n"
+    "Resource you're attempting to modify is locked.\n"
 #define SC_ERR_NO_RESULT_MSG \
     "No results present in this scan.\n"
 #define SC_ERR_SHALLOW_RESULT_MSG \
@@ -1141,10 +1141,10 @@ extern __thread int sc_errno;
     "The provided file is invalid or corrupt.\n"
 #define SC_ERR_VERSION_FILE_MSG \
     "The provided file's version is incompatible.\n"
-#define SC_ERR_WORKER_POOL_BUSY_MSG \
-    "Worker pool is busy.\n"
-#define SC_ERR_SCAN_BUSY_MSG \
-    "Scan is busy.\n"
+#define SC_ERR_STATE_MSG \
+    "Object is in an invalid state for this operation.\n"
+#define SC_ERR_BUSY_MSG \
+    "Object is busy.\n"
 
 // 2XX - internal errors
 #define SC_ERR_CMORE_MSG \

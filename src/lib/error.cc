@@ -73,12 +73,12 @@ void sc_perror(const char * prefix) {
             std::fprintf(stderr, "%s: %s", prefix, SC_ERR_VERSION_FILE_MSG);
             break;
 
-        case SC_ERR_WORKER_POOL_BUSY:
-            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_WORKER_POOL_BUSY_MSG);
+        case SC_ERR_STATE:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_STATE_MSG);
             break;
 
-        case SC_ERR_SCAN_BUSY:
-            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_SCAN_BUSY_MSG);
+        case SC_ERR_BUSY:
+            std::fprintf(stderr, "%s: %s", prefix, SC_ERR_BUSY_MSG);
             break;
 
         // 2XX - internal errors
@@ -186,11 +186,11 @@ const char * sc_strerror(const int sc_errnum) {
         case SC_ERR_VERSION_FILE:
             return SC_ERR_VERSION_FILE_MSG;
 
-        case SC_ERR_WORKER_POOL_BUSY:
-            return SC_ERR_WORKER_POOL_BUSY_MSG;
+        case SC_ERR_STATE:
+            return SC_ERR_STATE_MSG;
 
-        case SC_ERR_SCAN_BUSY:
-            return SC_ERR_SCAN_BUSY_MSG;
+        case SC_ERR_BUSY:
+            return SC_ERR_BUSY_MSG;
 
         // 2XX - internal errors
         case SC_ERR_CMORE:

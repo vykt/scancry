@@ -258,17 +258,41 @@ class _scan_arg {
  *  NOTE: This is an abstract scanner class used for dependency injection.
  */
 
-class _scan : public _lockable {
+
+class _scan
+    : public _lockable, public _ctor_failable, public _stateful {
+
+    _SC_DBG_PROTECTED:
+        // -- [methods]
+        [[nodiscard]] int handle_entry(
+            const sc::opt * opts,
+            const sc::_opt_scan * opts_scan,
+            const cm_byte query_bitset,
+            const cm_byte assert_bitset) noexcept;
+
+        void handle_exit(
+            const sc::opt * opts,
+            const sc::_opt_scan * opts_scan) noexcept; 
 
     public:
         // -- [methods]
         //return: number of bytes to advance the buffer by
-        /* internal */ [[nodiscard]]
-            virtual off_t _process_addr(
+        /* internal */ [[nodiscard]] virtual off_t _process_addr(
                 const struct _scan_arg & arg,
                 const opt & opts,
-                const _opt_scan & opts_scan) = 0;
+                const _opt_scan & opts_scan) noexcept = 0;
 
+        //ctors & dtor
+        _scan() noexcept;
+        _scan(const sc::_scan & scan) = delete;
+        _scan(const sc::_scan && scan) = delete;
+        ~_scan() noexcept;
+
+        //operators
+        sc::_scan & operator=(const sc::_scan & scan) = delete;
+        sc::_scan & operator=(const sc::_scan && scan) = delete;
+
+        //reset
         [[nodiscard]] virtual int reset() = 0;
 };
 
@@ -525,6 +549,7 @@ namespace _worker_pool_sf {
 }
 
 
+//single node in the pointer tree
 class _ptr_tree_node : public _lockable {
 
     _SC_DBG_PRIVATE:
@@ -577,10 +602,11 @@ class _ptr_tree_node : public _lockable {
             get_children() const noexcept;
 };
 
-#define _GET_NODE_PTR_TREE_NODE(node) \
+#define _SC_GET_NODE_PTR_TREE_NODE(node) \
     ((sc::_ptr_tree_node *) (node->data))
 
 
+//entire pointer tree
 class _ptr_tree : public _lockable, public _ctor_failable {
 
     _SC_DBG_PRIVATE:

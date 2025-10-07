@@ -536,7 +536,7 @@ namespace file {
  */
 
 //pointer chain from pointer scanner's flattened tree
-class ptr_chain_node {
+class ptr_chain : public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
@@ -550,55 +550,24 @@ class ptr_chain_node {
             const cm_lst_node * obj_node; //`is_in_map` == true
             const char * pathname;        //`is_in_map` == false
         };
-        off_t offset;
 
-        // -- [methods]
-        void do_copy(const sc::ptr_chain_node & p_chain_node) noexcept;
-
-    public:
-        // -- [methods]
-        /* internal */ uint32_t _get_obj_idx() const noexcept;
-    
-        //ctors & dtor
-        ptr_chain_node(
-            const uint32_t _obj_idx,
-            const bool is_static,
-            const cm_lst_node * /* nullable */ obj_node,
-            const char * /* nullable */ pathname,
-            const off_t offset) noexcept;
-        ptr_chain_node(const sc::ptr_chain_node & p_chain_node) noexcept;
-        ptr_chain_node(const sc::ptr_chain_node && p_chain_node) = delete;
-        ~ptr_chain_node() noexcept;
-
-        //operators
-        sc::ptr_chain_node & operator=(
-            const sc::ptr_chain_node & p_chain_node) noexcept;
-        sc::ptr_chain_node & operator=(
-            const sc::ptr_chain_node && p_chain_node) = delete;
-
-        //determine if chain's starting
-        //reference object is in the current map
-        [[nodiscard]] bool in_map() const noexcept;
-
-        //getters
-        [[nodiscard]] bool get_is_static() const noexcept;
-        [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
-        [[nodiscard]] const char * get_pathname() const noexcept;
-        [[nodiscard]] off_t get_offset() const noexcept;
-};
-
-class ptr_chain : public _ctor_failable {
-
-    _SC_DBG_PRIVATE:
-        // -- [attributes]
-        cm_vct /* <const ptr_chain_node> */ nodes;
+        //offsets
+        cm_vct /* off_t */ offs;
 
         // -- [methods]
         void do_copy(const sc::ptr_chain & p_chain) noexcept;
 
     public:
         // -- [methods]
-        ptr_chain() noexcept;
+        /* internal */ uint32_t _get_obj_idx() const noexcept;
+    
+        //ctors & dtor
+        ptr_chain(
+            const uint32_t _obj_idx,
+            const bool is_static,
+            const cm_lst_node * /* nullable */ obj_node,
+            const char * /* nullable */ pathname,
+            const cm_vct /* off_t */ & offs) noexcept;
         ptr_chain(const sc::ptr_chain & p_chain) noexcept;
         ptr_chain(const sc::ptr_chain && p_chain) = delete;
         ~ptr_chain() noexcept;
@@ -609,24 +578,18 @@ class ptr_chain : public _ctor_failable {
         sc::ptr_chain & operator=(
             const sc::ptr_chain && p_chain) = delete;
 
-        //reset
-        [[nodiscard]] int reset() noexcept;
+        //determine if the starting object was found in the map
+        [[nodiscard]] bool in_map() const noexcept;
 
-        //add a node
-        [[nodiscard]] int add_node(
-            const uint32_t _obj_idx,
-            const bool is_static,
-            const cm_lst_node * /* nullable */ obj_node,
-            const char * /* nullable */ pathname,
-            const off_t offset) noexcept;
-
-        //get nodes
-        [[nodiscard]] const cm_vct /* <const ptr_chain_node> */ &
-            get_nodes() const noexcept;
+        //getters
+        [[nodiscard]] bool get_is_static() const noexcept;
+        [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
+        [[nodiscard]] const char * get_pathname() const noexcept;
+        [[nodiscard]] const cm_vct /* off_t */ & get_offs() const noexcept;
 };
 
-class ptrscan
- : public _scan, public _ctor_failable, public _stateful {
+
+class ptrscan : public _scan {
 
     /*
      *  TODO: Record in the savefile the parameters used to produce
@@ -653,13 +616,26 @@ class ptrscan
         cm_byte state_flags;
 
         // -- [methods]
+        [[nodiscard]] int setup_fn(
+            const sc::opt * opts,
+            const sc::opt_ptrscan * opts_ptr) noexcept;
+
+
         [[nodiscard]] int do_reset() noexcept;
         
         [[nodiscard]] int do_await_scan(
             sc::worker_pool & w_pool,
             const bool do_block) noexcept;
 
-        [[nodiscard]] int chain_recurse() noexcept;
+        [[nodiscard]] uint32_t generate_obj_idx(
+            const cm_lst_node * obj_node) noexcept;
+
+        [[nodiscard]] int chain_recurse(
+            const mc_vm_map * map,
+            const cm_rbt & static_set_tree,
+            cm_vct /* <off_t> */ & chain_stack,
+            const sc::_ptr_tree_node & p_tree_node,
+            const uintptr_t tgt_addr) noexcept;
 
     public:
         // -- [methods]
@@ -701,7 +677,15 @@ class ptrscan
         // - tree operations
 
         //flatten pointer tree into chains
-        [[nodiscard]] int flatten_tree() noexcept;
+        [[nodiscard]] int flatten_tree(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr) noexcept;
+
+        //verify existing chains
+        [[nodiscard]] int verify_chains(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr) noexcept;
+        
 };
 
 

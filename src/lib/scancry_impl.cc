@@ -295,3 +295,79 @@ void sc::_scan_arg::advance_buf(const size_t advance) noexcept {
 [[nodiscard]] size_t sc::_scan_arg::get_buf_left() const noexcept {
     return this->buf_left;
 }
+
+
+/*
+ *  --- [_SCAN] ---
+ */
+
+//constructor
+sc::_scan::_scan() noexcept
+ : _lockable(), _ctor_failable(), _stateful() {}
+
+
+//destructor
+sc::_scan::~_scan() noexcept {}
+
+
+//acquire locks & check state on entry
+[[nodiscard]] int sc::_scan::handle_entry(
+    const sc::opt * opts,
+    const sc::_opt_scan * opts_scan,
+    const cm_byte query_bitset,
+    const cm_byte assert_bitset) noexcept {
+
+    int ret;
+    cm_byte state_bitset;
+
+
+    //acquire read locks, if provided
+    _LOCK_READ(-1)
+
+    if (opts != nullptr) {
+        ret = opts->_lock_read();
+        if (ret != 0) goto _scan_handle_entry_fail_1;
+    }
+
+    if (opts_scan != nullptr) {
+        ret = opts->_lock_read();
+        if (ret != 0) goto _scan_handle_entry_fail_2;
+    }
+
+    //assert state
+    if (query_bitset != 0b0) {
+        state_bitset = this->_get_bits(query_bitset);
+        if (state_bitset != assert_bitset) {
+            sc_errno = SC_ERR_STATE;
+            goto _scan_handle_entry_fail_3;
+        }
+    }
+
+    return 0;
+
+    //release read locks
+    _scan_handle_entry_fail_3:
+    if (opts_scan != nullptr) opts_scan->_unlock();
+
+    _scan_handle_entry_fail_2:
+    if (opts != nullptr) opts->_unlock();
+
+    _scan_handle_entry_fail_1:
+    _UNLOCK
+
+    return -1;
+}
+
+
+//release locks on exit
+void sc::_scan::handle_exit(
+    const sc::opt * opts,
+    const sc::_opt_scan * opts_scan) noexcept {
+
+    //release read locks
+    if (opts_scan != nullptr) opts_scan->_unlock();
+    if (opts != nullptr) opts->_unlock();
+    _UNLOCK
+
+    return;
+}

@@ -187,6 +187,7 @@ void sc::_worker_concurrency::wkr_exit(const bool is_error) noexcept {
         }
     }
 
+    //cleanup
     _wkr_check_kill_cleanup:
     pthread_mutex_unlock(&this->exit_uids_lock);
 
@@ -489,7 +490,6 @@ sc::_worker_pool_cache::~_worker_pool_cache() noexcept {
 [[nodiscard]] int sc::_worker_pool_cache::lock() noexcept {
 
     int ret;
-
     int iter;
     bool is_err = false;
 
@@ -514,7 +514,6 @@ sc::_worker_pool_cache::~_worker_pool_cache() noexcept {
 
     return -1;
 }
-
 
 void sc::_worker_pool_cache::unlock() noexcept {
 
@@ -543,19 +542,16 @@ void sc::_worker_pool_cache::unlock() noexcept {
 //getters
 [[nodiscard]] const sc::opt *
     sc::_worker_pool_cache::get_opts() const noexcept {
-
     return this->opts;
 }
 
 [[nodiscard]] const sc::_opt_scan *
     sc::_worker_pool_cache::get_opts_scan() const noexcept {
-
     return this->opts_scan;
 }
 
 [[nodiscard]] sc::_scan *
     sc::_worker_pool_cache::get_scan() const noexcept {
-
     return this->scan;
 }
 
@@ -565,6 +561,7 @@ void sc::_worker_pool_cache::unlock() noexcept {
  *  --- [WORKER | INTERNAL] ---
  */
 
+//pthread entry function
 void * _bootstrap_worker(void * arg) {
 
     //typecast worker
@@ -632,6 +629,7 @@ sc::_worker::~_worker() noexcept {
 }
 
 
+//read a part of an area into the buffer, accounting for buffer bounds
 //return `1` if reached end of area, else `0`
 [[nodiscard]] _SC_DBG_INLINE int
     sc::_worker::read_buf_smart(_scan_arg & arg) noexcept {
@@ -912,6 +910,7 @@ void sc::_worker::main() noexcept {
 }
 
 
+//getters
 [[nodiscard]] int sc::_worker::get_uid() noexcept {
     return this->uid;
 }
@@ -1038,36 +1037,35 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
         != sc::_worker_pool_sf::running) {
 
         sc_errno = SC_ERR_STATE;
-        goto _worker_pool_do_await_fail;
+        ret_val  = -1;
+        goto _worker_pool_do_await_cleanup;
     }
 
     //wait for workers to be ready
     ret = this->concur.wp_await_wkrs(do_block, do_timeout);
     if (ret == -1) {
         ret_val = -1;
-        goto _worker_pool_do_await_fail;
+        goto _worker_pool_do_await_cleanup;
     }
     if (ret == -2) {
         ret_val = -2;
         this->cleanup_err();
         this->_unset_bits(sc::_worker_pool_sf::running);
-        goto _worker_pool_do_await_fail;
+        goto _worker_pool_do_await_cleanup;
     }
     if (ret == -3) {
         ret_val = -1;
         sc_errno = SC_ERR_BUSY;
-        goto _worker_pool_do_await_fail;
+        goto _worker_pool_do_await_cleanup;
     }
 
     //unmark the worker pool as running
     this->_unset_bits(sc::_worker_pool_sf::running);
 
     //release the write lock
+    _worker_pool_do_await_cleanup:
     _UNLOCK
-    return 0;
 
-    _worker_pool_do_await_fail:
-    _UNLOCK
     return ret_val;
 }
 
@@ -1095,6 +1093,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     sc::worker_pool::do_scan_run() noexcept {
 
     int ret;
+    int ret_val = -1;
 
 
     //acquire a write lock
@@ -1104,7 +1103,7 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
     if (this->_get_bits(sc::_worker_pool_sf::bound) == 0) {
 
         sc_errno = SC_ERR_STATE;
-        goto _worker_pool_do_scan_run_fail;
+        goto _worker_pool_do_scan_run_cleanup;
     }
 
     //setup a scan run
@@ -1112,18 +1111,18 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
     //perform a scan run
     ret = this->do_run();
-    if (ret != 0) goto _worker_pool_do_scan_run_fail;
+    if (ret != 0) goto _worker_pool_do_scan_run_cleanup;
 
-    //release the write lock
-    _UNLOCK
-    return 0;    
+    //set return to 0 to indicate success
+    ret_val = 0;
 
-    _worker_pool_do_scan_run_fail:
+    _worker_pool_do_scan_run_cleanup:
     _UNLOCK
-    return -1;
+    return ret_val;
 }
 
 
+//join threads that are exiting & destroy their worker bundles
 void sc::worker_pool::remove_wkr_bundles(const int count) noexcept {
 
     int ret __attribute__((unused));
@@ -1155,10 +1154,11 @@ void sc::worker_pool::remove_wkr_bundles(const int count) noexcept {
             = cm_lst_rmv_n(&this->wkr_bundles, rmv_wkr_bndl_node);
     }
 
-    return;        
+    return;
 }
 
 
+//cleanup workers when they exit due to an error
 void sc::worker_pool::cleanup_err() noexcept {
 
     //remove all worker bundles
@@ -1179,6 +1179,7 @@ void sc::worker_pool::cleanup_err() noexcept {
  *        `0` if there is no change, and `-1` on error.
  */
 
+//change the number of worker threads in a worker pool
 [[nodiscard]] int
     sc::worker_pool::change_wkr_count(const int count) noexcept {
 
@@ -1301,6 +1302,7 @@ void sc::worker_pool::cleanup_err() noexcept {
 }
 
 
+//convert a provided scan set to a local size-ordered vector of areas
 [[nodiscard]] int sc::worker_pool::cache_areas(
     const sc::map_area_set & ma_set) noexcept {
 
@@ -1318,9 +1320,11 @@ void sc::worker_pool::cleanup_err() noexcept {
 }
 
 
+//distribute cached areas between workers
 [[nodiscard]] int sc::worker_pool::distrib_areas() noexcept {
 
     int ret;
+    int ret_val = -1;
 
     cm_vct sums;
     size_t sum;
@@ -1347,7 +1351,7 @@ void sc::worker_pool::cleanup_err() noexcept {
         //get next cached area
         ret = cm_vct_get(&this->sorted_areas_cache, i, &area_node);
         if (ret != 0) {
-            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
         area = MC_GET_NODE_AREA(area_node);
 
         //for all sums
@@ -1357,7 +1361,7 @@ void sc::worker_pool::cleanup_err() noexcept {
             //fetch next sum
             ret = cm_vct_get(&sums, j, &sum);
             if (ret != 0) {
-                sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+                sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
 
             //update sum
             if (sum < min) { min = sum; min_idx = j; }
@@ -1370,30 +1374,31 @@ void sc::worker_pool::cleanup_err() noexcept {
         //increment the sum
         sum_p = (size_t *) cm_vct_get_p(&sums, min_idx);
         if (sum_p == nullptr) {
-            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
         *sum_p += (area->end_addr - area->start_addr);
 
         //fetch relevant worker bundle
         wkr_bundle = (sc::_worker_bundle *)
                          cm_lst_get_p(&this->wkr_bundles, min_idx);
         if (wkr_bundle == nullptr) {
-            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
 
         //add this area to this worker bundle
         cm_vct & wkr_areas = wkr_bundle->get_scan_area_subset();
         ret = cm_vct_apd(&wkr_areas, &area_node);
         if (ret != 0) {
-            sc_errno = SC_ERR_CMORE; goto _distrib_areas_fail; }
+            sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
 
     } //end for all cached areas
 
-    cm_del_vct(&sums);
-    return 0;
+    //set return to 0 to indicate success
+    ret_val = 0;
 
     //cleanup
-    _distrib_areas_fail:
+    _distrib_areas_cleanup:
     cm_del_vct(&sums);
-    return -1;
+    
+    return ret_val;
 }
 
 
@@ -1401,7 +1406,7 @@ void sc::worker_pool::cleanup_err() noexcept {
  *  --- [WORKER POOL | INTERNAL] ---
  */
 
-//entry & exit functions for scans
+//bind the worker pool to a scanner
 [[nodiscard]] int sc::worker_pool::_setup(
     const sc::opt & opts,
     const sc::_opt_scan & opts_scan,
@@ -1409,8 +1414,9 @@ void sc::worker_pool::cleanup_err() noexcept {
     const cm_byte flags) noexcept {
 
     int ret;
+    int ret_val = -1;
+    
     int do_distrib;
-
     const sc::map_area_set * scan_set;
     
 
@@ -1420,14 +1426,14 @@ void sc::worker_pool::cleanup_err() noexcept {
     //assert the worker pool is unbound
     if (this->_get_bits(sc::_worker_pool_sf::bound) > 0) {
         sc_errno = SC_ERR_STATE;
-        goto _worker_pool_setup_fail_1;
+        goto _worker_pool_setup_cleanup;
     }
 
     //setup cache
     this->cache.~_worker_pool_cache();
     new (&this->cache) sc::_worker_pool_cache(&opts, &opts_scan, &scan);
     ret = this->cache.lock();
-    if (ret != 0) goto _worker_pool_setup_fail_1;
+    if (ret != 0) goto _worker_pool_setup_cleanup;
 
     //reset error-related flags
     this->concur.unset_flags(
@@ -1438,7 +1444,7 @@ void sc::worker_pool::cleanup_err() noexcept {
     //update workers
     ret = this->change_wkr_count(
               this->cache.get_opts()->get_sessions().len);
-    if (ret < 0) goto _worker_pool_setup_fail_2;
+    if (ret < 0) goto _worker_pool_setup_cache_unlock;
     do_distrib = ret;
 
     //re-cache the map area set unless explicitly skipped    
@@ -1449,12 +1455,12 @@ void sc::worker_pool::cleanup_err() noexcept {
         scan_set = opts.get_scan_set();
         if (scan_set == nullptr) {
             sc_errno = SC_ERR_OPT_MISSING;
-            goto _worker_pool_setup_fail_2;
+            goto _worker_pool_setup_cache_unlock;
         }
 
         //cache the scan set
         ret = this->cache_areas(*scan_set);
-        if (ret != 0) goto _worker_pool_setup_fail_2;
+        if (ret != 0) goto _worker_pool_setup_cache_unlock;
 
         //request re-distribution of areas
         do_distrib = 1;
@@ -1464,28 +1470,33 @@ void sc::worker_pool::cleanup_err() noexcept {
     if (do_distrib == 1) {
 
         ret = this->distrib_areas();
-        if (ret != 0) goto _worker_pool_setup_fail_2;
+        if (ret != 0) goto _worker_pool_setup_cache_unlock;
     }
 
     //mark worker pool as bound
     this->_set_bits(sc::_worker_pool_sf::bound);
 
-    //release write lock
+    //set return to 0 to indicate success
+    ret_val = 0;
+
+
+    //release the write lock
+    _worker_pool_setup_cleanup:
     _UNLOCK;
-    return 0;
+    
+    return ret_val;
 
-    //cleanup
-    _worker_pool_setup_fail_2:
+    //unlock cache on fail
+    _worker_pool_setup_cache_unlock:
     this->cache.unlock();
-
-    _worker_pool_setup_fail_1:
-    _UNLOCK
-
-    return -1;
+    goto _worker_pool_setup_cleanup;
 }
 
 
+//unbind the worker pool from a scanner
 [[nodiscard]] int sc::worker_pool::_teardown() noexcept {
+
+    int ret_val = -1;
 
     //acquire a write lock
     _LOCK_WRITE(-1);
@@ -1493,7 +1504,7 @@ void sc::worker_pool::cleanup_err() noexcept {
     //assert the worker pool is not running
     if (this->_get_bits(sc::_worker_pool_sf::running) > 0) {
         sc_errno = SC_ERR_STATE;
-        goto _worker_pool_teardown_fail;
+        goto _worker_pool_teardown_cleanup;
     }
 
     //unlock cache
@@ -1502,13 +1513,15 @@ void sc::worker_pool::cleanup_err() noexcept {
     //unmark worker pool as bound
     this->_unset_bits(sc::_worker_pool_sf::bound);
 
-    //release the write lock
-    _UNLOCK    
-    return 0;
+    //set return to 0 to indicate success
+    ret_val = 0;
 
-    _worker_pool_teardown_fail:
+
+    //release the write lock
+    _worker_pool_teardown_cleanup:
     _UNLOCK
-    return -1;
+    
+    return ret_val;
 }
 
 
@@ -1579,7 +1592,7 @@ sc::worker_pool::~worker_pool() noexcept {
     }
 
     //kill any active threads
-    ret = this->change_wkr_count(0);
+    /* discard */ ret = this->change_wkr_count(0);
 
     //destroy sorted scan areas
     cm_del_vct(&this->sorted_areas_cache);
@@ -1595,6 +1608,7 @@ sc::worker_pool::~worker_pool() noexcept {
 [[nodiscard]] int sc::worker_pool::reset() noexcept {
 
     int ret;
+    int ret_val = -1;
 
 
     //acquire a write lock
@@ -1603,23 +1617,23 @@ sc::worker_pool::~worker_pool() noexcept {
     //assert the worker pool is not bound
     if (this->_get_bits(sc::_worker_pool_sf::bound) > 0) {
         sc_errno = SC_ERR_STATE;
-        goto _worker_pool_reset_fail;
+        goto _worker_pool_reset_cleanup;
     }
 
     //kill workers
     ret = this->change_wkr_count(0);
-    if (ret < 0) goto _worker_pool_reset_fail;
+    if (ret < 0) goto _worker_pool_reset_cleanup;
 
     //empty scan set cache
     cm_vct_emp(&this->sorted_areas_cache);
 
-    //release the write lock
-    _UNLOCK
-    return 0;
+    //set return to 0 to indicate success
+    ret_val = 0;
 
-    _worker_pool_reset_fail:
+    //release the write lock
+    _worker_pool_reset_cleanup:
     _UNLOCK
-    return -1;
+    return ret_val;
 }
 
 

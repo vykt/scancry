@@ -25,60 +25,58 @@
        * =============== */
 
 /*
- *  --- [POINTER CHAIN | PRIVATE] ---
+ *  --- [POINTER CHAIN NODE | PRIVATE] ---
  */
 
-void sc::ptr_chain::do_copy(const sc::ptr_chain & p_chain) noexcept {
+void sc::ptr_chain_node::do_copy(
+    const sc::ptr_chain_node & p_chain_node) noexcept {
 
     int ret;
 
 
-    //call parent copy assignment operators
-    _ctor_failable::operator=(p_chain);
-
     //copy object index
-    this->_obj_idx = p_chain._get_obj_idx();
+    this->_obj_idx = p_chain_node._get_obj_idx();
 
     //copy static status
-    this->is_static = p_chain.get_is_static();
+    this->is_static = p_chain_node.get_is_static();
 
     //copy map info
-    if (p_chain.in_map() == true) {
+    if (p_chain_node.in_map() == true) {
         this->is_in_map = true;
-        this->obj_node  = p_chain.get_obj_node();
+        this->obj_node  = p_chain_node.get_obj_node();
     } else {
         this->is_in_map = false;
-        this->pathname  = p_chain.get_pathname();
+        this->pathname  = p_chain_node.get_pathname();
     }
 
-    //copy offsets
-    _CTOR_VCT_COPY_IF_INIT(this->offsets, p_chain.get_offsets());
+    //copy offset
+    this->offset = p_chain_node.get_offset();
 
     return;
 }
 
 
 //object index getter
-[[nodiscard]] uint32_t sc::ptr_chain::_get_obj_idx() const noexcept {
+[[nodiscard]] uint32_t sc::ptr_chain_node::_get_obj_idx() const noexcept {
     return this->_obj_idx;
 }
 
 
 
 /*
- *  --- [POINTER CHAIN | PUBLIC] ---
+ *  --- [POINTER CHAIN NODE | PUBLIC] ---
  */
 
 //constructor
-sc::ptr_chain::ptr_chain(
+sc::ptr_chain_node::ptr_chain_node(
     const uint32_t _obj_idx,
     const bool is_static,
     const cm_lst_node * /* one of (set A) */ obj_node,
     const char * /* one of (set A) */ pathname,
-    const cm_vct /* <off_t> */ & offsets) noexcept
- : _ctor_failable(),
-   _obj_idx(_obj_idx),
-   is_static(is_static) {
+    const off_t offset) noexcept
+ : _obj_idx(_obj_idx),
+   is_static(is_static),
+   offset(offset) {
 
     int ret;
 
@@ -92,22 +90,101 @@ sc::ptr_chain::ptr_chain(
         this->pathname = pathname;
     }
 
-    //copy offsets
-    _CTOR_VCT_COPY_IF_INIT(this->offsets, offsets);
-
     return;
 }
 
 
 //copy constructor
-sc::ptr_chain::ptr_chain(const sc::ptr_chain & p_chain) noexcept
- : _ctor_failable(),
-   obj_node(nullptr) {
+sc::ptr_chain_node::ptr_chain_node(
+    const sc::ptr_chain_node & p_chain_node) noexcept
+ : obj_node(nullptr) {
 
-    //zero out the offsets vector
-    std::memset(&this->offsets, 0, sizeof(this->offsets));
+    this->do_copy(p_chain_node);
+    return;
+}
 
-    this->do_copy(p_chain);
+
+//destructor
+sc::ptr_chain_node::~ptr_chain_node() noexcept {}
+
+
+//copy assignment operator
+sc::ptr_chain_node & sc::ptr_chain_node::operator=(
+    const sc::ptr_chain_node & p_chain_node) noexcept {
+
+    if (this != &p_chain_node) this->do_copy(p_chain_node);
+
+    return *this;
+}
+
+
+//determine if chain's starting reference object is in the current map
+[[nodiscard]] bool sc::ptr_chain_node::in_map() const noexcept {
+    return this->is_in_map;
+}
+
+
+//getters
+[[nodiscard]] bool sc::ptr_chain_node::get_is_static() const noexcept {
+    return this->is_static;
+}
+
+[[nodiscard]] const cm_lst_node *
+    sc::ptr_chain_node::get_obj_node() const noexcept {
+    return this->obj_node;
+}
+
+[[nodiscard]] const char *
+    sc::ptr_chain_node::get_pathname() const noexcept {
+    return this->pathname;
+}
+
+[[nodiscard]] off_t
+    sc::ptr_chain_node::get_offset() const noexcept {
+    return this->offset;
+}
+
+
+
+/*
+ *  --- [POINTER CHAIN | PRIVATE] ---
+ */
+
+void sc::ptr_chain::do_copy(
+    const sc::ptr_chain & p_chain) noexcept {
+
+    int ret;
+
+
+    //call parent copy assignment operator
+    _ctor_failable::operator=(p_chain);
+
+    //copy nodes directly
+    _CTOR_VCT_COPY_IF_INIT(this->nodes, p_chain.get_nodes());
+
+    return;
+}
+
+
+
+/*
+ *  --- [POINTER CHAIN | PUBLIC] ---
+ */
+
+//constructor
+sc::ptr_chain::ptr_chain() noexcept
+ : _ctor_failable() {
+
+    int ret;
+
+
+    //initialise a vector of nodes
+    ret = cm_new_vct(&this->nodes, sizeof(sc::ptr_chain_node));
+    if (ret != 0) {
+        this->_set_ctor_failed(true);
+        return;
+    }
+
     return;
 }
 
@@ -115,44 +192,80 @@ sc::ptr_chain::ptr_chain(const sc::ptr_chain & p_chain) noexcept
 //destructor
 sc::ptr_chain::~ptr_chain() noexcept {
 
-    //destroy offsets
-    _CTOR_VCT_DELETE_IF_INIT(this->offsets);
+    /*
+     *  NOTE: We can only directly free the nodes vector because nodes
+     *        presently do not allocate any resources.
+     */
+
+    //destroy pointer chains
+    _CTOR_VCT_DELETE_IF_INIT(this->nodes);
 
     return;
 }
 
 
-//copy assignment operator
+//copy constructor
+sc::ptr_chain::ptr_chain(const sc::ptr_chain & p_chain) noexcept {
+    this->do_copy(p_chain);
+}
+
+
+//copy assignment
 sc::ptr_chain & sc::ptr_chain::operator=(
     const sc::ptr_chain & p_chain) noexcept {
 
     if (this != &p_chain) this->do_copy(p_chain);
+
     return *this;
 }
 
 
-//determine if chain's starting reference object is in the current map
-[[nodiscard]] bool sc::ptr_chain::in_map() const noexcept {
-    return this->is_in_map;
+//reset
+[[nodiscard]] int sc::ptr_chain::reset() noexcept {
+
+    int ret;
+
+    cm_vct_emp(&this->nodes);
+    ret = cm_vct_fit(&this->nodes);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    return 0;
 }
 
 
-//getters
-[[nodiscard]] bool sc::ptr_chain::get_is_static() const noexcept {
-    return this->is_static;
+//add a new node to the chain
+[[nodiscard]] int sc::ptr_chain::add_node(    
+    const uint32_t _obj_idx,
+    const bool is_static,
+    const cm_lst_node * /* nullable */ obj_node,
+    const char * /* nullable */ pathname,
+    const off_t offset) noexcept {
+
+    int ret;
+
+    void * placeholder_ptr;
+    const char placeholder[sizeof(sc::ptr_chain_node)] = {0};
+
+
+    //allocate space for the new node
+    ret = cm_vct_apd(&this->nodes, placeholder);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //get an offset to the new node
+    placeholder_ptr = cm_vct_get_p(&this->nodes, -1);
+
+    //construct a new chain node
+    new (placeholder_ptr) sc::ptr_chain_node(
+        _obj_idx, is_static, obj_node, pathname, offset);
+
+    return 0;
 }
 
-[[nodiscard]] const cm_lst_node *
-    sc::ptr_chain::get_obj_node() const noexcept {
-    return this->obj_node;
-}
 
-[[nodiscard]] const char * sc::ptr_chain::get_pathname() const noexcept {
-    return this->pathname;
-}
-
-[[nodiscard]] const cm_vct & sc::ptr_chain::get_offsets() const noexcept {
-    return this->offsets;
+//get a reference to the nodes in this chain
+[[nodiscard]] const cm_vct /* <sc::ptr_chain_node> */ &
+    sc::ptr_chain::get_nodes() const noexcept {
+    return this->nodes;
 }
 
 
@@ -523,77 +636,53 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     this->depth_lvl = 0;
     this->depth_lvl_vct_p = nullptr;
 
-    //reset high-level state
-    this->state_flags = 0b0;
+    //reset the results state
+    this->_unset_bits(sc::_scan_sf::scan_data);
 
     //unlock
     return 0;
 }
 
 
-//perform a single pass over the target scan set
-[[nodiscard]] int sc::ptrscan::do_run_scan(
-    const sc::opt & opts,
-    const sc::opt_ptrscan & opts_ptr,
-    sc::worker_pool & w_pool,
-    const cm_byte w_pool_flags,
-    const bool do_block) noexcept {
+//await for a single pass over the scan set to finish
+[[nodiscard]] int sc::ptrscan::do_await_scan(
+    sc::worker_pool & w_pool, const bool do_block) noexcept {
 
     int ret;
-    cm_lst_node * tgt_area_node;
+    int ret_val = 0;
 
+    //acquire a write lock
+    _LOCK_WRITE(-1)
 
-    //assert a scan isn't currently in progress
-    if (this->state_flags & sc::_ptrscan_flag::running) {
-        sc_errno = SC_ERR_SCAN_BUSY;
+    //assert that the scan is running
+    if (this->_get_bits(sc::_scan_sf::running) == 0) {
+        sc_errno = SC_ERR_STATE;
         return -1;
     }
 
-    //reset if the target address has changed & a scan is in progress
-    if ((opts_ptr.get_target_addr() != this->tree.get_root_node()->own_addr)
-        && ((this->state_flags & sc::_ptrscan_flag::inprog) > 0)) {
-
-        ret = this->do_reset();
-        if (ret != 0) goto _ptrscan_scan_fail_1; 
+    //await for a scan run to conclude
+    ret = w_pool._await_run(do_block);
+    if (ret == -1) {
+        ret_val = -1;
+        goto _ptrscan_do_await_scan_fail;
+    }
+    if (ret == -2) {
+        ret_val = -2;
+        this->_unset_bits(sc::_scan_sf::running);
+        goto _ptrscan_do_await_scan_fail;
     }
 
-    //initialise root node if one isn't present
-    if (this->depth_lvl == 0) {
+    //mark state as no longer running a scan
+    this->_unset_bits(sc::_scan_sf::running);
 
-        //map target address to an area node
-        tgt_area_node = mc_get_area_by_addr(
-            opts.get_map(), opts_ptr.get_target_addr(), nullptr);
-        if (tgt_area_node == nullptr) {
-            sc_errno = SC_ERR_OPT_BAD;
-            goto _ptrscan_scan_fail_1;
-        }
+    //release the write lock
+    _UNLOCK
 
-        //initialise a new root node
-        ret = this->tree.init_root_node(
-            tgt_area_node, opts_ptr.get_target_addr(), 0x0);
-        if (ret != 0) goto _ptrscan_scan_fail_2;
-
-        //advance current depth level
-        ++this->depth_lvl;
-    }
-
-    //setup the worker pool
-    ret = w_pool._setup(opts, opts_ptr, *this, w_pool_flags);
-    if (ret != 0) goto _ptrscan_scan_fail_2;
-
-    //perform a single pass over target area set
-    if (do_block == true) ret = w_pool._single_run();
-    else ret = w_pool._try_single_run();
-    if (ret != 0) goto _ptrscan_scan_fail_2;
-    this->state_flags |= sc::_ptrscan_flag::running;
-    
     return 0;
-
-    _ptrscan_scan_fail_2:
-    /* discard */ ret = this->do_reset();
-
-    _ptrscan_scan_fail_1:
-    return -1;
+    
+    _ptrscan_do_await_scan_fail:
+    _UNLOCK
+    return ret_val;
 }
 
 
@@ -786,7 +875,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 
 //constructor
 sc::ptrscan::ptrscan() noexcept
- : _scan(), _ctor_failable(),
+ : _scan(), _ctor_failable(), _stateful(),
    depth_lvl(0),
    depth_lvl_vct_p(nullptr),
    state_flags(0b0) {
@@ -836,34 +925,47 @@ sc::ptrscan::~ptrscan() noexcept {
     //acquire a write lock
     _LOCK_WRITE(-1);
 
-    //reset & unlock
+    //assert a scan is not running
+    if (this->_get_bits(sc::_scan_sf::running) > 0) {
+        sc_errno = SC_ERR_STATE;
+        return -1;
+    }
+
+    //reset the scan
     ret = this->do_reset();
+
+    //release the write lock
     _UNLOCK
     return (ret != 0) ? -1 : 0;
 }
 
 
-//perform a single pass over the target scan set
-[[nodiscard]] int sc::ptrscan::run_scan(
+//dispatch a single pass over the target scan set
+[[nodiscard]] int sc::ptrscan::dispatch_scan(
     const sc::opt & opts,
     const sc::opt_ptrscan & opts_ptr,
     sc::worker_pool & w_pool,
     const cm_byte w_pool_flags) noexcept {
 
     int ret;
-
     cm_lst_node * tgt_area_node;
 
 
     //acquire a write lock
-    _LOCK_WRITE(-1);
+    _LOCK_WRITE(-1)
+
+    //assert a scan isn't currently in progress
+    if (this->_get_bits(sc::_scan_sf::running) > 0) {
+        sc_errno = SC_ERR_STATE;
+        goto _ptrscan_dispatch_scan_fail_1;
+    }
 
     //reset if the target address has changed & a scan is in progress
     if ((opts_ptr.get_target_addr() != this->tree.get_root_node()->own_addr)
-        && ((this->state_flags & sc::_ptrscan_flag::inprog) > 0)) {
+        && (this->_get_bits(sc::_scan_sf::scan_data) > 0)) {
 
         ret = this->do_reset();
-        if (ret != 0) goto _ptrscan_scan_fail_1; 
+        if (ret != 0) goto _ptrscan_dispatch_scan_fail_1;
     }
 
     //initialise root node if one isn't present
@@ -874,13 +976,13 @@ sc::ptrscan::~ptrscan() noexcept {
             opts.get_map(), opts_ptr.get_target_addr(), nullptr);
         if (tgt_area_node == nullptr) {
             sc_errno = SC_ERR_OPT_BAD;
-            goto _ptrscan_scan_fail_1;
+            goto _ptrscan_dispatch_scan_fail_1;
         }
 
         //initialise a new root node
         ret = this->tree.init_root_node(
             tgt_area_node, opts_ptr.get_target_addr(), 0x0);
-        if (ret != 0) goto _ptrscan_scan_fail_2;
+        if (ret != 0) goto _ptrscan_dispatch_scan_fail_2;
 
         //advance current depth level
         ++this->depth_lvl;
@@ -888,22 +990,73 @@ sc::ptrscan::~ptrscan() noexcept {
 
     //setup the worker pool
     ret = w_pool._setup(opts, opts_ptr, *this, w_pool_flags);
-    if (ret != 0) goto _ptrscan_scan_fail_2;
+    if (ret != 0) goto _ptrscan_dispatch_scan_fail_2;
 
-    //perform a single pass over target area set
-    ret = w_pool._single_run();
-    if (ret != 0) goto _ptrscan_scan_fail_2;
-    this->state_flags |= sc::_ptrscan_flag::running;
+    //dispatch a single pass over target area set
+    ret = w_pool._dispatch_run();
+    if (ret != 0) goto _ptrscan_dispatch_scan_fail_2;
+
+    //mark state as running a scan
+    this->_set_bits(sc::_scan_sf::running);
     
-    //unlock
-    _UNLOCK;
     return 0;
 
-    _ptrscan_scan_fail_2:
+    _ptrscan_dispatch_scan_fail_2:
     /* discard */ ret = this->do_reset();
 
-    _ptrscan_scan_fail_1:
-    _UNLOCK
+    _ptrscan_dispatch_scan_fail_1:
+    _UNLOCK;
     return -1;
 }
 
+
+//await a single pass over the scan set to complete (blocking)
+[[nodiscard]] int
+    sc::ptrscan::await_scan(sc::worker_pool & w_pool) noexcept {
+    return this->do_await_scan(w_pool, true);
+}
+
+
+//await a single pass over the scan set to complete (non-blocking)
+[[nodiscard]] int
+    sc::ptrscan::try_await_scan(sc::worker_pool & w_pool) noexcept {
+    return this->do_await_scan(w_pool, false);
+}
+
+
+//flatten the pointer tree into pointer chains
+[[nodiscard]] int sc::ptrscan::flatten_tree() noexcept {
+
+    int ret;
+
+    cm_vct /* off_t */ offs_stack;
+    sc::_ptr_tree_node * p_tree_node;
+
+
+    //acquire a write lock
+    _LOCK_WRITE(-1)
+
+    //assert there is data to flatten
+    if (this->_get_bits(sc::_scan_sf::scan_data)) {
+        sc_errno = SC_ERR_STATE;
+        return -1;
+    }
+
+    //initialise the offset stack
+    ret = cm_new_vct(&offs_stack, sizeof(off_t));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        return -1;
+    }
+
+    
+
+
+
+    _UNLOCK
+    return 0;
+
+    _ptrscan_flatten_tree_fail:
+    _UNLOCK
+    return -1;
+}

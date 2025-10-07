@@ -444,11 +444,12 @@ class worker_pool
 
 
         //[methods]
-        [[nodiscard]] int do_run(const bool do_block) noexcept;
-        [[nodiscard]] int do_await(const bool do_block) noexcept;
+        [[nodiscard]] int do_run() noexcept;
+        [[nodiscard]] int do_await(
+            const bool do_block, const bool do_timeout) noexcept;
 
         [[nodiscard]] int do_ctrl_run() noexcept;
-        [[nodiscard]] int do_scan_run(const bool do_block) noexcept;
+        [[nodiscard]] int do_scan_run() noexcept;
 
         void remove_wkr_bundles(const int count) noexcept;
         void cleanup_err() noexcept;
@@ -468,10 +469,9 @@ class worker_pool
         
 
         //perform a single pass over the scan set
-        /* internal */ [[nodiscard]] int _single_run() noexcept;
-        /* internal */ [[nodiscard]] int _try_single_run() noexcept;
-        /* internal */ [[nodiscard]] int _await_run() noexcept;
-        /* internal */ [[nodiscard]] int _try_await_run() noexcept;
+        /* internal */ [[nodiscard]] int _dispatch_run() noexcept;
+        /* internal */ [[nodiscard]] int
+            _await_run(const bool do_block) noexcept;
         /* internal */ void _cancel() noexcept;
 
         //ctor & dtor
@@ -536,42 +536,45 @@ namespace file {
  */
 
 //pointer chain from pointer scanner's flattened tree
-class ptr_chain
-    : public _ctor_failable, public _stateful {
+class ptr_chain_node {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
         //object list index
         /* internal */ uint32_t _obj_idx;
+
+        //map-related info
         bool is_in_map;
         bool is_static;
         union {
             const cm_lst_node * obj_node; //`is_in_map` == true
             const char * pathname;        //`is_in_map` == false
         };
-        cm_vct /* <off_t> */ offsets;
+        off_t offset;
 
         // -- [methods]
-        void do_copy(const sc::ptr_chain & p_chain) noexcept;
+        void do_copy(const sc::ptr_chain_node & p_chain_node) noexcept;
 
     public:
         // -- [methods]
         /* internal */ uint32_t _get_obj_idx() const noexcept;
     
         //ctors & dtor
-        ptr_chain(
+        ptr_chain_node(
             const uint32_t _obj_idx,
             const bool is_static,
             const cm_lst_node * /* nullable */ obj_node,
             const char * /* nullable */ pathname,
-            const cm_vct /* <off_t> */ & offsets) noexcept;
-        ptr_chain(const sc::ptr_chain & p_chain) noexcept;
-        ptr_chain(const sc::ptr_chain && p_chain) = delete;
-        ~ptr_chain() noexcept;
+            const off_t offset) noexcept;
+        ptr_chain_node(const sc::ptr_chain_node & p_chain_node) noexcept;
+        ptr_chain_node(const sc::ptr_chain_node && p_chain_node) = delete;
+        ~ptr_chain_node() noexcept;
 
         //operators
-        sc::ptr_chain & operator=(const sc::ptr_chain & p_chain) noexcept;
-        sc::ptr_chain & operator=(const sc::ptr_chain && p_chain) = delete;
+        sc::ptr_chain_node & operator=(
+            const sc::ptr_chain_node & p_chain_node) noexcept;
+        sc::ptr_chain_node & operator=(
+            const sc::ptr_chain_node && p_chain_node) = delete;
 
         //determine if chain's starting
         //reference object is in the current map
@@ -581,10 +584,49 @@ class ptr_chain
         [[nodiscard]] bool get_is_static() const noexcept;
         [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
         [[nodiscard]] const char * get_pathname() const noexcept;
-        [[nodiscard]] const cm_vct & get_offsets() const noexcept;
+        [[nodiscard]] off_t get_offset() const noexcept;
 };
 
-class ptrscan : public _scan, public _ctor_failable {
+class ptr_chain : public _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        cm_vct /* <const ptr_chain_node> */ nodes;
+
+        // -- [methods]
+        void do_copy(const sc::ptr_chain & p_chain) noexcept;
+
+    public:
+        // -- [methods]
+        ptr_chain() noexcept;
+        ptr_chain(const sc::ptr_chain & p_chain) noexcept;
+        ptr_chain(const sc::ptr_chain && p_chain) = delete;
+        ~ptr_chain() noexcept;
+
+        //operators
+        sc::ptr_chain & operator=(
+            const sc::ptr_chain & p_chain) noexcept;
+        sc::ptr_chain & operator=(
+            const sc::ptr_chain && p_chain) = delete;
+
+        //reset
+        [[nodiscard]] int reset() noexcept;
+
+        //add a node
+        [[nodiscard]] int add_node(
+            const uint32_t _obj_idx,
+            const bool is_static,
+            const cm_lst_node * /* nullable */ obj_node,
+            const char * /* nullable */ pathname,
+            const off_t offset) noexcept;
+
+        //get nodes
+        [[nodiscard]] const cm_vct /* <const ptr_chain_node> */ &
+            get_nodes() const noexcept;
+};
+
+class ptrscan
+ : public _scan, public _ctor_failable, public _stateful {
 
     /*
      *  TODO: Record in the savefile the parameters used to produce
@@ -613,12 +655,11 @@ class ptrscan : public _scan, public _ctor_failable {
         // -- [methods]
         [[nodiscard]] int do_reset() noexcept;
         
-        [[nodiscard]] int do_run_scan(
-            const sc::opt & opts,
-            const sc::opt_ptrscan & opts_ptr,
+        [[nodiscard]] int do_await_scan(
             sc::worker_pool & w_pool,
-            const cm_byte w_pool_flags,
             const bool do_block) noexcept;
+
+        [[nodiscard]] int chain_recurse() noexcept;
 
     public:
         // -- [methods]
@@ -638,31 +679,29 @@ class ptrscan : public _scan, public _ctor_failable {
         sc::ptrscan & operator=(const sc::ptrscan & pscan) = delete;
         sc::ptrscan & operator=(const sc::ptrscan && pscan) = delete;
 
+        //reset
+        [[nodiscard]] int reset() noexcept override final;
+
         // - perform scans
 
-        //perform one pass (+1 depth)
-        [[nodiscard]] int run_scan(
+        //dispatch a scan (+1 depth)
+        [[nodiscard]] int dispatch_scan(
             const sc::opt & opts,
             const sc::opt_ptrscan & opts_ptr,
             sc::worker_pool & w_pool,
             const cm_byte w_pool_flags) noexcept;
 
-        [[nodiscard]] int try_run_scan(
-            const sc::opt & opts,
-            const sc::opt_ptrscan & opts_ptr,
-            sc::worker_pool & w_pool,
-            const cm_byte w_pool_flags) noexcept;
-
+        //await a scan
+        //0 = success, -1 = error, -2 = workers terminated prematurely
         [[nodiscard]] int await_scan(
-            sc::worker_pool & w_pool,
-            const bool do_block) noexcept;
-            
+            sc::worker_pool & w_pool) noexcept;
         [[nodiscard]] int try_await_scan(
-            sc::worker_pool & w_pool,
-            const bool do_block) noexcept;
+            sc::worker_pool & w_pool) noexcept;
 
-        //reset        
-        [[nodiscard]] int reset() noexcept override final;
+        // - tree operations
+
+        //flatten pointer tree into chains
+        [[nodiscard]] int flatten_tree() noexcept;
 };
 
 

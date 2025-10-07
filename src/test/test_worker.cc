@@ -530,7 +530,7 @@ namespace _worker_pool {
 
 
         //start a run
-        ret = w_pool._single_run();
+        ret = w_pool._dispatch_run(true);
         REQUIRE_EQ(ret, 0);
 
         //await for worker threads to initialise
@@ -547,7 +547,7 @@ namespace _worker_pool {
         }
 
         //finish a run
-        ret = w_pool._await_run();
+        ret = w_pool._await_run(true);
         REQUIRE_EQ(ret, (await_success ? 0 : -1));
 
         //assert finished state

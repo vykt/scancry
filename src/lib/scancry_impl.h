@@ -274,8 +274,8 @@ class _scan : public _lockable {
 
 //state flags shared by all scan types
 namespace _scan_sf {
-    const constexpr cm_byte running = 0b1 << 0; //running on worker pool
-    const constexpr cm_byte results = 0b1 << 1; //storing scan results
+    const constexpr cm_byte running   = 0b1 << 0; //running on worker pool
+    const constexpr cm_byte scan_data = 0b1 << 1; //scan results present
 }
 
 
@@ -628,6 +628,12 @@ class _ptr_tree : public _lockable, public _ctor_failable {
         [[nodiscard]] const sc::_ptr_tree_node *
             get_root_node() const noexcept;
 };
+
+//state flags shared by all scan types
+namespace _ptrscan_sf {
+    const constexpr cm_byte chains_data = 0b1 << 2; //chains constructed
+    const constexpr cm_byte file_data   = 0b1 << 3; //file data ready
+}
 
 
 } //namespace sc

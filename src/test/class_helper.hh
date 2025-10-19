@@ -46,6 +46,7 @@ namespace _class_helper {
                   const elem_T * elem_arr, const size_t elem_count) {
 
         int ret;
+        void * ret_data;
 
 
         //initialise the vector
@@ -55,8 +56,8 @@ namespace _class_helper {
         //populate the vector with elements
         for (int i = 0; i < elem_count; ++i) {
 
-            ret = cm_vct_apd(&vct, (const void *) &elem_arr[i]);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&vct, (const void *) &elem_arr[i]);
+            REQUIRE_NE(ret, nullptr);
         }
 
         return;

@@ -383,14 +383,15 @@ void sc::_worker_concurrency::wp_fix_release() noexcept {
     sc::_worker_concurrency::wp_wkr_kill(const int uid) noexcept {
 
     int ret;
+    void * ret_data;
     int fn_ret = 0;
     
 
     pthread_mutex_lock(&this->exit_uids_lock);
 
     //add unique ID to the list of workers to kill
-    ret = cm_vct_apd(&this->exit_uids, &uid);
-    if (ret != 0) {
+    ret_data = cm_vct_apd(&this->exit_uids, &uid);
+    if (ret_data == nullptr) {
         sc_errno = SC_ERR_CMORE;
         fn_ret = -1;
     }
@@ -1324,6 +1325,7 @@ void sc::worker_pool::cleanup_err() noexcept {
 [[nodiscard]] int sc::worker_pool::distrib_areas() noexcept {
 
     int ret;
+    void * ret_data;
     int ret_val = -1;
 
     cm_vct sums;
@@ -1385,8 +1387,8 @@ void sc::worker_pool::cleanup_err() noexcept {
 
         //add this area to this worker bundle
         cm_vct & wkr_areas = wkr_bundle->get_scan_area_subset();
-        ret = cm_vct_apd(&wkr_areas, &area_node);
-        if (ret != 0) {
+        ret_data = cm_vct_apd(&wkr_areas, &area_node);
+        if (ret_data == nullptr) {
             sc_errno = SC_ERR_CMORE; goto _distrib_areas_cleanup; }
 
     } //end for all cached areas

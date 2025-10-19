@@ -3,6 +3,7 @@
 
 //C standard library
 #include <cstring>
+#include <unistd.h>
 #ifdef SC_TRACE
 #include <cstdio>
 #endif
@@ -28,44 +29,322 @@
        * =============== */
 
 /*
+ *  --- [POINTER CHAIN NODE | PRIVATE] ---
+ */
+
+void sc::ptr_chain_node::do_copy(
+    const sc::ptr_chain_node & p_chain_node) noexcept {
+
+    //copy shallow analysis data
+    this->off         = p_chain_node.get_off();
+    this->obj_tbl_idx = p_chain_node.get_obj_tbl_idx();
+
+    //copy deep analysis data
+    this->addr      = p_chain_node.get_addr();
+    this->obj_node  = p_chain_node.get_obj_node();
+    this->area_node = p_chain_node.get_area_node();
+    this->obj_off   = p_chain_node.get_obj_off();
+    this->area_off  = p_chain_node.get_area_off();
+
+    return;
+}
+
+
+
+/*
+ *  --- [POINTER CHAIN NODE | INTERNAL] ---
+ */
+
+[[nodiscard]] int sc::ptr_chain_node::_follow(
+    const mc_vm_map * map,
+    mc_session * sess,
+    uintptr_t & cur_addr) noexcept {
+
+    int ret;
+
+
+    //read the target address
+    ret = mc_read(sess, cur_addr + this->off,
+                  (cm_byte *) &cur_addr, sizeof(cur_addr));
+    if (ret != 0) {
+        sc_errno = SC_ERR_MEMCRY;
+        return -1;
+    }
+
+    return 0;
+}
+
+
+[[nodiscard]] int sc::ptr_chain_node::_update_live_data(
+    const mc_vm_map * map,
+    mc_session * sess,
+    uintptr_t & cur_addr) noexcept {
+
+    int ret;
+    mc_vm_area * area;
+
+
+    //update the current address
+    cur_addr = cur_addr + this->off;
+
+    //set this node's address
+    this->addr = cur_addr;
+
+    //determine which area this address belongs to
+    this->area_node = mc_get_area_by_addr(map, cur_addr, &this->area_off);
+    if (this->area_node == nullptr) {
+        sc_errno = SC_ERR_MEMCRY;
+        return -1;
+    }
+
+    //extrapolate which object this address belongs to
+    area = MC_GET_NODE_AREA(this->area_node);
+    this->obj_node = (area->obj_node_p == nullptr)
+                     ? area->last_obj_node_p : area->obj_node_p;
+
+    //determine the offset from the object
+    this->obj_off = mc_get_obj_off(this->obj_node, this->addr);
+
+    //read the target address
+    ret = mc_read(sess, cur_addr,
+                  (cm_byte *) &cur_addr, sizeof(cur_addr));
+    if (ret != 0) {
+        sc_errno = SC_ERR_MEMCRY;
+        return -1;
+    }
+
+    return 0;
+}
+
+
+
+/*
+ *  --- [POINTER CHAIN NODE | PUBLIC] ---
+ */
+
+//constructor
+sc::ptr_chain_node::ptr_chain_node(
+ const off_t off,
+ const int obj_tbl_idx,
+ const off_t obj_tbl_off) noexcept
+ : off(off),
+   obj_tbl_idx(obj_tbl_idx),
+   obj_tbl_off(obj_tbl_off),
+   addr(0x0),
+   obj_node(nullptr),
+   area_node(nullptr),
+   obj_off(0x0),
+   area_off(0x0) {}
+
+
+//copy constructor
+sc::ptr_chain_node::ptr_chain_node(
+    const sc::ptr_chain_node & p_chain_node) noexcept {
+
+    this->do_copy(p_chain_node);
+    return;
+}
+
+
+//destructor
+sc::ptr_chain_node::~ptr_chain_node() noexcept {}
+
+
+//copy assignment operator
+sc::ptr_chain_node & sc::ptr_chain_node::operator=(
+    const sc::ptr_chain_node & p_chain_node) noexcept {
+
+    if (this != &p_chain_node) this->do_copy(p_chain_node);
+    return *this;
+}
+
+
+//getters
+[[nodiscard]] off_t sc::ptr_chain_node::get_off() const noexcept {
+    return this->off;
+}
+
+[[nodiscard]] int
+    sc::ptr_chain_node::get_obj_tbl_idx() const noexcept {
+    return this->obj_tbl_idx;
+}
+
+[[nodiscard]] uintptr_t sc::ptr_chain_node::get_addr() const noexcept {
+    return this->addr;
+}
+
+[[nodiscard]] const cm_lst_node *
+    sc::ptr_chain_node::get_obj_node() const noexcept {
+    return this->obj_node;
+}
+
+[[nodiscard]] const cm_lst_node *
+    sc::ptr_chain_node::get_area_node() const noexcept {
+    return this->area_node;
+}
+
+[[nodiscard]] off_t sc::ptr_chain_node::get_obj_off() const noexcept {
+    return this->obj_off;
+}
+
+[[nodiscard]] off_t sc::ptr_chain_node::get_area_off() const noexcept {
+    return this->area_off;
+}
+
+
+
+/*
  *  --- [POINTER CHAIN | PRIVATE] ---
  */
 
+//perform a copy
 void sc::ptr_chain::do_copy(
     const sc::ptr_chain & p_chain) noexcept {
 
     int ret;
 
 
-    //call the parent assignment operator
-    _ctor_failable::operator=(p_chain);
+    //call parent's assignment operator
+    sc::_ctor_failable::operator=(p_chain);
 
-    //copy object index
-    this->_obj_idx = p_chain._get_obj_idx();
+    //copy static flag
+    this->is_static = p_chain.get_static();
 
-    //copy static status
-    this->is_static = p_chain.get_is_static();
-
-    //copy map info
-    if (p_chain.in_map() == true) {
-        this->is_in_map = true;
-        this->obj_node  = p_chain.get_obj_node();
-    } else {
-        this->is_in_map = false;
-        this->pathname  = p_chain.get_pathname();
-    }
-
-    //copy offset
-    _CTOR_VCT_COPY_IF_INIT(this->offs, p_chain.get_offs());
+    //copy nodes
+    _CTOR_VCT_COPY_IF_INIT(this->nodes, p_chain.get_nodes());
 
     return;
 }
 
 
-//object index getter
-[[nodiscard]] uint32_t sc::ptr_chain::_get_obj_idx() const noexcept {
-    return this->_obj_idx;
+[[nodiscard]] uintptr_t sc::ptr_chain::resolv_start_addr(
+    const mc_vm_map * map,
+    const sc::obj_table & obj_tbl) noexcept {
+
+    sc::ptr_chain_node * node;
+
+    int ser_obj_pathname_idx;
+    const char * obj_pathname;
+    const cm_lst_node * obj_node;
+    mc_vm_obj * obj;
+
+
+    //if the chain is empty, return NULL
+    if (this->nodes.len == 0) return 0x0;
+
+    //get the starting node
+    node = (sc::ptr_chain_node *) cm_vct_get_p(&this->nodes, 0);    
+
+    //get the object
+    obj_node = obj_tbl.resolv_obj_node(node->get_obj_tbl_idx(), map);
+    if (obj_node == nullptr) return 0;
+    obj = MC_GET_NODE_OBJ(obj_node);
+
+    //return the start address
+    return obj->start_addr;
 }
+
+
+#if 0
+//(re)build a pointer chain
+[[nodiscard]] int sc::ptr_chain::build(
+    const char * pathname,
+    const mc_vm_map & map,
+    const mc_session & session,
+    const sc::addr_width a_width,
+    const sc::map_area_set & static_set) noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+    uintptr_t addr;
+    uintptr_t first_addr;
+    uint64_t rd_addr;
+    off_t off;
+
+    const cm_rbt * set;
+    const cm_lst_node * obj_node;
+    const cm_lst_node * area_node;
+    const mc_vm_obj * obj;
+    const mc_vm_area * area;
+
+    void * alloc_addr;
+    cm_byte _placeholder[sizeof(sc::ptr_chain_node)] = {0};
+
+
+    //read lock the static set
+    ret = static_set._lock_read();
+    if (ret != 0) return -1;
+
+    //get the set & assert it is initialised
+    set = &static_set.get_set();
+    if (set->is_init == false) {
+        sc_errno = SC_ERR_OPT_EMPTY;
+        goto _ptr_chain_build_cleanup;
+    }
+
+    //find the starting object
+    obj_node = mc_get_obj_by_pathname(&map, pathname);
+    if (obj_node == nullptr) {
+        sc_errno = SC_ERR_MEMCRY;
+        goto _ptr_chain_build_cleanup;
+    }
+    obj = MC_GET_NODE_OBJ(obj_node);
+
+    //bootstrap iteration
+    addr = obj->start_addr;
+
+    //traverse each offset to initialise nodes
+    for (int i = 0; i < this->offs.len; ++i) {
+
+        //get the next offset
+        ret = cm_vct_get(&this->offs, i, &off);
+        if (ret != 0) {
+            sc_errno = SC_ERR_CMORE;
+            goto _ptr_chain_build_cleanup;
+        }
+
+        //first offset is special
+        if (i == 0) {
+
+            //find the area of the start of the pointer chain
+            first_addr = addr + off;
+            area_node = mc_get_area_by_addr(&map, first_addr, nullptr);
+            if (area_node == nullptr) {
+                sc_errno = SC_ERR_MEMCRY;
+                goto _ptr_chain_build_cleanup;
+            }
+
+            //determine if 
+            
+        }
+
+        //allocate space for a new pointer chain node
+        ret = cm_vct_apd(&this->nodes, _placeholder);
+        if (ret != 0) {
+            sc_errno = SC_ERR_CMORE;
+            goto _ptr_chain_build_cleanup;
+        }
+
+        //construct a new pointer chain node in the new allocation
+        alloc_addr = cm_vct_get_p(&this->nodes, -1);
+        new (alloc_addr) sc::ptr_chain_node(off, )
+
+
+
+
+        //read the target addr
+        
+        
+    }
+
+
+    //release the read lock on the static set
+    _ptr_chain_build_cleanup:
+    static_set._unlock();
+    return ret_val;
+}
+#endif
 
 
 
@@ -75,29 +354,53 @@ void sc::ptr_chain::do_copy(
 
 //constructor
 sc::ptr_chain::ptr_chain(
-    const uint32_t _obj_idx,
-    const bool is_static,
-    const cm_lst_node * /* one of (set A) */ obj_node,
-    const char * /* one of (set A) */ pathname,
-    const cm_vct /* off_t */ & offset) noexcept
+    const cm_vct /* <off_t> */ & off_vct,
+    const cm_vct /* <int> */ & obj_tbl_idx_vct,
+    const cm_vct /* <off_t> */ & obj_tbl_off_vct,
+    const bool is_static) noexcept
  : _ctor_failable(),
-   _obj_idx(_obj_idx),
    is_static(is_static) {
 
     int ret;
 
-    //zero-out the offsets vector
-    std::memset(&this->offs, 0, sizeof(this->offs));
+    void * new_elem;
+    cm_byte _placeholder[sizeof(sc::ptr_chain_node)] = {0};
 
-    //setup an object pointer or pathname fallback
-    if (obj_node != nullptr) {
-        this->is_in_map = true;
-        this->obj_node = obj_node;
-        
-    } else {
-        this->is_in_map = false;
-        this->pathname = pathname;
+    off_t * off;
+    int * tbl_idx;
+    off_t * tbl_off;
+
+
+    //assert vector lengths match
+    if (off_vct.len != obj_tbl_idx_vct.len) {
+        goto _ptr_chain_ctor_fail_1;
     }
+
+    //initialise nodes
+    ret = cm_new_vct(&this->nodes, sizeof(sc::ptr_chain_node));
+    if (ret != 0) goto _ptr_chain_ctor_fail_1;
+    
+    //construct pointer chain nodes
+    for (int i = off_vct.len - 1; i >= 0; --i) {
+
+        //get the offset and pathname index for the next node
+        off = (off_t *) cm_vct_get_p(&off_vct, i);
+        tbl_idx = (int *) cm_vct_get_p(&obj_tbl_idx_vct, i);
+        tbl_off = (off_t *) cm_vct_get_p(&obj_tbl_idx_vct, i);
+
+        //construct the next node
+        new_elem = cm_vct_apd(&this->nodes, _placeholder);
+        if (new_elem == nullptr) goto _ptr_chain_ctor_fail_2;
+        new (new_elem) sc::ptr_chain_node(*off, *tbl_idx, *tbl_off);
+    }
+
+    return;
+
+    _ptr_chain_ctor_fail_2:
+    cm_del_vct(&this->nodes);
+
+    _ptr_chain_ctor_fail_1:
+    _set_ctor_failed(true);
 
     return;
 }
@@ -105,8 +408,7 @@ sc::ptr_chain::ptr_chain(
 
 //copy constructor
 sc::ptr_chain::ptr_chain(
-    const sc::ptr_chain & p_chain) noexcept
- : obj_node(nullptr) {
+    const sc::ptr_chain & p_chain) noexcept {
 
     this->do_copy(p_chain);
     return;
@@ -116,7 +418,9 @@ sc::ptr_chain::ptr_chain(
 //destructor
 sc::ptr_chain::~ptr_chain() noexcept {
 
-    _CTOR_VCT_DELETE_IF_INIT(this->offs);
+    //delete the nodes & offs vectors
+    _CTOR_VCT_DELETE_IF_INIT(this->nodes);
+
     return;
 }
 
@@ -126,35 +430,88 @@ sc::ptr_chain & sc::ptr_chain::operator=(
     const sc::ptr_chain & p_chain) noexcept {
 
     if (this != &p_chain) this->do_copy(p_chain);
-
     return *this;
 }
 
 
-//determine if chain's starting reference object is in the current map
-[[nodiscard]] bool sc::ptr_chain::in_map() const noexcept {
-    return this->is_in_map;
+/*
+ *  NOTE: This function is unique; a memcry related failure does not
+ *        indicate a error in scancry itself, rather that following
+ *        this chain is not possible.
+ */
+
+//follow & verify
+/* -1 = can't follow chain, presume invalid, 0 = success */
+[[nodiscard]] int sc::ptr_chain::verify(
+    const mc_vm_map * map,
+    mc_session * sess,
+    const sc::obj_table & obj_tbl,
+    const uintptr_t tgt_addr) noexcept {
+
+    int ret;
+    uintptr_t addr;
+    sc::ptr_chain_node * node;
+
+
+    //get the starting address
+    addr = this->resolv_start_addr(map, obj_tbl);
+    if (addr == 0x0) return -1;
+
+    //for all nodes
+    for (int i = 0; i < this->nodes.len; ++i) {
+
+        //get the next node
+        node = (sc::ptr_chain_node *) cm_vct_get_p(&this->nodes, i);
+
+        //attempt to follow to the next node
+        ret = node->_follow(map, sess, addr);
+        if (ret != 0) return -1;
+    }
+
+    //assert that the final address matches the target address
+    return (addr == tgt_addr) ? 0 : -1;
+}
+
+
+//follow & populate live data
+/* -1 = can't follow chain, presume invalid, 0 = success */
+[[nodiscard]] int sc::ptr_chain::update_live_data(
+    const mc_vm_map * map,
+    mc_session * sess,
+    const sc::obj_table & obj_tbl) noexcept {
+
+    int ret;
+    uintptr_t addr;
+    sc::ptr_chain_node * node;
+
+
+    //get the starting address
+    addr = this->resolv_start_addr(map, obj_tbl);
+    if (addr == 0x0) return -1;
+
+    //for all nodes
+    for (int i = 0; i < this->nodes.len; ++i) {
+
+        //get the next node
+        node = (sc::ptr_chain_node *) cm_vct_get_p(&this->nodes, i);
+
+        //attempt to follow to the next node & populate deep analysis
+        ret = node->_update_live_data(map, sess, addr);
+        if (ret != 0) return -1;
+    }
+
+    return 0;
 }
 
 
 //getters
-[[nodiscard]] bool sc::ptr_chain::get_is_static() const noexcept {
+[[nodiscard]] bool sc::ptr_chain::get_static() const noexcept {
     return this->is_static;
 }
 
-[[nodiscard]] const cm_lst_node *
-    sc::ptr_chain::get_obj_node() const noexcept {
-    return this->obj_node;
-}
-
-[[nodiscard]] const char *
-    sc::ptr_chain::get_pathname() const noexcept {
-    return this->pathname;
-}
-
-[[nodiscard]] const cm_vct /* off_t */ &
-    sc::ptr_chain::get_offs() const noexcept {
-    return this->offs;
+[[nodiscard]] const cm_vct /* <sc::ptr_chain_node> */ &
+    sc::ptr_chain::get_nodes() const noexcept {
+    return this->nodes;
 }
 
 
@@ -342,6 +699,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     const uintptr_t ptr_addr) noexcept {
 
     int ret;
+    void * ret_data;
     cm_vct /* <sc::_ptr_tree_node *> */ * lvl_vct;
 
 
@@ -369,8 +727,8 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     //add the root node to the first level
     lvl_vct = (cm_vct *) cm_vct_get_p(&this->depth_lvls, 0);
     if (lvl_vct == nullptr) goto _ptr_tree_init_root_node_fail;
-    ret = cm_vct_apd(lvl_vct, this->root_node);
-    if (ret != 0) goto _ptr_tree_init_root_node_fail;
+    ret_data = cm_vct_apd(lvl_vct, this->root_node);
+    if (ret_data == nullptr) goto _ptr_tree_init_root_node_fail;
 
     //unlock
     _UNLOCK
@@ -387,30 +745,23 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 [[nodiscard]] int sc::_ptr_tree::inc_depth_lvl() noexcept {
 
     int ret;
+    cm_vct * new_vct;
 
     cm_byte placeholder[sizeof(cm_vct)] = {0};
-    cm_vct * lvl_vct;
 
 
     //acquire a write lock
     _AWAIT_WRITE(-1);
 
     //allocate space for a new tree level vector
-    ret = cm_vct_apd(&this->depth_lvls, placeholder);
-    if (ret != 0) {
-        sc_errno = SC_ERR_CMORE;
-        goto _ptr_tree_inc_depth_lvl_fail;
-    }
-
-    //get a pointer to the new allocation
-    lvl_vct = (cm_vct *) cm_vct_get_p(&this->depth_lvls, -1);
-    if (lvl_vct == nullptr) {
+    new_vct = (cm_vct *) cm_vct_apd(&this->depth_lvls, placeholder);
+    if (new_vct == nullptr) {
         sc_errno = SC_ERR_CMORE;
         goto _ptr_tree_inc_depth_lvl_fail;
     }
 
     //initialise the new tree level vector
-    ret = cm_new_vct(lvl_vct, sizeof(sc::_ptr_tree_node *));
+    ret = cm_new_vct(new_vct, sizeof(sc::_ptr_tree_node *));
     if (ret != 0) {
         sc_errno = SC_ERR_CMORE;
         /* discard */ ret = cm_vct_rmv(&this->depth_lvls, -1);
@@ -431,6 +782,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     const int lvl, const sc::_ptr_tree_node * p_tree_node) noexcept {
 
     int ret;
+    void * ret_data;
     cm_vct * lvl_vct;
 
 
@@ -445,8 +797,8 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     }
 
     //add a new node pointer to this tree level vector
-    ret = cm_vct_apd(lvl_vct, &p_tree_node);
-    if (ret != 0) {
+    ret_data = cm_vct_apd(lvl_vct, &p_tree_node);
+    if (ret_data == nullptr) {
         sc_errno = SC_ERR_CMORE;
         goto _ptr_tree_add_to_lvl_fail;
     }
@@ -509,7 +861,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     if (ret != 0) return -1;
 
     //delete pathnames vector
-    _CTOR_VCT_DELETE_IF_INIT(this->ser_pathnames);
+    this->obj_tbl.reset();
 
     //free chains
     for (int i = 0; i < this->chains.len; ++i) {
@@ -567,51 +919,6 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 }
 
 
-//return a index into the serialised pathnames for an object, creating
-//a new serialised pathname entry if one does not already exist for
-//this pathname
-[[nodiscard]] uint32_t sc::ptrscan::generate_obj_idx(
-    const cm_lst_node * obj_node) noexcept {
-
-    int ret;
-
-    mc_vm_obj * obj;
-    const char * tmp_pathname;
-
-    const char ** new_pathname;
-    const cm_byte * placeholder[sizeof(const char *)] = {0};
-
-
-    //fetch object
-    obj = MC_GET_NODE_OBJ(obj_node);
-
-    //try to locate the pathname in the serialised pathnames vector
-    for (int i = 0; i < this->ser_pathnames.len; ++i) {
-
-        //fetch the next pathname
-        ret = cm_vct_get(&this->ser_pathnames, i, &tmp_pathname);
-        if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
-
-        ret = std::strncmp(obj->pathname, tmp_pathname, PATH_MAX);
-        if (ret == 0) return (uint32_t) i;
-    }
-
-    //if no match was found, create a new pathname entry
-    ret = cm_vct_apd(&this->ser_pathnames, placeholder);
-    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
-
-    //get a pointer to the allocation
-    new_pathname = (const char **) cm_vct_get_p(&this->ser_pathnames, -1);
-    if (new_pathname == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
-
-    //allocate a new pathname string
-    *new_pathname = (const char *) std::malloc(
-                        strnlen(obj->pathname, PATH_MAX));
-    if (*new_pathname == nullptr) { sc_errno = SC_ERR_MEM; return -1; }
-
-    return (uint32_t) (this->ser_pathnames.len - 1);
-}
-
 
 /*
  *  FIXME: This entire function does not cleanup properly in case of
@@ -622,14 +929,19 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 [[nodiscard]] int sc::ptrscan::chain_recurse(
     const mc_vm_map * map,
     const cm_rbt & static_set_tree,
-    cm_vct /* <off_t> */ & offs_stack,
+    cm_vct /* <off_t> */ & off_stack,
+    cm_vct /* <int> */ & obj_tbl_idx_stack,
+    cm_vct /* <off_t> */ & obj_tbl_off_stack,
     const sc::_ptr_tree_node & p_tree_node,
     const uintptr_t tgt_addr) noexcept {
 
     int ret;
+    void * ret_data;
 
     bool is_static;
     off_t off;
+    int obj_tbl_idx;
+    off_t obj_tbl_off;
 
     const cm_lst_node * area_node;
     const mc_vm_area * area;
@@ -642,7 +954,6 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     const cm_lst_node * child_node;
     sc::_ptr_tree_node * p_tree_child_node;
 
-    uint32_t obj_idx;
     void * alloc_addr;    
     cm_byte placeholder[sizeof(sc::ptr_chain)] = {0};
 
@@ -666,35 +977,40 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
         }
     } else { is_static = true; }
 
+    //find the object for this node
+    obj_node = (area->obj_node_p == nullptr)
+                ? area->last_obj_node_p : area->obj_node_p;
+    obj = MC_GET_NODE_OBJ(obj_node);
 
-    //add this node's offset to the chain stack
+
+    //add to the offset stack
     off = tgt_addr - p_tree_node.ptr_addr;
-    ret = cm_vct_ins(&offs_stack, 0, &off);
-    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+    ret_data = cm_vct_apd(&off_stack, &off);
+    if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //add to the object table index stack
+    obj_tbl_idx = this->obj_tbl.add_pathname(obj->pathname);
+    if (obj_tbl_idx == -1) return -1;
+    ret_data = cm_vct_apd(&obj_tbl_idx_stack, &obj_tbl_idx);
+    if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //add to the object table offset stack
+    obj_tbl_off = mc_get_obj_off(obj_node, p_tree_node.own_addr);
+    ret_data = cm_vct_apd(&obj_tbl_off_stack, &obj_tbl_off);
+    if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
+
 
     //if this is a static node OR this node has no children, then
     //construct a new chain
     if ((is_static == true) || (p_tree_node.get_children().len == 0)) {
 
-        //find the object for this node
-        obj_node = (area->obj_node_p == nullptr)
-                    ? area->last_obj_node_p : area->obj_node_p;
-
-        //get the object index for this new chain
-        obj_idx = generate_obj_idx(obj_node);
-        if (obj_idx == -1) return -1;
-
         //allocate space for the new chain
-        ret = cm_vct_apd(&this->chains, placeholder);
-        if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
-
-        //fetch the address of the new allocation
-        alloc_addr = cm_vct_get_p(&this->chains, -1);
+        alloc_addr = cm_vct_apd(&this->chains, placeholder);
         if (alloc_addr == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
 
         //construct the new chain in place
         new (alloc_addr) sc::ptr_chain(
-                obj_idx, is_static, obj_node, nullptr, offs_stack);
+            off_stack, obj_tbl_idx_stack, obj_tbl_off_stack, is_static);
 
 
     //else, recurse down the tree
@@ -715,7 +1031,9 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
             ret = this->chain_recurse(
                       map,
                       static_set_tree,
-                      offs_stack,
+                      off_stack,
+                      obj_tbl_idx_stack,
+                      obj_tbl_off_stack,
                       *p_tree_child_node,
                       p_tree_node.own_addr);
             if (ret != 0) return -1;
@@ -727,8 +1045,16 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     } //end else recurse down the tree
 
 
-    //pop own offset from the chain stack
-    ret = cm_vct_rmv(&offs_stack, 0);
+    //pop offst stack
+    ret = cm_vct_rmv(&off_stack, off_stack.len - 1);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //pop object table index stack
+    ret = cm_vct_rmv(&obj_tbl_idx_stack, obj_tbl_idx_stack.len - 1);
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //pop object table offset stack
+    ret = cm_vct_rmv(&obj_tbl_off_stack, obj_tbl_off_stack.len - 1);
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
     
     return 0;
@@ -747,6 +1073,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     const _opt_scan & opts_scan) noexcept {
 
     int ret;
+    void * ret_data;
 
     sc::addr_width aw;
     sc::smart_scan ss;
@@ -870,8 +1197,8 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
             }
 
             //save this pointer node
-            ret = cm_vct_apd(&hit_p_tree_nodes, &p_tree_node);
-            if (__builtin_expect((ret != 0), 0)) {
+            ret_data = cm_vct_apd(&hit_p_tree_nodes, &p_tree_node);
+            if (__builtin_expect((ret_data == nullptr), 0)) {
                 sc_errno = SC_ERR_CMORE;
                 goto _ptrscan_process_addr_fail;
             }
@@ -939,17 +1266,15 @@ sc::ptrscan::ptrscan() noexcept
     }
 
     //zero-out vectors
-    std::memset(&this->ser_pathnames, 0, sizeof(this->ser_pathnames));
     std::memset(&this->chains, 0, sizeof(this->chains));
 
-    //setup chains & serialisation pathnames
-    ret = cm_new_vct(&this->ser_pathnames, sizeof(const char *));
-    if (ret != 0) {
+    //assert the object table constructor succeeded
+    if (this->obj_tbl.get_ctor_failed() == false) {
         this->_set_ctor_failed(true);
-        sc_errno = SC_ERR_CMORE;
         return;
     }
 
+    //initialise the chains vector
     ret = cm_new_vct(&this->chains, sizeof(sc::ptr_chain));
     if (ret != 0) {
         this->_set_ctor_failed(true);
@@ -969,16 +1294,6 @@ sc::ptrscan::~ptrscan() noexcept {
     const char * pathname;
     sc::ptr_chain * p_chain;
 
-
-    //free serialisation pathnames
-    for (int i = 0; i < this->ser_pathnames.len; ++i) {
-        pathname = (const char *) cm_vct_get_p(&this->ser_pathnames, i);
-        if (pathname == nullptr) { sc_errno = SC_ERR_CMORE; continue; }
-        std::free((void *) pathname);
-    }
-
-    //free serialisation pathnames vector
-    _CTOR_VCT_DELETE_IF_INIT(this->ser_pathnames);
 
     //free chains
     for (int i = 0; i < this->chains.len; ++i) {
@@ -1113,7 +1428,9 @@ sc::ptrscan::~ptrscan() noexcept {
     int ret;
     int ret_val = -1;
 
-    cm_vct /* off_t */ offs_stack;
+    cm_vct /* <off_t> */ off_stack;
+    cm_vct /* <int> */ obj_tbl_idx_stack;
+    cm_vct /* <off_t> */ obj_tbl_off_stack;
     const sc::_ptr_tree_node * p_root_node;
 
     const mc_vm_map * map;
@@ -1156,10 +1473,24 @@ sc::ptrscan::~ptrscan() noexcept {
 
 
     //initialise the offset stack
-    ret = cm_new_vct(&offs_stack, sizeof(off_t));
+    ret = cm_new_vct(&off_stack, sizeof(off_t));
     if (ret != 0) {
         sc_errno = SC_ERR_CMORE;
         goto _ptrscan_flatten_tree_cleanup_2;
+    }
+
+    //initialise the object table offset stack
+    ret = cm_new_vct(&obj_tbl_idx_stack, sizeof(int));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        goto _ptrscan_flatten_tree_cleanup_3;
+    }
+
+    //initialise the object table offset stack
+    ret = cm_new_vct(&obj_tbl_off_stack, sizeof(off_t));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        goto _ptrscan_flatten_tree_cleanup_4;
     }
 
     //fetch the pointer tree root node
@@ -1170,14 +1501,25 @@ sc::ptrscan::~ptrscan() noexcept {
     ret = this->chain_recurse(
               map,
               *static_set_tree,
-              offs_stack,
+              off_stack,
+              obj_tbl_idx_stack,
+              obj_tbl_off_stack,
               *p_root_node,
               p_root_node->own_addr);
-    if (ret != 0) goto _ptrscan_flatten_tree_cleanup_2;
+    if (ret != 0) goto _ptrscan_flatten_tree_cleanup_5;
 
 
     //set return to 0 to indicate success
     ret_val = 0;
+
+    _ptrscan_flatten_tree_cleanup_5:
+    cm_del_vct(&obj_tbl_off_stack);
+
+    _ptrscan_flatten_tree_cleanup_4:
+    cm_del_vct(&obj_tbl_idx_stack);
+
+    _ptrscan_flatten_tree_cleanup_3:
+    cm_del_vct(&off_stack);
 
     _ptrscan_flatten_tree_cleanup_2:
     static_set->_unlock();
@@ -1189,15 +1531,128 @@ sc::ptrscan::~ptrscan() noexcept {
 }
 
 
+//verify pointer chains
 [[nodiscard]] int sc::ptrscan::verify_chains(
     const sc::opt & opts,
-    const sc::opt_ptrscan & opts_ptr) noexcept {
+    const sc::opt_ptrscan & opts_ptr,
+    const uintptr_t tgt_addr) noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+    mc_vm_map * map;
+    const cm_vct /* <const mc_session *> */ * sess_vct;
+    mc_session * sess;
+
+    sc::ptr_chain * p_chain;
 
 
+    //get locks & check state
+    ret = this->handle_entry(
+        &opts,
+        &opts_ptr,
+        sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
+        sc::_ptrscan_sf::chains_data);
+    if (ret != 0) return -1;
+
+    //assert a map is provided
+    map = opts.get_map();
+    if (map == nullptr) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_verify_chains_fail_1;
+    }
+
+    //assert a session is provided
+    sess_vct = &opts.get_sessions();
+    if ((sess_vct->is_init == false) || (sess_vct->len == 0)) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_verify_chains_fail_1;
+    }
+    sess = *(mc_session **) cm_vct_get_p(sess_vct, 0);
+
+
+    //for all pointer chains
+    for (int i = 0; i < this->chains.len; ++i) {
+
+        //get the next chain
+        p_chain = (sc::ptr_chain *) cm_vct_get_p(&this->chains, i);
+
+        //try to verify the chain & discard it on fail
+        ret = p_chain->verify(map, sess, this->obj_tbl, tgt_addr);
+        if (ret != 0) {
+            sc_errno = 0;
+            p_chain->~ptr_chain();
+            cm_vct_rmv(&this->chains, i);
+            --i;
+        }
+    }
+
+    //cleanup
     _ptrscan_verify_chains_fail_1:
-    opts_ptr._unlock();
-    opts._unlock();
-    _UNLOCK
+    this->handle_exit(&opts, &opts_ptr);
 
-    return 0;
+    return ret_val;
+}
+
+//update live data in existing chains
+[[nodiscard]] int sc::ptrscan::update_live_chains(
+    const sc::opt & opts,
+    const sc::opt_ptrscan & opts_ptr,
+    const uintptr_t tgt_addr) noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+    mc_vm_map * map;
+    const cm_vct /* <const mc_session *> */ * sess_vct;
+    mc_session * sess;
+
+    sc::ptr_chain * p_chain;
+
+
+    //get locks & check state
+    ret = this->handle_entry(
+        &opts,
+        &opts_ptr,
+        sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
+        sc::_ptrscan_sf::chains_data);
+    if (ret != 0) return -1;
+
+    //assert a map is provided
+    map = opts.get_map();
+    if (map == nullptr) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_verify_chains_fail_1;
+    }
+
+    //assert a session is provided
+    sess_vct = &opts.get_sessions();
+    if ((sess_vct->is_init == false) || (sess_vct->len == 0)) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_verify_chains_fail_1;
+    }
+    sess = *(mc_session **) cm_vct_get_p(sess_vct, 0);
+
+
+    //for all pointer chains
+    for (int i = 0; i < this->chains.len; ++i) {
+
+        //get the next chain
+        p_chain = (sc::ptr_chain *) cm_vct_get_p(&this->chains, i);
+
+        //try to verify the chain & discard it on fail
+        ret = p_chain->update_live_data(map, sess, this->obj_tbl);
+        if (ret != 0) {
+            sc_errno = 0;
+            p_chain->~ptr_chain();
+            cm_vct_rmv(&this->chains, i);
+            --i;
+        }
+    }
+
+    //cleanup
+    _ptrscan_verify_chains_fail_1:
+    this->handle_exit(&opts, &opts_ptr);
+
+    return ret_val;
 }

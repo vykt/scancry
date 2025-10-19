@@ -173,6 +173,7 @@ void common::mov_rbt_if_init(
     int (* convert)(void *, const void *)) {
 
     int ret;
+    void * ret_data;
 
     void * src_data;
     void * dst_data_buf;
@@ -208,8 +209,8 @@ void common::mov_rbt_if_init(
         }
 
         //add the destination element to the destination vector
-        ret = cm_vct_apd(&dst_vct, dst_data_buf);
-        if (ret != 0) {
+        ret_data = cm_vct_apd(&dst_vct, dst_data_buf);
+        if (ret_data == nullptr) {
             sc_errno = SC_ERR_CMORE;
             goto _convert_c_data_fail;
         }

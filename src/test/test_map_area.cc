@@ -1495,6 +1495,7 @@ namespace _map_area_set {
             _opt_helper::cc::args *, _opt_helper::c::args *> args) {
         
             int ret;
+            void * ret_data;
 
             mc_vm_map * m = &mcry_args.map;
             cm_lst_node * node;
@@ -1537,8 +1538,8 @@ namespace _map_area_set {
             REQUIRE_NE(obj, nullptr);
 
             range = sc::addr_range(obj->start_addr, obj->end_addr);
-            ret = cm_vct_apd(&exclusive_addr_ranges, &range);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&exclusive_addr_ranges, &range);
+            REQUIRE_NE(ret_data, nullptr);
 
             //add exclusive address ranges
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {
@@ -1558,13 +1559,13 @@ namespace _map_area_set {
             //exclusive objects - `[heap]` & `libc.so.6`
             node = mc_get_obj_by_basename(m, "[heap]");
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&exclusive_objs, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&exclusive_objs, &node);
+            REQUIRE_EQ(ret_data, nullptr);
 
             node = mc_get_obj_by_basename(m, "libc.so.6");
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&exclusive_objs, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&exclusive_objs, &node);
+            REQUIRE_EQ(ret_data, nullptr);
 
             //add exclusive objs
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {
@@ -1590,8 +1591,8 @@ namespace _map_area_set {
             REQUIRE_NE(obj, nullptr);
             node = MC_GET_NODE_PTR(obj->vm_area_node_ps.head);
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&exclusive_areas, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&exclusive_areas, &node);
+            REQUIRE_NE(ret_data, nullptr);
 
             node = mc_get_obj_by_basename(
                        m, _target_helper::pattern_2_basename);
@@ -1600,8 +1601,8 @@ namespace _map_area_set {
             REQUIRE_NE(obj, nullptr);
             node = MC_GET_NODE_PTR(obj->vm_area_node_ps.head);
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&exclusive_areas, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&exclusive_areas, &node);
+            REQUIRE_NE(ret_data, nullptr);
 
             //add exclusive areas
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {
@@ -1627,8 +1628,8 @@ namespace _map_area_set {
             
             range = sc::addr_range(obj->start_addr + 0x800,
                                    obj->end_addr - 0x800);
-            ret = cm_vct_apd(&omit_addr_ranges, &range);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&omit_addr_ranges, &range);
+            REQUIRE_NE(ret_data, nullptr);
 
             //add omit addr ranges
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {
@@ -1650,8 +1651,8 @@ namespace _map_area_set {
             node = mc_get_obj_by_basename(
                        m, _target_helper::pattern_2_basename);
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&omit_objs, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&omit_objs, &node);
+            REQUIRE_NE(ret_data, nullptr);
 
             //add omit objs
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {
@@ -1678,14 +1679,14 @@ namespace _map_area_set {
             node = MC_GET_NODE_PTR(
                        obj->vm_area_node_ps.head->next);
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&omit_areas, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&omit_areas, &node);
+            REQUIRE_NE(ret_data, nullptr);
 
             node = MC_GET_NODE_PTR(
                        obj->vm_area_node_ps.head->next->next);
             REQUIRE_NE(node, nullptr);
-            ret = cm_vct_apd(&omit_areas, &node);
-            REQUIRE_EQ(ret, 0);
+            ret_data = cm_vct_apd(&omit_areas, &node);
+            REQUIRE_NE(ret_data, nullptr);
 
             //add omit areas
             if (std::holds_alternative<_opt_helper::cc::args *>(args)) {

@@ -56,6 +56,7 @@ _SC_DBG_STATIC int
     _to_addr_ord_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
 
     int ret;
+    void * ret_data;
 
     cm_vct * vct_set;
 
@@ -80,8 +81,8 @@ _SC_DBG_STATIC int
 
         //always insert if this is the lowest address
         if (i == 0) {
-            ret = cm_vct_ins(vct_set, 0, &area_node);
-            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            ret_data = cm_vct_ins(vct_set, 0, &area_node);
+            if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
 
@@ -92,8 +93,8 @@ _SC_DBG_STATIC int
 
         //insert here if new area's starting address is higher
         if (area->start_addr > cmp_area->start_addr) {
-            ret = cm_vct_ins(vct_set, i, &area_node);
-            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            ret_data = cm_vct_ins(vct_set, i, &area_node);
+            if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
     }
@@ -106,6 +107,7 @@ _SC_DBG_STATIC int
     _to_size_ord_vct_cb(const cm_rbt_node * rbt_node, void * ctx) {
 
     int ret;
+    void * ret_data;
 
     cm_vct * vct_set;
     mc_vm_area * area, * cmp_area;
@@ -121,8 +123,8 @@ _SC_DBG_STATIC int
 
         //always insert if this is reached the end of the vector
         if (i == vct_set->len) {
-            ret = cm_vct_apd(vct_set, &area);
-            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            ret_data = cm_vct_apd(vct_set, &area);
+            if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
 
@@ -134,8 +136,8 @@ _SC_DBG_STATIC int
         if ((area->end_addr - area->start_addr)
              > (cmp_area->end_addr - cmp_area->start_addr)) {
 
-            ret = cm_vct_ins(vct_set, i, &area);
-            if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+            ret_data = cm_vct_ins(vct_set, i, &area);
+            if (ret_data == nullptr) { sc_errno = SC_ERR_CMORE; return -1; }
             break;
         }
     }

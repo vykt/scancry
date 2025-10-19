@@ -529,45 +529,157 @@ namespace file {
 
 
 /*
+ *  NOTE: This stores a container of object pathnames.
+ */
+
+//table of object pathnames
+class obj_table : public _ctor_failable {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        cm_vct /* <const char * (alloc)> */ pathname_tbl;
+
+        // -- [methods]
+        //destroy the pathname table
+        void del_pathname_tbl() noexcept;
+
+        //perform the copy
+        void do_copy(const sc::obj_table & obj_tbl) noexcept;
+
+        //insert a pathname into the table
+        [[nodiscard]] int do_add(const char * pathname) noexcept;
+
+    public:
+        // -- [methods]
+        //ctors & dtor
+        obj_table() noexcept;
+        obj_table(const sc::obj_table & obj_tbl) noexcept;
+        obj_table(const sc::obj_table && obj_tbl) = delete;
+        ~obj_table() noexcept;
+
+        //operators
+        sc::obj_table & operator=(
+            const sc::obj_table & obj_tbl) noexcept;
+        sc::obj_table & operator=(
+            const sc::obj_table && obj_tbl) = delete;
+
+        //resetter
+        void reset() noexcept;
+
+        //resolvers
+        [[nodiscard]] const char * resolv_pathname(
+            const int idx) const noexcept;
+        [[nodiscard]] const cm_lst_node * resolv_obj_node(
+            const int idx, const mc_vm_map * map) const noexcept;
+
+        //add a pathname (skip search)
+        [[nodiscard]] int fadd_pathname(const char * pathname) noexcept;
+
+        //add a pathname
+        [[nodiscard]] int add_pathname(const char * pathname) noexcept;
+
+        //getters
+        [[nodiscard]] const cm_vct /* <const char * (alloc)> */ &
+            get_pathname_tbl() const noexcept;
+};
+
+
+
+/*
  *  NOTE: These classes implement a pointer scanner. Internally, the
  *        pointer scanner builds a tree where the root node is the
  *        target address, and leaf nodes are starting points for
  *        the scan. 
  */
 
-//pointer chain from pointer scanner's flattened tree
+//a pointer chain node
+class ptr_chain_node {
+
+    _SC_DBG_PRIVATE:
+        // -- [attributes]
+        //universal data
+        off_t off;
+        int obj_tbl_idx;
+        off_t obj_tbl_off;
+
+        //live data
+        uintptr_t addr;
+        const cm_lst_node * obj_node;
+        const cm_lst_node * area_node;
+        off_t obj_off;
+        off_t area_off;
+
+        // -- [methods]
+        //perform a copy
+        void do_copy(const sc::ptr_chain_node & p_chain_node) noexcept;
+
+    public:
+        // -- [methods]
+        //verify this node
+        /* internal */ [[nodiscard]] int _follow(
+            const mc_vm_map * map,
+            mc_session * sess,
+            uintptr_t & cur_addr) noexcept;
+
+        //update live data
+        /* internal */ [[nodiscard]] int _update_live_data(
+            const mc_vm_map * map,
+            mc_session * sess,
+            uintptr_t & cur_addr) noexcept;
+
+        //ctors & dtor
+        ptr_chain_node(
+            const off_t off,
+            const int obj_tbl_idx,
+            const off_t obj_tbl_off) noexcept;
+        ptr_chain_node(const sc::ptr_chain_node & p_chain_node) noexcept;
+        ptr_chain_node(const sc::ptr_chain_node && p_chain_node) = delete;
+        ~ptr_chain_node() noexcept;
+
+        //operators
+        sc::ptr_chain_node & operator=(
+            const sc::ptr_chain_node & p_chain_node) noexcept;
+        sc::ptr_chain_node & operator=(
+            const sc::ptr_chain_node && p_chain_node) = delete;
+
+        //getters - shallow analysis
+        [[nodiscard]] off_t get_off() const noexcept;
+        [[nodiscard]] int get_obj_tbl_idx() const noexcept;
+
+        //getters - deep analysis
+        [[nodiscard]] uintptr_t get_addr() const noexcept;
+        [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
+        [[nodiscard]] const cm_lst_node * get_area_node() const noexcept;
+        [[nodiscard]] off_t get_obj_off() const noexcept;
+        [[nodiscard]] off_t get_area_off() const noexcept;
+};
+
+
+//a pointer chain
 class ptr_chain : public _ctor_failable {
 
     _SC_DBG_PRIVATE:
         // -- [attributes]
-        //object list index
-        /* internal */ uint32_t _obj_idx;
-
-        //map-related info
-        bool is_in_map;
         bool is_static;
-        union {
-            const cm_lst_node * obj_node; //`is_in_map` == true
-            const char * pathname;        //`is_in_map` == false
-        };
-
-        //offsets
-        cm_vct /* off_t */ offs;
+        cm_vct /* <sc::ptr_chain_node> */ nodes;
 
         // -- [methods]
+        //perform a copy
         void do_copy(const sc::ptr_chain & p_chain) noexcept;
+
+        //resolve the starting address of this chain
+        [[nodiscard]] uintptr_t resolv_start_addr(
+            const mc_vm_map * map,
+            const sc::obj_table & obj_tbl) noexcept;
 
     public:
         // -- [methods]
-        /* internal */ uint32_t _get_obj_idx() const noexcept;
-    
         //ctors & dtor
         ptr_chain(
-            const uint32_t _obj_idx,
-            const bool is_static,
-            const cm_lst_node * /* nullable */ obj_node,
-            const char * /* nullable */ pathname,
-            const cm_vct /* off_t */ & offs) noexcept;
+            const cm_vct /* <off_t> */ & off_vct,
+            const cm_vct /* <int> */ & obj_tbl_idx_vct,
+            const cm_vct /* <off_t> */ & obj_tbl_off_vct,
+            const bool is_static) noexcept;
         ptr_chain(const sc::ptr_chain & p_chain) noexcept;
         ptr_chain(const sc::ptr_chain && p_chain) = delete;
         ~ptr_chain() noexcept;
@@ -575,28 +687,36 @@ class ptr_chain : public _ctor_failable {
         //operators
         sc::ptr_chain & operator=(
             const sc::ptr_chain & p_chain) noexcept;
-        sc::ptr_chain & operator=(
+        sc::ptr_chain_node & operator=(
             const sc::ptr_chain && p_chain) = delete;
 
-        //determine if the starting object was found in the map
-        [[nodiscard]] bool in_map() const noexcept;
+        //follow & verify
+        [[nodiscard]] int verify(
+            const mc_vm_map * map,
+            mc_session * sess,
+            const sc::obj_table & obj_tbl,
+            const uintptr_t tgt_addr) noexcept;
+
+        //follow & populate live data
+        [[nodiscard]] int update_live_data(
+            const mc_vm_map * map,
+            mc_session * sess,
+            const sc::obj_table & obj_tbl) noexcept;
 
         //getters
-        [[nodiscard]] bool get_is_static() const noexcept;
-        [[nodiscard]] const cm_lst_node * get_obj_node() const noexcept;
-        [[nodiscard]] const char * get_pathname() const noexcept;
-        [[nodiscard]] const cm_vct /* off_t */ & get_offs() const noexcept;
+        [[nodiscard]] bool get_static() const noexcept;
+
+        const cm_vct /* <sc::ptr_chain_node> */ &
+            get_nodes() const noexcept;
 };
 
 
+//pointer chain scanner
 class ptrscan : public _scan {
 
     /*
      *  TODO: Record in the savefile the parameters used to produce
      *        the results.
-     *
-     *  TODO: When producing chains, mark whether they begin at an
-     *        area that was marked as static at the time of the scan.
      */
 
     _SC_DBG_PRIVATE:
@@ -605,7 +725,7 @@ class ptrscan : public _scan {
         sc::_ptr_tree tree;
 
         //flattened tree chains
-        cm_vct /* <const char * (alloc)> */ ser_pathnames;
+        sc::obj_table obj_tbl;
         cm_vct /* <ptr_chain> */ chains;
 
         //depth level
@@ -627,13 +747,12 @@ class ptrscan : public _scan {
             sc::worker_pool & w_pool,
             const bool do_block) noexcept;
 
-        [[nodiscard]] uint32_t generate_obj_idx(
-            const cm_lst_node * obj_node) noexcept;
-
         [[nodiscard]] int chain_recurse(
             const mc_vm_map * map,
             const cm_rbt & static_set_tree,
-            cm_vct /* <off_t> */ & chain_stack,
+            cm_vct /* <off_t> */ & off_stack,
+            cm_vct /* <int> */ & obj_tbl_idx_stack,
+            cm_vct /* <off_t> */ & obj_tbl_off_stack,
             const sc::_ptr_tree_node & p_tree_node,
             const uintptr_t tgt_addr) noexcept;
 
@@ -681,11 +800,27 @@ class ptrscan : public _scan {
             const sc::opt & opts,
             const sc::opt_ptrscan & opts_ptr) noexcept;
 
+        // - chain operations
+
         //verify existing chains
         [[nodiscard]] int verify_chains(
             const sc::opt & opts,
-            const sc::opt_ptrscan & opts_ptr) noexcept;
-        
+            const sc::opt_ptrscan & opts_ptr,
+            const uintptr_t tgt_addr) noexcept;
+
+        //update live data in existing chains
+        [[nodiscard]] int update_live_chains(
+            const sc::opt & opts,
+            const sc::opt_ptrscan & opts_ptr,
+            const uintptr_t tgt_addr) noexcept;
+
+        // - exporting data
+
+        /* TODO */
+
+        // - serialisation
+
+        /* TODO */
 };
 
 

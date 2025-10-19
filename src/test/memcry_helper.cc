@@ -21,6 +21,8 @@ void _memcry_helper::setup(_memcry_helper::args & mcry_args,
                            const pid_t pid, const int session_num) {
 
     int ret;
+    void * ret_data;
+    
     mc_session * session;
 
 
@@ -50,8 +52,8 @@ void _memcry_helper::setup(_memcry_helper::args & mcry_args,
         session = (mc_session *) cm_vct_get_p(&mcry_args.sessions, i);
         REQUIRE_NE(session, nullptr);
 
-        ret = cm_vct_apd(&mcry_args.session_ptrs, &session);
-        REQUIRE_EQ(ret, 0);
+        ret_data = cm_vct_apd(&mcry_args.session_ptrs, &session);
+        REQUIRE_NE(ret_data, nullptr);
     }
 
     //initialise a memcry map of the target

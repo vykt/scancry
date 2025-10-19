@@ -1,4 +1,5 @@
 //C standard library
+#include <cstring>
 #include <cerrno>
 
 //external libraries
@@ -6,6 +7,7 @@
 
 //local headers
 #include "scancry.h"
+#include "common.hh"
 #include "error.hh"
 
 
@@ -370,4 +372,260 @@ void sc::_scan::handle_exit(
     _UNLOCK
 
     return;
+}
+
+
+
+/*
+ *  --- [OBJ_TABLE] ---
+ */
+
+//destroy the pathname table
+void sc::obj_table::del_pathname_tbl() noexcept {
+
+    int ret;
+    void * pathname;
+
+
+    if (this->pathname_tbl.is_init == false) return;
+
+    //for all pathnames in the pathname table
+    for (int i = 0; i < this->pathname_tbl.len; ++i) {
+        pathname = *(void **) cm_vct_get_p(&this->pathname_tbl, i);
+        std::free(pathname);
+    }
+
+    //delete the pathname table itself
+    cm_del_vct(&this->pathname_tbl);
+    
+    return;
+}
+
+
+//perform a copy
+void sc::obj_table::do_copy(const sc::obj_table & obj_tbl) noexcept {
+
+    int ret;
+
+    void * pathname;
+    char * new_pathname;
+    size_t len;
+
+
+    //call the parent copy assignment operators
+    _ctor_failable::operator=(obj_tbl);
+
+    //delete old pathnames table if one exists
+    this->del_pathname_tbl();
+
+    //create a new pathname table
+    ret = cm_new_vct(&this->pathname_tbl, sizeof(const char *));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        this->_set_ctor_failed(true);
+        return;
+    }
+
+    //copy the pathname table
+    for (int i = 0; i < obj_tbl.get_pathname_tbl().len; ++i) {
+
+        //get the next path
+        pathname = *(void **) cm_vct_get_p(&this->pathname_tbl, i);
+        len = strnlen((const char *) pathname, PATH_MAX);
+
+        //allocate a new pathname
+        new_pathname = (char *) std::malloc(len + 1);
+
+        //copy the pathname
+        std::strncpy(new_pathname, (const char *) pathname, len);
+
+        //copy the pathname
+        pathname = cm_vct_apd(&this->pathname_tbl, &new_pathname);
+        if (pathname == nullptr) {
+            sc_errno = SC_ERR_CMORE;
+            this->_set_ctor_failed(true);
+            cm_del_vct(&this->pathname_tbl);
+            return;
+        }
+    }
+
+    return;
+}
+
+
+//add a pathname to the pathname table
+[[nodiscard]] int sc::obj_table::do_add(const char * pathname) noexcept {
+
+    void * ret_data;
+
+    char * new_pathname;
+    size_t len;
+
+
+    //get the length of the pathname
+    len = strnlen(pathname, PATH_MAX);
+
+    //allocate a new pathname
+    new_pathname = (char *) std::malloc(len + 1); 
+    if (new_pathname == nullptr) {
+        sc_errno = SC_ERR_MEM;
+        return -1;
+    }
+
+    //copy the pathname
+    std::strncpy(new_pathname, (const char *) pathname, len);
+
+    //append the new pathname to the pathname table
+    ret_data = cm_vct_apd(&this->pathname_tbl, &new_pathname);
+    if (ret_data == nullptr) {
+        sc_errno = SC_ERR_CMORE;
+        std::free(new_pathname);
+        return -1;
+    }
+
+    return (this->pathname_tbl.len - 1);
+}
+
+
+//constructor
+sc::obj_table::obj_table() noexcept
+ : _ctor_failable() {
+
+    //zero-out the pathname table
+    std::memset(&this->pathname_tbl, 0, sizeof(this->pathname_tbl));
+
+    return;
+}
+
+
+//copy constructor
+sc::obj_table::obj_table(const sc::obj_table & obj_table) noexcept
+ : _ctor_failable() {
+
+    this->do_copy(obj_table);
+    return;
+}
+
+
+//destructor
+sc::obj_table::~obj_table() noexcept {
+
+    this->del_pathname_tbl();
+    return;
+}
+
+
+//copy assignment operator
+sc::obj_table & sc::obj_table::operator=(
+    const sc::obj_table & obj_tbl) noexcept {
+
+    if (this != &obj_tbl) this->do_copy(obj_tbl);
+    return *this;
+}
+
+
+//resetter
+void sc::obj_table::reset() noexcept {
+
+    int ret;
+    void * pathname;
+
+
+    if (this->pathname_tbl.is_init == false) return;
+
+    //for all pathnames in the pathname table
+    for (int i = 0; i < this->pathname_tbl.len; ++i) {
+        pathname = *(void **) cm_vct_get_p(&this->pathname_tbl, i);
+        std::free(pathname);
+    }
+
+    //empty the pathname table itself
+    cm_vct_emp(&this->pathname_tbl);
+    
+    return;
+}
+
+
+//resolve a pathname from an index
+[[nodiscard]] const char * sc::obj_table::resolv_pathname(
+    const int idx) const noexcept {
+
+    void ** pathname;
+
+
+    //get pathname at provided index
+    pathname = (void **) cm_vct_get_p(&this->pathname_tbl, idx);
+    if (pathname == nullptr) {
+        sc_errno = SC_ERR_CMORE;
+        return nullptr;
+    }
+
+    return (const char *) *pathname;
+}
+
+
+//resolve an object node from an index
+[[nodiscard]] const cm_lst_node * sc::obj_table::resolv_obj_node(
+    const int idx, const mc_vm_map * map) const noexcept {
+
+    void ** pathname;
+    cm_lst_node * obj_node;
+
+
+    //get pathname at provided index
+    pathname = (void **) cm_vct_get_p(&this->pathname_tbl, idx);
+    if (pathname == nullptr) {
+        sc_errno = SC_ERR_CMORE;
+        return nullptr;
+    }
+
+    //find the corresponding object for this path, if one exists
+    obj_node = mc_get_obj_by_pathname(map, (const char *) *pathname);
+    if (obj_node == nullptr) {
+        sc_errno = SC_ERR_MEMCRY;
+        return nullptr;
+    }
+
+    return obj_node;
+}
+
+
+//add a pathname to the pathname table and return its index
+[[nodiscard]] int
+    sc::obj_table::fadd_pathname(const char * pathname) noexcept {
+
+    return this->do_add(pathname);
+}
+
+
+//return an index for a given pathname, add it to the table if not present
+[[nodiscard]] int
+    sc::obj_table::add_pathname(const char * pathname) noexcept {
+
+    int ret;
+    const char * it_pathname;
+
+
+    //for every pathname in the table
+    for (int i = 0; i < this->pathname_tbl.len; ++i) {
+
+        //get the next pathname
+        it_pathname
+            = *(const char **) cm_vct_get_p(&this->pathname_tbl, i);
+
+        //if its a match, return its index
+        ret = strncmp(pathname, it_pathname, PATH_MAX);
+        if (ret == 0) return i;
+    }
+
+    //add this pathname to the table if it wasn't fouund
+    return this->do_add(pathname);
+}
+
+
+//get a refernece to the pathname table
+[[nodiscard]] const cm_vct /* <const char * (alloc)> */ &
+    sc::obj_table::get_pathname_tbl() const noexcept {
+
+    return pathname_tbl;
 }

@@ -377,6 +377,7 @@ namespace _worker_pool {
             _opt_helper::cc::args *, _opt_helper::c::args *> args) {
 
         int ret;
+        void * ret_data;
         bool match;
 
         mc_vm_map * m = &mcry_args.map;
@@ -414,8 +415,8 @@ namespace _worker_pool {
 
             //if this is a match, add this area to exclusive areas
             if (match == true) {
-                ret = cm_vct_apd(&exclusive_areas, &node);
-                REQUIRE_EQ(ret, 0);
+                ret_data = cm_vct_apd(&exclusive_areas, &node);
+                REQUIRE_NE(ret_data, nullptr);
             }
 
             _populate_pattern_constraints_skip:

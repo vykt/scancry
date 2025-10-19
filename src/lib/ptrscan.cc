@@ -3,12 +3,10 @@
 
 //C standard library
 #include <cstring>
-#include <unistd.h>
-#ifdef SC_TRACE
 #include <cstdio>
-#endif
 
 //system headers
+#include <unistd.h>
 #include <limits.h>
 
 //external libraries
@@ -20,6 +18,7 @@
 #include "scancry.h"
 #include "ptrscan.hh"
 #include "common.hh"
+#include "file.hh"
 #include "error.hh"
 
 
@@ -860,7 +859,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     ret = this->tree.reset();
     if (ret != 0) return -1;
 
-    //delete pathnames vector
+    //reset the object table
     this->obj_tbl.reset();
 
     //free chains
@@ -894,7 +893,8 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 
 
     //get locks & check state
-    ret = this->handle_entry(nullptr, nullptr, sc::_scan_sf::running, 0b0);
+    ret = this->handle_entry(
+                    nullptr, nullptr, sc::_scan_sf::running, 0b0, false);
     if (ret != 0) return -1;
 
     //await for a scan run to conclude
@@ -1314,7 +1314,7 @@ sc::ptrscan::~ptrscan() noexcept {
 
 
     //get locks & check state
-    ret = this->handle_entry(nullptr, nullptr, 0b0, 0b0);
+    ret = this->handle_entry(nullptr, nullptr, 0b0, 0b0, true);
     if (ret != 0) return -1;
 
     //assert a scan is not running
@@ -1345,7 +1345,7 @@ sc::ptrscan::~ptrscan() noexcept {
 
 
     //get locks & check state
-    ret = handle_entry(&opts, &opts_ptr, sc::_scan_sf::running, 0b0);
+    ret = handle_entry(&opts, &opts_ptr, sc::_scan_sf::running, 0b0, true);
     if (ret != 0) return -1;
 
 
@@ -1443,7 +1443,8 @@ sc::ptrscan::~ptrscan() noexcept {
         &opts,
         &opts_ptr,
         sc::_scan_sf::scan_data | sc::_scan_sf::running,
-        sc::_scan_sf::scan_data);
+        sc::_scan_sf::scan_data,
+        true);
     if (ret != 0) return -1;
 
     //assert a map is provided
@@ -1552,7 +1553,8 @@ sc::ptrscan::~ptrscan() noexcept {
         &opts,
         &opts_ptr,
         sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
-        sc::_ptrscan_sf::chains_data);
+        sc::_ptrscan_sf::chains_data,
+        true);
     if (ret != 0) return -1;
 
     //assert a map is provided
@@ -1615,7 +1617,8 @@ sc::ptrscan::~ptrscan() noexcept {
         &opts,
         &opts_ptr,
         sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
-        sc::_ptrscan_sf::chains_data);
+        sc::_ptrscan_sf::chains_data,
+        true);
     if (ret != 0) return -1;
 
     //assert a map is provided
@@ -1653,6 +1656,153 @@ sc::ptrscan::~ptrscan() noexcept {
     //cleanup
     _ptrscan_verify_chains_fail_1:
     this->handle_exit(&opts, &opts_ptr);
+
+    return ret_val;
+}
+
+
+//get references to chains & object table
+_DEFINE_VCT_GETTER(sc::ptrscan, chains);
+_DEFINE_VALUE_REF_GETTER(sc::ptrscan, sc::obj_table, obj_tbl);
+
+
+//export a copy of the chains
+[[nodiscard]] int sc::ptrscan::export_chains(
+    cm_vct /* <sc::ptr_chain> */ & chains) const noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+
+    //get locks & check state
+    ret = this->handle_entry(
+        nullptr,
+        nullptr,
+        sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
+        sc::_ptrscan_sf::chains_data,
+        false);
+    if (ret != 0) return -1;
+
+
+    //copy the chains vector
+    ret = cm_vct_cpy(&chains, &this->chains);
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        goto _ptrscan_export_chains_cleanup;
+    }
+
+    //set return as success
+    ret_val = 0;
+
+    _ptrscan_export_chains_cleanup:
+    this->handle_exit(nullptr, nullptr);
+
+    return ret_val;
+}
+
+
+//export a copy of the object table
+[[nodiscard]] int sc::ptrscan::export_obj_tbl(
+    sc::obj_table & obj_tbl) const noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+
+    //get locks & check state
+    ret = this->handle_entry(
+        nullptr,
+        nullptr,
+        sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
+        sc::_ptrscan_sf::chains_data,
+        false);
+    if (ret != 0) return -1;
+
+
+    //copy the object table
+    obj_tbl = this->obj_tbl;
+    if (obj_tbl.get_ctor_failed() == true) {
+        goto _ptrscan_export_chains_cleanup;
+    }
+
+    //set return as success
+    ret_val = 0;
+
+    _ptrscan_export_chains_cleanup:
+    this->handle_exit(nullptr, nullptr);
+
+    return ret_val;
+}
+
+
+//save a scan
+[[nodiscard]] int sc::ptrscan::serialise(
+    const sc::opt & opts) const noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+    FILE * fs;
+    size_t wr_ents;
+
+    sc::file::ptr_hdr ptr_hdr;
+
+
+    //get locks & check state
+    ret = this->handle_entry(
+        &opts,
+        nullptr,
+        sc::_scan_sf::running | sc::_ptrscan_sf::chains_data,
+        sc::_ptrscan_sf::chains_data,
+        false);
+    if (ret != 0) return -1;
+
+
+    //get the output file
+    const char * const & pathname = opts.get_file_pathname_out();
+    if (pathname == nullptr) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_save_scan_cleanup_0;
+    }
+
+    //open the output file
+    fs = std::fopen(pathname, "w");
+    if (fs == nullptr) {
+        sc_errno = SC_ERR_FILE;
+        goto _ptrscan_save_scan_cleanup_0;
+    }
+
+    //write the file header
+    ret = sc::file::wr_scancry_hdr(fs, sc::file::PTRSCAN_TYPE);
+    if (ret != 0) goto _ptrscan_save_scan_cleanup_1;
+
+    //build the scan header
+    std::memcpy(
+        ptr_hdr.magic, sc::file::ptr_magic, sc::file::scan_magic_sz);
+    ptr_hdr.obj_tbl_num = this->obj_tbl.get_pathname_tbl().len;
+    ptr_hdr.chain_num   = this->chains.len;
+
+    //write the scan header
+    wr_ents = std::fwrite(&ptr_hdr, sizeof(ptr_hdr), 1, fs);
+    if (wr_ents != 1) {
+        sc_errno = SC_ERR_FILE_IO;
+        goto _ptrscan_save_scan_cleanup_1;
+    }
+
+    //write the object table
+    ret = this->obj_tbl.serialise(fs);
+    if (ret != 0) goto _ptrscan_save_scan_cleanup_1;
+
+    /* TODO: Serialise pointer chains. */
+
+    //set return as success
+    ret_val = 0;
+
+    _ptrscan_save_scan_cleanup_1:
+    std::fclose(fs);
+
+    _ptrscan_save_scan_cleanup_0:
+    this->handle_exit(&opts, nullptr);
 
     return ret_val;
 }

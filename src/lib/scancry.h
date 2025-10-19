@@ -551,6 +551,11 @@ class obj_table : public _ctor_failable {
 
     public:
         // -- [methods]
+        /* internal */ [[nodiscard]] int serialise(
+            FILE * fs) const noexcept;
+        /* internal */ [[nodiscard]] int deserialise(
+            FILE * fs, const uint32_t pathname_num) noexcept;
+
         //ctors & dtor
         obj_table() noexcept;
         obj_table(const sc::obj_table & obj_tbl) noexcept;
@@ -579,6 +584,7 @@ class obj_table : public _ctor_failable {
         [[nodiscard]] int add_pathname(const char * pathname) noexcept;
 
         //getters
+        [[nodiscard]] int get_sz() const noexcept;
         [[nodiscard]] const cm_vct /* <const char * (alloc)> */ &
             get_pathname_tbl() const noexcept;
 };
@@ -726,7 +732,7 @@ class ptrscan : public _scan {
 
         //flattened tree chains
         sc::obj_table obj_tbl;
-        cm_vct /* <ptr_chain> */ chains;
+        cm_vct /* <sc::ptr_chain> */ chains;
 
         //depth level
         int depth_lvl;
@@ -755,6 +761,9 @@ class ptrscan : public _scan {
             cm_vct /* <off_t> */ & obj_tbl_off_stack,
             const sc::_ptr_tree_node & p_tree_node,
             const uintptr_t tgt_addr) noexcept;
+
+        [[nodiscard]] int wr_chains(FILE * fs) const noexcept; 
+        [[nodiscard]] int rd_chains(FILE * fs) const noexcept; 
 
     public:
         // -- [methods]
@@ -816,11 +825,24 @@ class ptrscan : public _scan {
 
         // - exporting data
 
-        /* TODO */
+        //get references to chains & object table 
+        const cm_vct /* <sc::ptr_chain> */ & get_chains() const noexcept;
+        const sc::obj_table & get_obj_tbl() const noexcept;
+
+        //export a copy of the chains
+        [[nodiscard]] int export_chains(
+            cm_vct /* <sc::ptr_chain> */ & chains) const noexcept;
+
+        //export a copy of the object table
+        [[nodiscard]] int export_obj_tbl(
+            sc::obj_table & obj_tbl) const noexcept;
 
         // - serialisation
 
-        /* TODO */
+        //save & load pointer chains
+        [[nodiscard]] int serialise(const sc::opt & opts) const noexcept;
+        [[nodiscard]] int deserialise(const sc::opt & opts) const noexcept;
+
 };
 
 

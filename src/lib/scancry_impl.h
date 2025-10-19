@@ -168,7 +168,7 @@ class _stateful {
         //setters & getters
         void _set_bits(const cm_byte bitset) noexcept;
         void _unset_bits(const cm_byte bitset) noexcept;
-        cm_byte _get_bits(const cm_byte bitset) noexcept;      
+        cm_byte _get_bits(const cm_byte bitset) const noexcept;      
 };
 
 
@@ -268,11 +268,12 @@ class _scan
             const sc::opt * opts,
             const sc::_opt_scan * opts_scan,
             const cm_byte query_bitset,
-            const cm_byte assert_bitset) noexcept;
+            const cm_byte assert_bitset,
+            const bool is_write_lock) const noexcept;
 
         void handle_exit(
             const sc::opt * opts,
-            const sc::_opt_scan * opts_scan) noexcept; 
+            const sc::_opt_scan * opts_scan) const noexcept; 
 
     public:
         // -- [methods]

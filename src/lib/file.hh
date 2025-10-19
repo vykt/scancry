@@ -31,15 +31,16 @@ namespace sc {
 //scancry header constants
 namespace file {
 
-    //file magic
+    //file header magic
     const constexpr int file_magic_sz = 0x4;
-    const constexpr cm_byte file_magic[file_magic_sz]
+    const constexpr cm_byte file_magic[sc::file::file_magic_sz]
                                                = {'S', 'C', 0x13, 0x37};
+    //scan header magic
+    const constexpr int scan_magic_sz = 0x4; 
 
     //scancry header
-    struct sc_hdr {
-
-        cm_byte magic[file_magic_sz];
+    struct __attribute__((__packed__)) sc_hdr {
+        cm_byte magic[sc::file::file_magic_sz];
         enum sc::file::ver ver;
         enum sc::file::scan_type type;
     };
@@ -56,9 +57,9 @@ namespace file {
     [[nodiscard]] int rd_scancry_hdr(
         FILE * fs, sc::file::metadata & mdata) noexcept;
 
-} //end namespace `sc`
-
 } //end namespace `file`
+
+} //end namespace `sc`
 
 
 

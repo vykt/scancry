@@ -1,6 +1,10 @@
 //C standard library
 #include <cstring>
+#include <cstdio>
 #include <cerrno>
+
+//system headers
+#include <limits.h>
 
 //external libraries
 #include <pthread.h>
@@ -199,7 +203,7 @@ void sc::_stateful::_unset_bits(const cm_byte bitset) noexcept {
 
 //get bits
 [[nodiscard]] cm_byte
-    sc::_stateful::_get_bits(const cm_byte bitset) noexcept {
+    sc::_stateful::_get_bits(const cm_byte bitset) const noexcept {
     return (this->state_bitset & bitset);
 }
 
@@ -317,14 +321,16 @@ sc::_scan::~_scan() noexcept {}
     const sc::opt * opts,
     const sc::_opt_scan * opts_scan,
     const cm_byte query_bitset,
-    const cm_byte assert_bitset) noexcept {
+    const cm_byte assert_bitset,
+    const bool is_write_lock) const noexcept {
 
     int ret;
     cm_byte state_bitset;
 
 
-    //acquire read locks, if provided
-    _LOCK_READ(-1)
+    //acquire lock
+    if (is_write_lock) { _LOCK_WRITE(-1) }
+    else { _LOCK_READ(-1) }
 
     if (opts != nullptr) {
         ret = opts->_lock_read();
@@ -364,7 +370,7 @@ sc::_scan::~_scan() noexcept {}
 //release locks on exit
 void sc::_scan::handle_exit(
     const sc::opt * opts,
-    const sc::_opt_scan * opts_scan) noexcept {
+    const sc::_opt_scan * opts_scan) const noexcept {
 
     //release read locks
     if (opts_scan != nullptr) opts_scan->_unlock();
@@ -484,6 +490,72 @@ void sc::obj_table::do_copy(const sc::obj_table & obj_tbl) noexcept {
     }
 
     return (this->pathname_tbl.len - 1);
+}
+
+
+//serialise to a file
+[[nodiscard]] int sc::obj_table::serialise(FILE * fs) const noexcept {
+
+    uint32_t str_sz;
+    const char * pathname;
+
+    size_t wr_ents;
+
+
+    //for every string in the pathname table
+    for (int i = 0; i < this->pathname_tbl.len; ++i) {
+
+        //get the next pathname
+        pathname = *(const char **) cm_vct_get_p(&this->pathname_tbl, i);
+
+        //get the length of this string
+        str_sz = (uint32_t) strnlen(pathname, PATH_MAX) + 1;
+
+        //write the length of this string to the file stream
+        wr_ents = std::fwrite(&str_sz, sizeof(str_sz), 1, fs);
+        if (wr_ents != 1) { sc_errno = SC_ERR_FILE_IO; return -1; }
+
+        //write this string to the file stream
+        wr_ents = std::fwrite(pathname, sizeof(char), str_sz, fs);
+        if (wr_ents != str_sz+1) { sc_errno = SC_ERR_FILE_IO; return -1; }
+    }
+
+    return 0;
+}
+
+
+//deserialise from a file
+[[nodiscard]] int sc::obj_table::deserialise(
+    FILE * fs, const uint32_t pathname_num) noexcept {
+
+    int ret;
+
+    uint32_t str_sz;
+    char pathname_buf[PATH_MAX];
+
+    size_t rd_ents;
+
+
+    //empty the existing pathname table
+    this->reset();
+
+    //for every pathname in the file
+    for (uint32_t i = 0; i < pathname_num; ++i) {
+
+        //read the length of the next pathname
+        rd_ents = std::fread(&str_sz, sizeof(str_sz), 1, fs);
+        if (rd_ents != 1) { sc_errno = SC_ERR_FILE_IO; return -1; }
+
+        //read the next pathname
+        rd_ents = std::fread(pathname_buf, sizeof(char), str_sz, fs);
+        if (rd_ents != str_sz) { sc_errno = SC_ERR_FILE_IO; return -1; }
+
+        //insert this pathname into the pathname table
+        ret = this->fadd_pathname(pathname_buf);
+        if (ret != 0) return -1;
+    }
+
+    return 0;
 }
 
 
@@ -620,6 +692,13 @@ void sc::obj_table::reset() noexcept {
 
     //add this pathname to the table if it wasn't fouund
     return this->do_add(pathname);
+}
+
+
+//get the length of the pathname table
+[[nodiscard]] int sc::obj_table::get_sz() const noexcept {
+
+    return this->pathname_tbl.len;
 }
 
 

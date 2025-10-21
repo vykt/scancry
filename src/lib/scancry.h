@@ -514,15 +514,25 @@ namespace file {
     //current version
     const constexpr enum sc::file::ver cur_ver = VER_0_1;
 
-    //metadata struct
+    //file metadata struct
     struct metadata /* parity with sc_file_metadata */ {
         enum sc::file::ver ver;
         enum sc::file::scan_type type;
     };
 
-    //get metadata about a file
+    //pointer scan metadata struct
+    struct ptr_metadata /* parity with sc_file_ptr_metadata */ {
+        int obj_tbl_num;
+        int chain_num;
+    };
+
+    //get file metadata
     [[nodiscard]] int get_metadata(
         const sc::opt & opts, sc::file::metadata & mdata) noexcept;
+
+    //get pointer scan metadata
+    [[nodiscard]] int get_ptr_metadata(
+        const sc::opt & opts, sc::file::ptr_metadata & ptr_mdata) noexcept;
 
 } //end namespace `file`
 
@@ -554,7 +564,7 @@ class obj_table : public _ctor_failable {
         /* internal */ [[nodiscard]] int serialise(
             FILE * fs) const noexcept;
         /* internal */ [[nodiscard]] int deserialise(
-            FILE * fs, const uint32_t pathname_num) noexcept;
+            FILE * fs, const int pathname_num) noexcept;
 
         //ctors & dtor
         obj_table() noexcept;
@@ -651,6 +661,7 @@ class ptr_chain_node {
         //getters - shallow analysis
         [[nodiscard]] off_t get_off() const noexcept;
         [[nodiscard]] int get_obj_tbl_idx() const noexcept;
+        [[nodiscard]] off_t get_obj_tbl_off() const noexcept;
 
         //getters - deep analysis
         [[nodiscard]] uintptr_t get_addr() const noexcept;
@@ -716,7 +727,6 @@ class ptr_chain : public _ctor_failable {
             get_nodes() const noexcept;
 };
 
-
 //pointer chain scanner
 class ptrscan : public _scan {
 
@@ -746,7 +756,6 @@ class ptrscan : public _scan {
             const sc::opt * opts,
             const sc::opt_ptrscan * opts_ptr) noexcept;
 
-
         [[nodiscard]] int do_reset() noexcept;
         
         [[nodiscard]] int do_await_scan(
@@ -763,7 +772,8 @@ class ptrscan : public _scan {
             const uintptr_t tgt_addr) noexcept;
 
         [[nodiscard]] int wr_chains(FILE * fs) const noexcept; 
-        [[nodiscard]] int rd_chains(FILE * fs) const noexcept; 
+        [[nodiscard]] int rd_chains(
+            FILE * fs, const int chain_num) noexcept; 
 
     public:
         // -- [methods]
@@ -841,10 +851,8 @@ class ptrscan : public _scan {
 
         //save & load pointer chains
         [[nodiscard]] int serialise(const sc::opt & opts) const noexcept;
-        [[nodiscard]] int deserialise(const sc::opt & opts) const noexcept;
-
+        [[nodiscard]] int deserialise(const sc::opt & opts) noexcept;
 };
-
 
 }; //end namespace `sc`
 #endif //#ifdef __cplusplus

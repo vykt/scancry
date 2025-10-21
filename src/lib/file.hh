@@ -57,6 +57,13 @@ namespace file {
     [[nodiscard]] int rd_scancry_hdr(
         FILE * fs, sc::file::metadata & mdata) noexcept;
 
+
+    //read a pointer scan header
+    [[nodiscard]] int rd_ptr_hdr(
+        FILE * fs,
+        const sc::file::metadata & mdata,
+        sc::file::ptr_metadata & ptr_mdata) noexcept;
+
 } //end namespace `file`
 
 } //end namespace `sc`

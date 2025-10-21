@@ -163,9 +163,12 @@ sc::ptr_chain_node & sc::ptr_chain_node::operator=(
     return this->off;
 }
 
-[[nodiscard]] int
-    sc::ptr_chain_node::get_obj_tbl_idx() const noexcept {
+[[nodiscard]] int sc::ptr_chain_node::get_obj_tbl_idx() const noexcept {
     return this->obj_tbl_idx;
+}
+
+[[nodiscard]] off_t sc::ptr_chain_node::get_obj_tbl_off() const noexcept {
+    return this->obj_tbl_off;
 }
 
 [[nodiscard]] uintptr_t sc::ptr_chain_node::get_addr() const noexcept {
@@ -868,9 +871,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
         if (p_chain == nullptr) { sc_errno = SC_ERR_CMORE; continue; }
         p_chain->~ptr_chain();
     }
-
-    //free chains vector
-    _CTOR_VCT_DELETE_IF_INIT(this->chains);
+    cm_vct_emp(&this->chains);
 
     //reset the depth level
     this->depth_lvl = 0;
@@ -918,12 +919,6 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     return ret_val;
 }
 
-
-
-/*
- *  FIXME: This entire function does not cleanup properly in case of
- *         error.
- */
 
 //recursively traverse the pointer tree to build chains
 [[nodiscard]] int sc::ptrscan::chain_recurse(
@@ -1045,7 +1040,7 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     } //end else recurse down the tree
 
 
-    //pop offst stack
+    //pop offs stack
     ret = cm_vct_rmv(&off_stack, off_stack.len - 1);
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
 
@@ -1058,6 +1053,205 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
     if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
     
     return 0;
+}
+
+
+//serialise chains to a file
+[[nodiscard]] int sc::ptrscan::wr_chains(FILE * fs) const noexcept {
+
+    int ret;
+
+    uint16_t sync_idx;
+    size_t wr_ents;
+
+    const sc::ptr_chain * chain;
+    const sc::ptr_chain_node * chain_node;
+
+    const cm_vct /* <sc::ptr_chain_node> */ * chain_nodes;
+    sc::file::chain_ent chain_ent;
+    sc::file::chain_node_ent chain_node_ent;
+
+
+    //for every chain
+    sync_idx = 0;
+    for (int i = 0; i < this->chains.len; ++i) {
+
+        //get next chain
+        chain = (const sc::ptr_chain *) cm_vct_get_p(&this->chains, i);
+        chain_nodes = &chain->get_nodes();
+
+        //setup the chain entry
+        chain_ent.sync_idx  = sync_idx;
+        chain_ent.node_num  = chain_nodes->len;
+        chain_ent.is_static = chain->get_static()
+                                  ? sc::file::PTR_CHAIN_STATIC
+                                  : sc::file::PTR_CHAIN_DYNAMIC;
+
+        //record this chain entry
+        wr_ents = std::fwrite(&chain_ent, sizeof(chain_ent), 1, fs);
+        if (wr_ents != 1) { sc_errno = SC_ERR_FILE_IO; return -1; }
+
+        //for every node in the chain
+        for (int j = 0; j < chain_nodes->len; ++j) {
+
+            //get the next chain node
+            chain_node = (const sc::ptr_chain_node *)
+                             cm_vct_get_p(chain_nodes, j);
+
+            //setup the chain node entry
+            chain_node_ent.off = chain_node->get_off();
+            chain_node_ent.obj_tbl_idx = chain_node->get_obj_tbl_idx();
+            chain_node_ent.obj_tbl_off = chain_node->get_obj_tbl_off();
+
+            //record this chain node entry
+            wr_ents = std::fwrite(
+                          &chain_node_ent, sizeof(chain_node_ent), 1, fs);
+            if (wr_ents != 1) { sc_errno = SC_ERR_FILE_IO; return -1; }
+        }
+
+        //advance sync index
+        ++sync_idx;
+    }
+
+    return 0;
+}
+
+
+//deserialise chains from a file
+[[nodiscard]] int sc::ptrscan::rd_chains(
+    FILE * fs, const int chain_num) noexcept {
+
+    int ret;
+    void * ret_data;
+    int ret_val = -1;
+
+    uint16_t sync_idx;
+
+    cm_vct /* <off_t> */ off_vct;
+    cm_vct /* <int> */ obj_tbl_idx_vct;
+    cm_vct /* <off_t> */ obj_tbl_off_vct;
+
+    sc::file::chain_ent chain_ent;
+    sc::file::chain_node_ent chain_node_ent;
+
+    size_t rd_ents;
+
+    cm_byte _placeholder[sizeof(sc::ptr_chain)];
+    sc::ptr_chain * p_chain;
+
+
+    //setup an offset vector
+    ret = cm_new_vct(&off_vct, sizeof(off_t));
+    if (ret != 0) { sc_errno = SC_ERR_CMORE; return -1; }
+
+    //setup an object table index vector
+    ret = cm_new_vct(&obj_tbl_idx_vct, sizeof(int));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        goto _ptrscan_rd_chains_cleanup_0;
+    }
+
+    //setup an object table offset vector
+    ret = cm_new_vct(&obj_tbl_off_vct, sizeof(off_t));
+    if (ret != 0) {
+        sc_errno = SC_ERR_CMORE;
+        goto _ptrscan_rd_chains_cleanup_1;
+    }
+
+
+    //for all chains
+    sync_idx = 0;
+    for (int i = 0; i < chain_num; ++i) {
+
+        //read the next chain entity
+        rd_ents = std::fread(&chain_ent, sizeof(chain_ent), 1, fs);
+        if (rd_ents != 1) {
+            sc_errno = SC_ERR_FILE_IO;
+            goto _ptrscan_rd_chains_cleanup_2;
+        }
+
+        //assert file is in sync
+        if (sync_idx != chain_ent.sync_idx) {
+            sc_errno = SC_ERR_INVALID_FILE;
+            goto _ptrscan_rd_chains_cleanup_2;
+        }
+
+        //for every chain node
+        for (uint32_t j = 0; j < chain_ent.node_num; ++j) {
+
+            //read the next chain node entity
+            rd_ents = std::fread(
+                          &chain_node_ent, sizeof(chain_node_ent), 1, fs);
+            if (rd_ents != 0) {
+                sc_errno = SC_ERR_FILE_IO;
+                goto _ptrscan_rd_chains_cleanup_2;
+            }
+
+            //append to the offset vector
+            ret_data = cm_vct_apd(&off_vct, &chain_node_ent.off);
+            if (ret_data == nullptr) {
+                sc_errno = SC_ERR_CMORE;
+                goto _ptrscan_rd_chains_cleanup_2;
+            }
+
+            //append to the object table index vector
+            ret_data = cm_vct_apd(
+                           &obj_tbl_idx_vct, &chain_node_ent.obj_tbl_idx);
+            if (ret_data == nullptr) {
+                sc_errno = SC_ERR_CMORE;
+                goto _ptrscan_rd_chains_cleanup_2;
+            }
+
+            //append to the object table offset vector
+            ret_data = cm_vct_apd(
+                           &obj_tbl_off_vct, &chain_node_ent.obj_tbl_off);
+            if (ret_data == nullptr) {
+                sc_errno = SC_ERR_CMORE;
+                goto _ptrscan_rd_chains_cleanup_2;
+            }
+
+        } //end for every chain nodes
+
+        
+        //allocate space for a new chain
+        p_chain = (sc::ptr_chain *)
+                      cm_vct_apd(&this->chains, _placeholder);
+        if (ret_data == nullptr) {
+            sc_errno = SC_ERR_CMORE;
+            goto _ptrscan_rd_chains_cleanup_2;
+        }
+        
+        //construct a new pointer chain
+        new (p_chain) sc::ptr_chain(
+            off_vct,
+            obj_tbl_idx_vct,
+            obj_tbl_off_vct,
+            chain_ent.is_static
+                == sc::file::PTR_CHAIN_STATIC ? true : false);
+        if (p_chain->get_ctor_failed() == true) {
+            goto _ptrscan_rd_chains_cleanup_2;
+        }
+
+        //reset vectors
+        cm_vct_emp(&off_vct);
+        cm_vct_emp(&obj_tbl_idx_vct);
+        cm_vct_emp(&obj_tbl_off_vct);
+    }
+
+
+    //set return value to success
+    ret_val = 0;
+
+    _ptrscan_rd_chains_cleanup_2:
+    cm_del_vct(&off_vct);
+    
+    _ptrscan_rd_chains_cleanup_1:
+    cm_del_vct(&obj_tbl_idx_vct);
+
+    _ptrscan_rd_chains_cleanup_0:
+    cm_del_vct(&obj_tbl_off_vct);
+
+    return ret_val;
 }
 
 
@@ -1756,8 +1950,7 @@ _DEFINE_VALUE_REF_GETTER(sc::ptrscan, sc::obj_table, obj_tbl);
         sc::_ptrscan_sf::chains_data,
         false);
     if (ret != 0) return -1;
-
-
+    
     //get the output file
     const char * const & pathname = opts.get_file_pathname_out();
     if (pathname == nullptr) {
@@ -1793,15 +1986,95 @@ _DEFINE_VALUE_REF_GETTER(sc::ptrscan, sc::obj_table, obj_tbl);
     ret = this->obj_tbl.serialise(fs);
     if (ret != 0) goto _ptrscan_save_scan_cleanup_1;
 
-    /* TODO: Serialise pointer chains. */
+    //serialise chains
+    ret = this->wr_chains(fs);
+    if (ret != 0) goto _ptrscan_save_scan_cleanup_1;
 
     //set return as success
     ret_val = 0;
+
 
     _ptrscan_save_scan_cleanup_1:
     std::fclose(fs);
 
     _ptrscan_save_scan_cleanup_0:
+    this->handle_exit(&opts, nullptr);
+
+    return ret_val;
+}
+
+
+//load a scan
+[[nodiscard]] int sc::ptrscan::deserialise(const sc::opt & opts) noexcept {
+
+    int ret;
+    int ret_val = -1;
+
+    FILE * fs;
+    size_t rd_ents;
+
+    sc::ptr_chain * p_chain;
+
+    sc::file::metadata mdata;
+    sc::file::ptr_metadata ptr_mdata;
+
+
+    //get locks & check state
+    ret = this->handle_entry(
+        &opts,
+        nullptr,
+        sc::_scan_sf::running,
+        0b0,
+        false);
+    if (ret != 0) return -1;
+
+    //free chains
+    for (int i = 0; i < this->chains.len; ++i) {
+        p_chain = (sc::ptr_chain *) cm_vct_get_p(&this->chains, i);
+        if (p_chain == nullptr) { sc_errno = SC_ERR_CMORE; continue; }
+        p_chain->~ptr_chain();
+    }
+    cm_vct_emp(&this->chains);
+
+    //get the input file
+    const char * const & pathname = opts.get_file_pathname_in();
+    if (pathname == nullptr) {
+        sc_errno = SC_ERR_OPT_MISSING;
+        goto _ptrscan_load_scan_cleanup_0;
+    }
+
+    //open the output file
+    fs = std::fopen(pathname, "r");
+    if (fs == nullptr) {
+        sc_errno = SC_ERR_FILE;
+        goto _ptrscan_load_scan_cleanup_0;
+    }
+
+    //read the file header
+    ret = sc::file::rd_scancry_hdr(fs, mdata);
+    if (ret != 0) goto _ptrscan_load_scan_cleanup_1;
+
+    //read the ptr header
+    ret = sc::file::rd_ptr_hdr(fs, mdata, ptr_mdata);
+    if (ret != 0) goto _ptrscan_load_scan_cleanup_1;
+
+
+    //read the object table
+    ret = this->obj_tbl.deserialise(fs, ptr_mdata.obj_tbl_num);
+    if (ret != 0) goto _ptrscan_load_scan_cleanup_1;
+
+    //read the pointer chains
+    ret = this->rd_chains(fs, ptr_mdata.chain_num);
+    if (ret != 0) goto _ptrscan_load_scan_cleanup_1;
+
+    //set return as success
+    ret_val = 0;
+
+    
+    _ptrscan_load_scan_cleanup_1:
+    std::fclose(fs);
+
+    _ptrscan_load_scan_cleanup_0:
     this->handle_exit(&opts, nullptr);
 
     return ret_val;

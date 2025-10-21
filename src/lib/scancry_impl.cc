@@ -526,7 +526,7 @@ void sc::obj_table::do_copy(const sc::obj_table & obj_tbl) noexcept {
 
 //deserialise from a file
 [[nodiscard]] int sc::obj_table::deserialise(
-    FILE * fs, const uint32_t pathname_num) noexcept {
+    FILE * fs, const int pathname_num) noexcept {
 
     int ret;
 
@@ -540,7 +540,7 @@ void sc::obj_table::do_copy(const sc::obj_table & obj_tbl) noexcept {
     this->reset();
 
     //for every pathname in the file
-    for (uint32_t i = 0; i < pathname_num; ++i) {
+    for (int i = 0; i < pathname_num; ++i) {
 
         //read the length of the next pathname
         rd_ents = std::fread(&str_sz, sizeof(str_sz), 1, fs);

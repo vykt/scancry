@@ -470,8 +470,8 @@ class worker_pool
 
         //perform a single pass over the scan set
         /* internal */ [[nodiscard]] int _dispatch_run() noexcept;
-        /* internal */ [[nodiscard]] int
-            _await_run(const bool do_block) noexcept;
+        /* internal */ [[nodiscard]] int _await_run(
+            const bool do_block) noexcept;
         /* internal */ void _cancel() noexcept;
 
         //ctor & dtor

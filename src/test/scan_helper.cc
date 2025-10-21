@@ -33,7 +33,7 @@ const constexpr useconds_t _process_addr_delay = 200;
     _scan_helper::_fixture_scan::_process_addr(
                                 const struct sc::_scan_arg & arg,
                                 const sc::opt & opts,
-                                const sc::_opt_scan & opts_scan) {
+                                const sc::_opt_scan & opts_scan) noexcept {
 
     //crash all workers if requested
     if (this->do_crash_all) return -1;

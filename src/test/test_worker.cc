@@ -531,7 +531,7 @@ namespace _worker_pool {
 
 
         //start a run
-        ret = w_pool._dispatch_run(true);
+        ret = w_pool._dispatch_run();
         REQUIRE_EQ(ret, 0);
 
         //await for worker threads to initialise

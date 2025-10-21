@@ -180,8 +180,6 @@
     FILE * fs;
     const char * pathname;
 
-    size_t rd_ents;
-    sc::file::ptr_hdr ptr_hdr;
     sc::file::metadata mdata;
 
 

@@ -21,7 +21,7 @@ LDFLAGS=${_LDFLAGS}
 
 #SOURCES_LIB=error.cc c_iface.cc lockable.cc opt.cc map_area_set.cc fbuf_util.cc ptrscan.cc serialiser.cc worker.cc
 SOURCES_LIB=debug.cc error.cc common.cc map_area.cc opt.cc worker.cc \
-            file.cc scancry_impl.cc
+            file.cc ptrscan.cc scancry_impl.cc
 OBJECTS_LIB=${SOURCES_LIB:%.cc=${BUILD_DIR}/%.o}
 
 SHARED=libscry.so

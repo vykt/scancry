@@ -61,7 +61,7 @@ class _fixture_scan : public sc::_scan {
             _process_addr(
                 const struct sc::_scan_arg & arg,
                 const sc::opt & opts,
-                const sc::_opt_scan & opts_fxt);
+                const sc::_opt_scan & opts_fxt) noexcept override final;
 
         //ctor & dtor
         _fixture_scan() noexcept;

@@ -225,8 +225,6 @@ void sc::ptr_chain::do_copy(
 
     sc::ptr_chain_node * node;
 
-    int ser_obj_pathname_idx;
-    const char * obj_pathname;
     const cm_lst_node * obj_node;
     mc_vm_obj * obj;
 
@@ -410,7 +408,8 @@ sc::ptr_chain::ptr_chain(
 
 //copy constructor
 sc::ptr_chain::ptr_chain(
-    const sc::ptr_chain & p_chain) noexcept {
+    const sc::ptr_chain & p_chain) noexcept
+ : _ctor_failable() {
 
     this->do_copy(p_chain);
     return;
@@ -783,7 +782,6 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 [[nodiscard]] int sc::_ptr_tree::add_to_lvl(
     const int lvl, const sc::_ptr_tree_node * p_tree_node) noexcept {
 
-    int ret;
     void * ret_data;
     cm_vct * lvl_vct;
 
@@ -1058,8 +1056,6 @@ sc::_ptr_tree::~_ptr_tree() noexcept {
 
 //serialise chains to a file
 [[nodiscard]] int sc::ptrscan::wr_chains(FILE * fs) const noexcept {
-
-    int ret;
 
     uint16_t sync_idx;
     size_t wr_ents;
@@ -1483,9 +1479,6 @@ sc::ptrscan::ptrscan() noexcept
 //destructor
 sc::ptrscan::~ptrscan() noexcept {
 
-    int ret_val = 0;
-
-    const char * pathname;
     sc::ptr_chain * p_chain;
 
 
@@ -2011,7 +2004,6 @@ _DEFINE_VALUE_REF_GETTER(sc::ptrscan, sc::obj_table, obj_tbl);
     int ret_val = -1;
 
     FILE * fs;
-    size_t rd_ents;
 
     sc::ptr_chain * p_chain;
 

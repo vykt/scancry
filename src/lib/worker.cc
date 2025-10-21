@@ -382,7 +382,6 @@ void sc::_worker_concurrency::wp_fix_release() noexcept {
 [[nodiscard]] int
     sc::_worker_concurrency::wp_wkr_kill(const int uid) noexcept {
 
-    int ret;
     void * ret_data;
     int fn_ret = 0;
     
@@ -995,9 +994,6 @@ sc::_worker_bundle::~_worker_bundle() noexcept {
 
 //signal a single run
 [[nodiscard]] int sc::worker_pool::do_run() noexcept {
-
-    int ret;
-
 
     //assert that the worker pool isn't currently running
     if (this->_get_bits(sc::_worker_pool_sf::running) > 0) {

@@ -57,7 +57,7 @@ namespace _class_helper {
         for (int i = 0; i < elem_count; ++i) {
 
             ret_data = cm_vct_apd(&vct, (const void *) &elem_arr[i]);
-            REQUIRE_NE(ret, nullptr);
+            REQUIRE_NE(ret_data, nullptr);
         }
 
         return;

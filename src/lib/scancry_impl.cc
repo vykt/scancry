@@ -389,7 +389,6 @@ void sc::_scan::handle_exit(
 //destroy the pathname table
 void sc::obj_table::del_pathname_tbl() noexcept {
 
-    int ret;
     void * pathname;
 
 
@@ -599,7 +598,6 @@ sc::obj_table & sc::obj_table::operator=(
 //resetter
 void sc::obj_table::reset() noexcept {
 
-    int ret;
     void * pathname;
 
 
